@@ -2,28 +2,93 @@ class SoundManager {
     constructor() {
         this.bgMusic = document.getElementById('bgMusic');
         this.sounds = new Map();
+        this.musicPatterns = new Map();
         this.currentMusic = '';
+        this.audioCtx = null;
+        this.musicInterval = null;
     }
 
-    generateSound(frequency, duration, type = 'sine') {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    initAudioContext() {
+        if (!this.audioCtx) {
+            this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return this.audioCtx;
+    }
+
+    generateSound(frequency, duration, type = 'square', volume = 0.3) {
+        const audioCtx = this.initAudioContext();
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
 
         oscillator.type = type;
         oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+
         oscillator.connect(gainNode);
         gainNode.connect(audioCtx.destination);
 
         oscillator.start();
         oscillator.stop(audioCtx.currentTime + duration);
+        
+        return { oscillator, gainNode };
     }
 
+    // Create a melody that plays as background music
     playMusic(key) {
         if (this.currentMusic === key) return;
+        this.stopMusic();
         this.currentMusic = key;
-        // Generate a simple background music tone
-        this.generateSound(440, 2, 'square');
+        
+        const audioCtx = this.initAudioContext();
+        let noteIndex = 0;
+        
+        // Define different music patterns
+        const patterns = {
+            'station_theme': [
+                { note: 220, duration: 0.2 },
+                { note: 277.18, duration: 0.2 },
+                { note: 329.63, duration: 0.3 },
+                { note: 220, duration: 0.2 },
+                { note: 277.18, duration: 0.2 },
+                { note: 329.63, duration: 0.3 },
+                { note: 440, duration: 0.4 },
+                { note: 329.63, duration: 0.4 }
+            ],
+            'downtown_theme': [
+                { note: 196, duration: 0.3 },
+                { note: 220, duration: 0.3 },
+                { note: 246.94, duration: 0.3 },
+                { note: 261.63, duration: 0.5 },
+                { note: 246.94, duration: 0.3 },
+                { note: 220, duration: 0.3 },
+                { note: 196, duration: 0.5 }
+            ],
+            'park_theme': [
+                { note: 392, duration: 0.2 },
+                { note: 440, duration: 0.2 },
+                { note: 493.88, duration: 0.4 },
+                { note: 392, duration: 0.2 },
+                { note: 440, duration: 0.2 },
+                { note: 329.63, duration: 0.4 }
+            ],
+            'case_start': [
+                { note: 523.25, duration: 0.2 },
+                { note: 587.33, duration: 0.2 },
+                { note: 659.25, duration: 0.3 },
+                { note: 698.46, duration: 0.4 },
+                { note: 783.99, duration: 0.6 }
+            ]
+        };
+        
+        // Play pattern in loop
+        if (patterns[key]) {
+            this.musicInterval = setInterval(() => {
+                const note = patterns[key][noteIndex];
+                this.generateSound(note.note, note.duration, 'square', 0.1);
+                noteIndex = (noteIndex + 1) % patterns[key].length;
+            }, 500);
+        }
     }
 
     playSound(key) {
@@ -38,8 +103,10 @@ class SoundManager {
     }
 
     stopMusic() {
-        this.bgMusic.pause();
-        this.bgMusic.currentTime = 0;
+        if (this.musicInterval) {
+            clearInterval(this.musicInterval);
+            this.musicInterval = null;
+        }
         this.currentMusic = '';
     }
 }
@@ -49,3 +116,6 @@ const soundManager = new SoundManager();
 // Load sounds
 soundManager.loadSound('click', 880, 0.1, 'square');
 soundManager.loadSound('pickup', 660, 0.2, 'triangle');
+soundManager.loadSound('error', 220, 0.3, 'sawtooth');
+soundManager.loadSound('evidence', 440, 0.5, 'triangle');
+soundManager.loadSound('success', 880, 0.1, 'sine');
