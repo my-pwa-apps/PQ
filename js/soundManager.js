@@ -5,24 +5,36 @@ class SoundManager {
         this.currentMusic = '';
     }
 
-    async loadSound(key, url) {
-        const audio = new Audio(url);
-        this.sounds.set(key, audio);
+    generateSound(frequency, duration, type = 'sine') {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + duration);
     }
 
     playMusic(key) {
         if (this.currentMusic === key) return;
         this.currentMusic = key;
-        this.bgMusic.src = `assets/audio/${key}.mp3`;
-        this.bgMusic.play();
+        // Generate a simple background music tone
+        this.generateSound(440, 2, 'square');
     }
 
     playSound(key) {
         const sound = this.sounds.get(key);
         if (sound) {
-            sound.currentTime = 0;
-            sound.play();
+            sound();
         }
+    }
+
+    loadSound(key, frequency, duration, type) {
+        this.sounds.set(key, () => this.generateSound(frequency, duration, type));
     }
 
     stopMusic() {
@@ -33,3 +45,7 @@ class SoundManager {
 }
 
 const soundManager = new SoundManager();
+
+// Load sounds
+soundManager.loadSound('click', 880, 0.1, 'square');
+soundManager.loadSound('pickup', 660, 0.2, 'triangle');
