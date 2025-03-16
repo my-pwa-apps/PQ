@@ -6,6 +6,7 @@ class GameEngine {
         this.activeCommand = null;
         this.currentScene = null;
         this.bgMusic = document.getElementById('bgMusic');
+        this.dialogBox = document.getElementById('dialog-box');
         this.setupCanvas();
     }
 
@@ -17,8 +18,8 @@ class GameEngine {
 
     init() {
         this.setupEventListeners();
-        soundManager.loadSound('click', 'assets/audio/click.mp3');
-        soundManager.loadSound('pickup', 'assets/audio/pickup.mp3');
+        soundManager.loadSound('click', 880, 0.1, 'square');
+        soundManager.loadSound('pickup', 660, 0.2, 'triangle');
         this.loadScene('policeStation');
         document.body.addEventListener('click', () => {
             if (this.bgMusic.paused) {

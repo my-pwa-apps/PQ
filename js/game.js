@@ -1,7 +1,7 @@
 const GAME_DATA = {
     scenes: {
         policeStation: {
-            background: 'assets/scenes/station.png',
+            background: '', // Background is drawn by code
             music: 'station_theme',
             hotspots: [
                 {
@@ -31,7 +31,7 @@ const GAME_DATA = {
             ]
         },
         downtown: {
-            background: 'assets/scenes/downtown.png',
+            background: '', // Background is drawn by code
             music: 'downtown_theme',
             hotspots: [
                 {
@@ -61,7 +61,7 @@ const GAME_DATA = {
             ]
         },
         park: {
-            background: 'assets/scenes/park.png',
+            background: '', // Background is drawn by code
             music: 'park_theme',
             hotspots: [
                 {
