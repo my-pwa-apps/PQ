@@ -356,8 +356,14 @@ class Game {
     }
 }
 
-// Create game instance and attempt to load saved game
-const game = new Game();
+// Create game instance correctly
+const game = new Game(); // Just define it first, but don't initialize with engine yet
+
+// Wait for engine to be created and window to load before connecting objects
+window.addEventListener('load', () => {
+    // Connect game and engine after both are created
+    game.engine = engine;
+});
 
 // Add load/save keyboard shortcuts
 document.addEventListener('keydown', (e) => {
