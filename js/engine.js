@@ -10,6 +10,7 @@ class GameEngine {
         this.caseInfoPanel = document.getElementById('case-info');
         this.inventoryPanel = document.getElementById('inventory-panel');
         this.setupCanvas();
+        this.keyboardEnabled = true;
     }
 
     setupCanvas() {
@@ -56,6 +57,26 @@ class GameEngine {
             const x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
             const y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
             this.handleInteraction(x, y);
+        });
+
+        // Add keyboard event listeners for arrow keys
+        document.addEventListener('keydown', (e) => {
+            if (!this.keyboardEnabled) return;
+            
+            switch(e.key) {
+                case 'ArrowUp':
+                    this.handleMovement('up');
+                    break;
+                case 'ArrowDown':
+                    this.handleMovement('down');
+                    break;
+                case 'ArrowLeft':
+                    this.handleMovement('left');
+                    break;
+                case 'ArrowRight':
+                    this.handleMovement('right');
+                    break;
+            }
         });
     }
 
@@ -104,6 +125,51 @@ class GameEngine {
                         break;
                 }
             }
+        }
+    }
+
+    handleMovement(direction) {
+        // Map each location to possible destinations in each direction
+        const navigationMap = {
+            'policeStation': {
+                'down': 'downtown',
+                'right': 'downtown'
+            },
+            'downtown': {
+                'up': 'policeStation',
+                'down': 'park',
+                'left': 'policeStation',
+                'right': 'park'
+            },
+            'park': {
+                'up': 'downtown',
+                'left': 'downtown'
+            }
+        };
+
+        const currentLocation = game.gameState.currentLocation;
+        const possibleDestinations = navigationMap[currentLocation];
+        
+        if (possibleDestinations && possibleDestinations[direction]) {
+            const newLocation = possibleDestinations[direction];
+            soundManager.playSound('click');
+            
+            // Show appropriate message for the transition
+            let message = "";
+            switch(newLocation) {
+                case 'policeStation':
+                    message = "You return to the police station.";
+                    break;
+                case 'downtown':
+                    message = "You head downtown to investigate.";
+                    break;
+                case 'park':
+                    message = "You go to the city park to follow up on a lead.";
+                    break;
+            }
+            
+            this.showDialog(message);
+            game.changeLocation(newLocation);
         }
     }
 
@@ -180,6 +246,10 @@ class GameEngine {
         this.ctx.fillRect(350, 430, 100, 20);
         this.ctx.fillStyle = colors.white;
         this.ctx.fillText('EXIT', 385, 445);
+        
+        // Arrow indicators for keyboard navigation
+        this.drawArrowIndicator('right', 'Downtown');
+        this.drawArrowIndicator('down', 'Downtown');
     }
 
     drawDowntown() {
@@ -252,6 +322,12 @@ class GameEngine {
         this.ctx.fillRect(350, 430, 100, 20);
         this.ctx.fillStyle = colors.white;
         this.ctx.fillText('TO PARK', 370, 445);
+        
+        // Arrow indicators for keyboard navigation
+        this.drawArrowIndicator('up', 'Station');
+        this.drawArrowIndicator('right', 'Park');
+        this.drawArrowIndicator('left', 'Station');
+        this.drawArrowIndicator('down', 'Park');
     }
 
     drawPark() {
@@ -322,6 +398,10 @@ class GameEngine {
         this.ctx.fillRect(350, 430, 100, 20);
         this.ctx.fillStyle = colors.white;
         this.ctx.fillText('TO STATION', 355, 445);
+        
+        // Arrow indicators for keyboard navigation
+        this.drawArrowIndicator('up', 'Downtown');
+        this.drawArrowIndicator('left', 'Downtown');
     }
 
     drawPixelCharacter(x, y, uniformColor, badgeColor) {
@@ -346,6 +426,81 @@ class GameEngine {
         this.ctx.fillStyle = '#000000';
         this.ctx.fillRect(x, y, 10, 20);
         this.ctx.fillRect(x + 10, y, 10, 20);
+    }
+
+    drawArrowIndicator(direction, destination) {
+        const colors = {
+            arrow: '#FFFF55', // Yellow
+            text: '#FFFFFF'   // White
+        };
+        
+        this.ctx.fillStyle = colors.arrow;
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.lineWidth = 1;
+        
+        let x, y, arrowPath;
+        
+        switch(direction) {
+            case 'up':
+                x = this.canvas.width / 2;
+                y = 25;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, y);
+                this.ctx.lineTo(x - 10, y + 15);
+                this.ctx.lineTo(x + 10, y + 15);
+                this.ctx.closePath();
+                break;
+            case 'down':
+                x = this.canvas.width / 2;
+                y = this.canvas.height - 25;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, y);
+                this.ctx.lineTo(x - 10, y - 15);
+                this.ctx.lineTo(x + 10, y - 15);
+                this.ctx.closePath();
+                break;
+            case 'left':
+                x = 25;
+                y = this.canvas.height / 2;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, y);
+                this.ctx.lineTo(x + 15, y - 10);
+                this.ctx.lineTo(x + 15, y + 10);
+                this.ctx.closePath();
+                break;
+            case 'right':
+                x = this.canvas.width - 25;
+                y = this.canvas.height / 2;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, y);
+                this.ctx.lineTo(x - 15, y - 10);
+                this.ctx.lineTo(x - 15, y + 10);
+                this.ctx.closePath();
+                break;
+        }
+        
+        this.ctx.fill();
+        this.ctx.stroke();
+        
+        // Add destination text
+        this.ctx.fillStyle = colors.text;
+        this.ctx.font = '12px monospace';
+        this.ctx.textAlign = 'center';
+        
+        switch(direction) {
+            case 'up':
+                this.ctx.fillText(destination, x, y - 5);
+                break;
+            case 'down':
+                this.ctx.fillText(destination, x, y + 25);
+                break;
+            case 'left':
+                this.ctx.fillText(destination, x + 20, y - 15);
+                break;
+            case 'right':
+                this.ctx.fillText(destination, x - 20, y - 15);
+                break;
+        }
     }
 
     loadScene(sceneId) {
