@@ -51,15 +51,47 @@ class GameEngine {
         }
     }
 
+    drawPoliceStation() {
+        this.ctx.fillStyle = '#000080'; // Dark blue background
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle = '#FFFFFF'; // White desk
+        this.ctx.fillRect(100, 200, 80, 60);
+        this.ctx.fillStyle = '#808080'; // Gray evidence locker
+        this.ctx.fillRect(300, 150, 50, 100);
+    }
+
+    drawDowntown() {
+        this.ctx.fillStyle = '#404040'; // Dark gray background
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle = '#000000'; // Black alley
+        this.ctx.fillRect(200, 300, 100, 150);
+        this.ctx.fillStyle = '#A52A2A'; // Brown shop
+        this.ctx.fillRect(400, 200, 80, 100);
+    }
+
+    drawPark() {
+        this.ctx.fillStyle = '#008000'; // Green background
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle = '#654321'; // Brown bench
+        this.ctx.fillRect(150, 250, 100, 50);
+        this.ctx.fillStyle = '#00FFFF'; // Cyan fountain
+        this.ctx.fillRect(350, 150, 120, 100);
+    }
+
     loadScene(sceneId) {
-        const scene = GAME_DATA.scenes[sceneId];
-        const img = new Image();
-        img.src = scene.background;
-        img.onload = () => {
-            this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
-        };
-        soundManager.playMusic(scene.music);
-        this.currentScene = scene;
+        this.currentScene = GAME_DATA.scenes[sceneId];
+        switch (sceneId) {
+            case 'policeStation':
+                this.drawPoliceStation();
+                break;
+            case 'downtown':
+                this.drawDowntown();
+                break;
+            case 'park':
+                this.drawPark();
+                break;
+        }
+        soundManager.playMusic(this.currentScene.music);
     }
 
     checkCollision(x, y) {
