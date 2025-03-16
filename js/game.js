@@ -224,10 +224,19 @@ class Game {
             reputation: 0,
             inventory: []
         };
+        // Performance optimization - cache frequently used data
+        this.caseCache = new Map();
     }
 
     startCase(caseId) {
-        this.currentCase = GAME_DATA.cases[caseId];
+        // Check cache first
+        if (this.caseCache.has(caseId)) {
+            this.currentCase = this.caseCache.get(caseId);
+        } else {
+            // Create a deep copy to prevent modifying the original data
+            this.currentCase = JSON.parse(JSON.stringify(GAME_DATA.cases[caseId]));
+            this.caseCache.set(caseId, this.currentCase);
+        }
         soundManager.playMusic('case_start');
         return this.currentCase;
     }
@@ -238,6 +247,8 @@ class Game {
         if (!this.currentCase.evidence.includes(evidenceId)) {
             this.currentCase.evidence.push(evidenceId);
             soundManager.playSound('evidence');
+            // Save game state after collecting evidence
+            this.saveGame();
             return true;
         }
         return false;
@@ -251,6 +262,8 @@ class Game {
             stage.completed = true;
             this.gameState.reputation += 10;
             soundManager.playSound('success');
+            // Save game state after completing a stage
+            this.saveGame();
             return true;
         }
         return false;
@@ -262,6 +275,8 @@ class Game {
         const allStagesCompleted = this.currentCase.stages.every(stage => stage.completed);
         if (allStagesCompleted) {
             this.gameState.solvedCases++;
+            // Save game after solving a case
+            this.saveGame();
             return true;
         }
         return false;
@@ -270,15 +285,106 @@ class Game {
     changeLocation(sceneId) {
         this.gameState.currentLocation = sceneId;
         this.engine.loadScene(sceneId);
+        // Save game state after location change
+        this.saveGame();
     }
 
     addToInventory(itemId) {
         if (!this.gameState.inventory.includes(itemId)) {
             this.gameState.inventory.push(itemId);
+            // Save game state after inventory update
+            this.saveGame();
             return true;
         }
         return false;
     }
+
+    // Save game state to localStorage
+    saveGame() {
+        try {
+            const saveData = {
+                gameState: this.gameState,
+                currentCase: this.currentCase,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem('digitalPrecinctSave', JSON.stringify(saveData));
+            console.log("Game saved:", new Date().toLocaleTimeString());
+        } catch (e) {
+            console.error("Failed to save game:", e);
+        }
+    }
+
+    // Load game state from localStorage
+    loadGame() {
+        try {
+            const saveData = JSON.parse(localStorage.getItem('digitalPrecinctSave'));
+            if (saveData) {
+                this.gameState = saveData.gameState;
+                this.currentCase = saveData.currentCase;
+                if (this.engine) {
+                    this.engine.loadScene(this.gameState.currentLocation);
+                    this.engine.updateInventoryUI();
+                    this.engine.updateCaseInfo();
+                    this.engine.showDialog("Game loaded from previous session.");
+                }
+                return true;
+            }
+        } catch (e) {
+            console.error("Failed to load game:", e);
+        }
+        return false;
+    }
+
+    // Reset game to initial state
+    resetGame() {
+        this.gameState = {
+            currentLocation: 'policeStation',
+            solvedCases: 0,
+            reputation: 0,
+            inventory: []
+        };
+        this.currentCase = null;
+        this.caseCache.clear();
+        localStorage.removeItem('digitalPrecinctSave');
+        if (this.engine) {
+            this.engine.loadScene('policeStation');
+            this.engine.updateInventoryUI();
+            this.engine.showDialog("Starting a new game.");
+            this.startCase('case1');
+            this.engine.updateCaseInfo();
+        }
+    }
 }
 
-const game = new Game(engine);
+// Create game instance and attempt to load saved game
+const game = new Game();
+
+// Add load/save keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    // Ctrl+S to save game
+    if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        game.saveGame();
+        if (engine && engine.showDialog) {
+            engine.showDialog("Game saved successfully!");
+        }
+    }
+    
+    // Ctrl+L to load game
+    if (e.ctrlKey && e.key === 'l') {
+        e.preventDefault();
+        if (game.loadGame()) {
+            if (engine && engine.showDialog) {
+                engine.showDialog("Game loaded successfully!");
+            }
+        }
+    }
+    
+    // Ctrl+N for new game
+    if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        if (confirm("Start a new game? All progress will be lost.")) {
+            game.resetGame();
+        }
+    }
+});

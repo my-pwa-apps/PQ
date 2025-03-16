@@ -6,6 +6,7 @@ class SoundManager {
         this.currentMusic = '';
         this.audioCtx = null;
         this.musicInterval = null;
+        this.activeOscillators = [];
     }
 
     initAudioContext() {
@@ -30,6 +31,17 @@ class SoundManager {
 
         oscillator.start();
         oscillator.stop(audioCtx.currentTime + duration);
+        
+        // Track active oscillators for cleanup
+        this.activeOscillators.push({ oscillator, gainNode });
+        
+        // Remove from tracking once completed
+        setTimeout(() => {
+            const index = this.activeOscillators.findIndex(item => item.oscillator === oscillator);
+            if (index !== -1) this.activeOscillators.splice(index, 1);
+            oscillator.disconnect();
+            gainNode.disconnect();
+        }, duration * 1000);
         
         return { oscillator, gainNode };
     }
@@ -84,6 +96,11 @@ class SoundManager {
         // Play pattern in loop
         if (patterns[key]) {
             this.musicInterval = setInterval(() => {
+                if (audioCtx.state === 'suspended') {
+                    // Try to resume audio context if it was suspended
+                    audioCtx.resume();
+                    return;
+                }
                 const note = patterns[key][noteIndex];
                 this.generateSound(note.note, note.duration, 'square', 0.1);
                 noteIndex = (noteIndex + 1) % patterns[key].length;
@@ -107,7 +124,29 @@ class SoundManager {
             clearInterval(this.musicInterval);
             this.musicInterval = null;
         }
+        
+        // Clean up any active oscillators
+        this.activeOscillators.forEach(({ oscillator, gainNode }) => {
+            try {
+                oscillator.stop();
+                oscillator.disconnect();
+                gainNode.disconnect();
+            } catch (e) {
+                // Ignore errors from already stopped oscillators
+            }
+        });
+        this.activeOscillators = [];
+        
         this.currentMusic = '';
+    }
+    
+    // Call this when game is paused or page is unloaded
+    cleanup() {
+        this.stopMusic();
+        if (this.audioCtx) {
+            this.audioCtx.close().catch(e => console.error("Error closing audio context:", e));
+            this.audioCtx = null;
+        }
     }
 }
 
@@ -119,3 +158,8 @@ soundManager.loadSound('pickup', 660, 0.2, 'triangle');
 soundManager.loadSound('error', 220, 0.3, 'sawtooth');
 soundManager.loadSound('evidence', 440, 0.5, 'triangle');
 soundManager.loadSound('success', 880, 0.1, 'sine');
+
+// Cleanup sounds when page unloads
+window.addEventListener('beforeunload', () => {
+    soundManager.cleanup();
+});

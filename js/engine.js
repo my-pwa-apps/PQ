@@ -9,39 +9,110 @@ class GameEngine {
         this.dialogBox = document.getElementById('dialog-box');
         this.caseInfoPanel = document.getElementById('case-info');
         this.inventoryPanel = document.getElementById('inventory-panel');
-        this.setupCanvas();
         this.keyboardEnabled = true;
+        this.setupCanvas();
+        this.isRendering = false;
+        this.lastFrameTime = 0;
+        this.colors = this.setupColorPalette();
     }
 
     setupCanvas() {
-        this.canvas.width = 800;
-        this.canvas.height = 450;
+        // Use device pixel ratio for better rendering on high DPI displays
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = 800 * dpr;
+        this.canvas.height = 450 * dpr;
+        this.ctx.scale(dpr, dpr);
         this.ctx.imageSmoothingEnabled = false;
+        this.canvas.style.width = '800px';
+        this.canvas.style.height = '450px';
+    }
+
+    setupColorPalette() {
+        // 16-color palette for consistent use across the app
+        return {
+            black: '#000000',
+            blue: '#0000AA',
+            green: '#00AA00',
+            cyan: '#00AAAA',
+            red: '#AA0000',
+            magenta: '#AA00AA',
+            brown: '#AA5500',
+            lightGray: '#AAAAAA',
+            darkGray: '#555555',
+            brightBlue: '#5555FF',
+            brightGreen: '#55FF55',
+            brightCyan: '#55FFFF',
+            brightRed: '#FF5555',
+            brightMagenta: '#FF55FF',
+            yellow: '#FFFF55',
+            white: '#FFFFFF'
+        };
     }
 
     init() {
-        this.setupEventListeners();
-        soundManager.loadSound('click', 880, 0.1, 'square');
-        soundManager.loadSound('pickup', 660, 0.2, 'triangle');
-        soundManager.loadSound('error', 220, 0.3, 'sawtooth');
-        soundManager.loadSound('evidence', 440, 0.5, 'triangle');
-        soundManager.loadSound('success', 880, 0.1, 'sine');
-        
-        this.showDialog("Welcome to Digital Precinct! It's Monday morning at the Lytton Police Department. The sergeant has assigned you to investigate a series of downtown burglaries.");
-        this.loadScene('policeStation');
-        
-        // Initialize game with first case
-        game.startCase('case1');
-        this.updateCaseInfo();
-        
-        document.addEventListener('click', () => {
-            if (this.audioCtx && this.audioCtx.state === 'suspended') {
-                this.audioCtx.resume();
+        // Initialize the game
+        try {
+            this.setupEventListeners();
+            soundManager.loadSound('click', 880, 0.1, 'square');
+            soundManager.loadSound('pickup', 660, 0.2, 'triangle');
+            soundManager.loadSound('error', 220, 0.3, 'sawtooth');
+            soundManager.loadSound('evidence', 440, 0.5, 'triangle');
+            soundManager.loadSound('success', 880, 0.1, 'sine');
+            
+            this.showDialog("Welcome to Digital Precinct! It's Monday morning at the Lytton Police Department. The sergeant has assigned you to investigate a series of downtown burglaries.");
+            this.loadScene('policeStation');
+            
+            // Initialize game with first case
+            game.startCase('case1');
+            this.updateCaseInfo();
+            
+            // Start animation loop
+            this.startGameLoop();
+            
+            // Handle resuming audio context on user interaction
+            const resumeAudio = () => {
+                const audioCtx = soundManager.audioCtx;
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                document.removeEventListener('click', resumeAudio);
+                document.removeEventListener('keydown', resumeAudio);
+            };
+            
+            document.addEventListener('click', resumeAudio);
+            document.addEventListener('keydown', resumeAudio);
+        } catch (error) {
+            console.error("Game initialization error:", error);
+            this.showDialog("Error initializing game. Please refresh the page.");
+        }
+    }
+
+    startGameLoop() {
+        // Use requestAnimationFrame for smoother rendering
+        const loop = (timestamp) => {
+            // Limit to ~30fps for retro feel and performance
+            if (timestamp - this.lastFrameTime > 33) { // ~30fps
+                this.update();
+                this.render();
+                this.lastFrameTime = timestamp;
             }
-        }, { once: true });
+            requestAnimationFrame(loop);
+        };
+        requestAnimationFrame(loop);
+    }
+    
+    update() {
+        // Game state updates can go here
+        // This runs every frame
+    }
+    
+    render() {
+        // Don't need to re-render every frame
+        // Scene rendering is handled by loadScene
     }
 
     setupEventListeners() {
+        // Command buttons
         document.querySelectorAll('.cmd-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.cmd-btn').forEach(b => b.classList.remove('active'));
@@ -52,16 +123,29 @@ class GameEngine {
             });
         });
 
+        // Canvas click with throttling
+        let lastClickTime = 0;
         this.canvas.addEventListener('click', (e) => {
+            // Throttle clicks to prevent double-clicks or spam
+            const now = Date.now();
+            if (now - lastClickTime < 300) return; // 300ms debounce
+            lastClickTime = now;
+
             const rect = this.canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
-            const y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+            const x = (e.clientX - rect.left) * (this.canvas.width / rect.width / (window.devicePixelRatio || 1));
+            const y = (e.clientY - rect.top) * (this.canvas.height / rect.height / (window.devicePixelRatio || 1));
             this.handleInteraction(x, y);
         });
 
-        // Add keyboard event listeners for arrow keys
+        // Keyboard navigation
+        let keyLastPressed = 0;
         document.addEventListener('keydown', (e) => {
             if (!this.keyboardEnabled) return;
+            
+            // Throttle key presses
+            const now = Date.now();
+            if (now - keyLastPressed < 200) return; // 200ms debounce
+            keyLastPressed = now;
             
             switch(e.key) {
                 case 'ArrowUp':
@@ -174,26 +258,9 @@ class GameEngine {
     }
 
     drawPoliceStation() {
-        // Set up a 16-color palette
-        const colors = {
-            black: '#000000',
-            blue: '#0000AA',
-            green: '#00AA00',
-            cyan: '#00AAAA',
-            red: '#AA0000',
-            magenta: '#AA00AA',
-            brown: '#AA5500',
-            lightGray: '#AAAAAA',
-            darkGray: '#555555',
-            brightBlue: '#5555FF',
-            brightGreen: '#55FF55',
-            brightCyan: '#55FFFF',
-            brightRed: '#FF5555',
-            brightMagenta: '#FF55FF',
-            yellow: '#FFFF55',
-            white: '#FFFFFF'
-        };
-
+        // Use the stored color palette for consistency
+        const colors = this.colors;
+        
         // Draw background wall
         this.ctx.fillStyle = colors.blue;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -253,26 +320,9 @@ class GameEngine {
     }
 
     drawDowntown() {
-        // Set up a 16-color palette
-        const colors = {
-            black: '#000000',
-            blue: '#0000AA',
-            green: '#00AA00',
-            cyan: '#00AAAA',
-            red: '#AA0000',
-            magenta: '#AA00AA',
-            brown: '#AA5500',
-            lightGray: '#AAAAAA',
-            darkGray: '#555555',
-            brightBlue: '#5555FF',
-            brightGreen: '#55FF55',
-            brightCyan: '#55FFFF',
-            brightRed: '#FF5555',
-            brightMagenta: '#FF55FF',
-            yellow: '#FFFF55',
-            white: '#FFFFFF'
-        };
-
+        // Use the stored color palette for consistency
+        const colors = this.colors;
+        
         // Sky
         this.ctx.fillStyle = colors.blue;
         this.ctx.fillRect(0, 0, this.canvas.width, 150);
@@ -331,26 +381,9 @@ class GameEngine {
     }
 
     drawPark() {
-        // Set up a 16-color palette
-        const colors = {
-            black: '#000000',
-            blue: '#0000AA',
-            green: '#00AA00',
-            cyan: '#00AAAA',
-            red: '#AA0000',
-            magenta: '#AA00AA',
-            brown: '#AA5500',
-            lightGray: '#AAAAAA',
-            darkGray: '#555555',
-            brightBlue: '#5555FF',
-            brightGreen: '#55FF55',
-            brightCyan: '#55FFFF',
-            brightRed: '#FF5555',
-            brightMagenta: '#FF55FF',
-            yellow: '#FFFF55',
-            white: '#FFFFFF'
-        };
-
+        // Use the stored color palette for consistency
+        const colors = this.colors;
+        
         // Sky
         this.ctx.fillStyle = colors.brightBlue;
         this.ctx.fillRect(0, 0, this.canvas.width, 300);
@@ -504,19 +537,34 @@ class GameEngine {
     }
 
     loadScene(sceneId) {
-        this.currentScene = GAME_DATA.scenes[sceneId];
-        switch (sceneId) {
-            case 'policeStation':
-                this.drawPoliceStation();
-                break;
-            case 'downtown':
-                this.drawDowntown();
-                break;
-            case 'park':
-                this.drawPark();
-                break;
+        try {
+            this.currentScene = GAME_DATA.scenes[sceneId];
+            if (!this.currentScene) {
+                console.error("Scene not found:", sceneId);
+                return;
+            }
+            
+            // Clear canvas before drawing new scene
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            switch (sceneId) {
+                case 'policeStation':
+                    this.drawPoliceStation();
+                    break;
+                case 'downtown':
+                    this.drawDowntown();
+                    break;
+                case 'park':
+                    this.drawPark();
+                    break;
+                default:
+                    console.error("Unknown scene:", sceneId);
+                    return;
+            }
+            soundManager.playMusic(this.currentScene.music);
+        } catch (error) {
+            console.error("Error loading scene:", error);
         }
-        soundManager.playMusic(this.currentScene.music);
     }
 
     checkCollision(x, y) {
@@ -574,43 +622,53 @@ class GameEngine {
     }
 
     updateInventoryUI() {
-        // Clear existing inventory display
-        this.inventoryPanel.innerHTML = '';
-        
-        // Add each inventory item
-        game.gameState.inventory.forEach(item => {
-            const itemElement = document.createElement('div');
-            itemElement.className = 'inventory-item';
-            itemElement.innerText = item.substring(0, 2).toUpperCase();
-            itemElement.title = item;
-            itemElement.addEventListener('click', () => {
-                this.showDialog(`Selected item: ${item}`);
-                soundManager.playSound('click');
+        try {
+            // Clear existing inventory display
+            this.inventoryPanel.innerHTML = '';
+            
+            // Add each inventory item
+            game.gameState.inventory.forEach(item => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'inventory-item';
+                itemElement.innerText = item.substring(0, 2).toUpperCase();
+                itemElement.title = item;
+                itemElement.addEventListener('click', () => {
+                    this.showDialog(`Selected item: ${item}`);
+                    soundManager.playSound('click');
+                });
+                this.inventoryPanel.appendChild(itemElement);
             });
-            this.inventoryPanel.appendChild(itemElement);
-        });
+        } catch (error) {
+            console.error("Error updating inventory UI:", error);
+        }
     }
 
     updateCaseInfo() {
-        if (!game.currentCase) return;
-        
-        let caseHTML = `<h3>${game.currentCase.title}</h3>`;
-        caseHTML += '<p>Case stages:</p>';
-        caseHTML += '<ul>';
-        
-        game.currentCase.stages.forEach(stage => {
-            caseHTML += `<li>${stage.description} ${stage.completed ? '✓' : ''}</li>`;
-        });
-        
-        caseHTML += '</ul>';
-        
-        this.caseInfoPanel.innerHTML = caseHTML;
+        try {
+            if (!game.currentCase) return;
+            
+            let caseHTML = `<h3>${game.currentCase.title}</h3>`;
+            caseHTML += '<p>Case stages:</p>';
+            caseHTML += '<ul>';
+            
+            game.currentCase.stages.forEach(stage => {
+                caseHTML += `<li>${stage.description} ${stage.completed ? '✓' : ''}</li>`;
+            });
+            
+            caseHTML += '</ul>';
+            
+            this.caseInfoPanel.innerHTML = caseHTML;
+        } catch (error) {
+            console.error("Error updating case info:", error);
+        }
     }
 
     showDialog(text) {
+        if (!text) return;
         this.dialogBox.innerText = text;
     }
 }
 
+// Initialize game after window loads
 const engine = new GameEngine();
 window.addEventListener('load', () => engine.init());
