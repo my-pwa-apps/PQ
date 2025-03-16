@@ -58,6 +58,11 @@ class GameEngine {
         this.ctx.fillRect(100, 200, 80, 60);
         this.ctx.fillStyle = '#808080'; // Gray evidence locker
         this.ctx.fillRect(300, 150, 50, 100);
+        // Add more details
+        this.ctx.fillStyle = '#FFD700'; // Yellow badge
+        this.ctx.fillRect(110, 210, 20, 20);
+        this.ctx.fillStyle = '#000000'; // Black text
+        this.ctx.fillText('Police Station', 10, 20);
     }
 
     drawDowntown() {
@@ -67,6 +72,12 @@ class GameEngine {
         this.ctx.fillRect(200, 300, 100, 150);
         this.ctx.fillStyle = '#A52A2A'; // Brown shop
         this.ctx.fillRect(400, 200, 80, 100);
+        // Add more details
+        this.ctx.fillStyle = '#FFFFFF'; // White windows
+        this.ctx.fillRect(410, 210, 20, 20);
+        this.ctx.fillRect(450, 210, 20, 20);
+        this.ctx.fillStyle = '#000000'; // Black text
+        this.ctx.fillText('Downtown', 10, 20);
     }
 
     drawPark() {
@@ -76,6 +87,11 @@ class GameEngine {
         this.ctx.fillRect(150, 250, 100, 50);
         this.ctx.fillStyle = '#00FFFF'; // Cyan fountain
         this.ctx.fillRect(350, 150, 120, 100);
+        // Add more details
+        this.ctx.fillStyle = '#FFFFFF'; // White water
+        this.ctx.fillRect(360, 160, 100, 80);
+        this.ctx.fillStyle = '#000000'; // Black text
+        this.ctx.fillText('Park', 10, 20);
     }
 
     loadScene(sceneId) {
