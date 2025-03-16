@@ -12,7 +12,20 @@ const GAME_DATA = {
                     height: 60,
                     interactions: {
                         look: "Your desk. Several cases need attention.",
-                        use: "Time to get to work on these cases."
+                        use: "Time to get to work on these cases.",
+                        take: "You can't take the desk with you."
+                    }
+                },
+                {
+                    id: 'evidenceLocker',
+                    x: 300,
+                    y: 150,
+                    width: 50,
+                    height: 100,
+                    interactions: {
+                        look: "The evidence locker. It's locked.",
+                        use: "You need a key to open it.",
+                        take: "You can't take the locker with you."
                     }
                 }
             ]

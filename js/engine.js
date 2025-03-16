@@ -46,7 +46,34 @@ class GameEngine {
     }
 
     loadScene(sceneId) {
-        // Scene loading logic
+        const scene = GAME_DATA.scenes[sceneId];
+        const img = new Image();
+        img.src = scene.background;
+        img.onload = () => {
+            this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
+        };
+        soundManager.playMusic(scene.music);
+        this.currentScene = scene;
+    }
+
+    checkCollision(x, y) {
+        if (!this.currentScene) return null;
+        return this.currentScene.hotspots.find(hotspot =>
+            x >= hotspot.x && x <= hotspot.x + hotspot.width &&
+            y >= hotspot.y && y <= hotspot.y + hotspot.height
+        );
+    }
+
+    processInteraction(hitObject) {
+        if (!this.activeCommand) return;
+        const interaction = hitObject.interactions[this.activeCommand];
+        if (interaction) {
+            this.showDialog(interaction);
+            if (this.activeCommand === 'take') {
+                this.inventory.add(hitObject.id);
+                soundManager.playSound('pickup');
+            }
+        }
     }
 
     update() {
