@@ -1,0 +1,73 @@
+:root {
+    --ui-bg: #222;
+    --ui-border: #444;
+    --ui-text: #fff;
+}
+
+body {
+    background: #000;
+    margin: 0;
+    padding: 20px;
+    font-family: 'Courier New', monospace;
+    color: var(--ui-text);
+    image-rendering: pixelated;
+}
+
+#game-container {
+    width: 800px;
+    height: 600px;
+    margin: 0 auto;
+    position: relative;
+    border: 2px solid var(--ui-border);
+}
+
+#game-screen {
+    width: 100%;
+    height: 75%;
+    background: #000;
+    position: relative;
+}
+
+#gameCanvas {
+    width: 100%;
+    height: 100%;
+}
+
+#ui-container {
+    height: 25%;
+    background: var(--ui-bg);
+    padding: 10px;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 10px;
+}
+
+.cmd-btn {
+    background: var(--ui-border);
+    color: var(--ui-text);
+    border: none;
+    padding: 8px 16px;
+    margin: 0 5px;
+    cursor: pointer;
+}
+
+.cmd-btn:hover {
+    background: #666;
+}
+
+#dialog-box {
+    background: #000;
+    color: #fff;
+    padding: 10px;
+    margin-top: 10px;
+    min-height: 60px;
+    border: 1px solid var(--ui-border);
+}
+
+#inventory-panel {
+    display: flex;
+    gap: 5px;
+    padding: 5px;
+    background: #333;
+    overflow-x: auto;
+}
