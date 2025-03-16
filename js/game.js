@@ -29,6 +29,66 @@ const GAME_DATA = {
                     }
                 }
             ]
+        },
+        downtown: {
+            background: 'assets/scenes/downtown.png',
+            music: 'downtown_theme',
+            hotspots: [
+                {
+                    id: 'alley',
+                    x: 200,
+                    y: 300,
+                    width: 100,
+                    height: 150,
+                    interactions: {
+                        look: "A dark alley. It looks suspicious.",
+                        use: "You find some clues in the alley.",
+                        take: "You pick up a piece of evidence."
+                    }
+                },
+                {
+                    id: 'shop',
+                    x: 400,
+                    y: 200,
+                    width: 80,
+                    height: 100,
+                    interactions: {
+                        look: "A small shop. It seems to be closed.",
+                        use: "The door is locked.",
+                        take: "You can't take the shop with you."
+                    }
+                }
+            ]
+        },
+        park: {
+            background: 'assets/scenes/park.png',
+            music: 'park_theme',
+            hotspots: [
+                {
+                    id: 'bench',
+                    x: 150,
+                    y: 250,
+                    width: 100,
+                    height: 50,
+                    interactions: {
+                        look: "A park bench. Someone left a newspaper.",
+                        use: "You sit on the bench and read the newspaper.",
+                        take: "You take the newspaper with you."
+                    }
+                },
+                {
+                    id: 'fountain',
+                    x: 350,
+                    y: 150,
+                    width: 120,
+                    height: 100,
+                    interactions: {
+                        look: "A beautiful fountain. The water is clear.",
+                        use: "You throw a coin into the fountain.",
+                        take: "You can't take the fountain with you."
+                    }
+                }
+            ]
         }
     },
     cases: {

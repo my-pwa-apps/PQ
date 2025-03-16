@@ -19,6 +19,11 @@ class GameEngine {
         soundManager.loadSound('click', 'assets/audio/click.mp3');
         soundManager.loadSound('pickup', 'assets/audio/pickup.mp3');
         this.loadScene('policeStation');
+        document.body.addEventListener('click', () => {
+            if (this.bgMusic.paused) {
+                this.bgMusic.play().catch(error => console.error('Failed to play background music:', error));
+            }
+        }, { once: true });
     }
 
     setupEventListeners() {
