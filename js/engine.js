@@ -5,6 +5,7 @@ class GameEngine {
         this.inventory = new Set();
         this.activeCommand = null;
         this.currentScene = null;
+        this.bgMusic = document.getElementById('bgMusic');
         this.setupCanvas();
     }
 
