@@ -371,6 +371,71 @@ const GAME_DATA = {
     }
 };
 
+class SpatialGrid {
+    constructor(width, height, cellSize) {
+        this.cellSize = cellSize;
+        this.cols = Math.ceil(width / cellSize);
+        this.rows = Math.ceil(height / cellSize);
+        this.grid = new Array(this.cols * this.rows).fill().map(() => new Set());
+    }
+
+    getCell(x, y) {
+        const col = Math.floor(x / this.cellSize);
+        const row = Math.floor(y / this.cellSize);
+        return this.grid[row * this.cols + col];
+    }
+
+    insert(obj) {
+        const cell = this.getCell(obj.x, obj.y);
+        if (cell) cell.add(obj);
+    }
+
+    getNearbyObjects(x, y, radius = 1) {
+        const nearby = new Set();
+        const startCol = Math.max(0, Math.floor((x - radius) / this.cellSize));
+        const endCol = Math.min(this.cols - 1, Math.floor((x + radius) / this.cellSize));
+        const startRow = Math.max(0, Math.floor((y - radius) / this.cellSize));
+        const endRow = Math.min(this.rows - 1, Math.floor((y + radius) / this.cellSize));
+
+        for (let row = startRow; row <= endRow; row++) {
+            for (let col = startCol; col <= endCol; col++) {
+                const cell = this.grid[row * this.cols + col];
+                for (const obj of cell) {
+                    nearby.add(obj);
+                }
+            }
+        }
+        return nearby;
+    }
+}
+
+class ObjectPool {
+    constructor(createFn, initialSize = 50) {
+        this.createFn = createFn;
+        this.pool = new Array(initialSize).fill(null).map(() => ({
+            obj: this.createFn(),
+            active: false
+        }));
+    }
+
+    acquire() {
+        let poolItem = this.pool.find(item => !item.active);
+        if (!poolItem) {
+            poolItem = { obj: this.createFn(), active: false };
+            this.pool.push(poolItem);
+        }
+        poolItem.active = true;
+        return poolItem.obj;
+    }
+
+    release(obj) {
+        const poolItem = this.pool.find(item => item.obj === obj);
+        if (poolItem) {
+            poolItem.active = false;
+        }
+    }
+}
+
 class Game {
     constructor() {
         this.gameState = {
@@ -393,6 +458,57 @@ class Game {
         
         // Initialize game data
         this.initializeGameData();
+
+        this.spatialGrid = new SpatialGrid(this.width, this.height, 64);
+        this.setupObjectPools();
+
+        // Sprite cache
+        this.spriteCache = new Map();
+        
+        // Spatial partitioning grid
+        this.grid = {
+            cellSize: 32,
+            cells: new Map(),
+            dirty: true
+        };
+        
+        this.objectPool = new ObjectPool();
+        this.init();
+
+        // Object pooling
+        this.objectPools = new Map();
+        
+        // Spatial partitioning
+        this.gridSize = 64; // Size of each grid cell
+        this.spatialGrid = new Map();
+
+        // Performance monitoring
+        this.lastUpdateTime = performance.now();
+        this.frameCount = 0;
+        this.fpsUpdateInterval = 1000;
+    }
+
+    init() {
+        this.setupSpriteCache();
+        this.initializeGrid();
+    }
+
+    setupSpriteCache() {
+        // Pre-render common sprites to off-screen canvases
+        const commonSprites = ['player', 'wall', 'floor', 'item'];
+        for (const sprite of commonSprites) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32;
+            canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            this.drawSprite(ctx, sprite, 0, 0);
+            this.spriteCache.set(sprite, canvas);
+        }
+    }
+
+    initializeGrid() {
+        this.grid.cells.clear();
+        this.updateSpatialGrid();
     }
 
     initializeGameData() {
@@ -412,6 +528,13 @@ class Game {
         
         this.currentCase = this.cases[0];
         this.gameState.currentCase = this.currentCase;
+    }
+
+    setupObjectPools() {
+        // Example pool for particles or other frequently created objects
+        this.particlePool = new ObjectPool(() => ({
+            x: 0, y: 0, velocityX: 0, velocityY: 0, life: 0
+        }));
     }
 
     addToInventory(item) {
@@ -567,6 +690,121 @@ class Game {
         } catch (error) {
             console.error('Error loading game:', error);
             return false;
+        }
+    }
+
+    // Object pooling methods
+    getFromPool(type) {
+        if (!this.objectPools.has(type)) {
+            this.objectPools.set(type, []);
+        }
+        
+        const pool = this.objectPools.get(type);
+        return pool.pop() || this.createObject(type);
+    }
+
+    returnToPool(obj) {
+        const type = obj.constructor.name;
+        if (!this.objectPools.has(type)) {
+            this.objectPools.set(type, []);
+        }
+        
+        obj.reset();
+        this.objectPools.get(type).push(obj);
+    }
+
+    // Spatial partitioning methods
+    getGridCell(x, y) {
+        return `${Math.floor(x / this.gridSize)},${Math.floor(y / this.gridSize)}`;
+    }
+
+    updateSpatialGrid() {
+        this.spatialGrid.clear();
+        
+        for (const obj of this.gameObjects) {
+            const cell = this.getGridCell(obj.x, obj.y);
+            if (!this.spatialGrid.has(cell)) {
+                this.spatialGrid.set(cell, new Set());
+            }
+            this.spatialGrid.get(cell).add(obj);
+        }
+    }
+
+    getNearbyObjects(x, y, radius = this.gridSize) {
+        const nearby = new Set();
+        const startCell = this.getGridCell(x - radius, y - radius);
+        const endCell = this.getGridCell(x + radius, y + radius);
+        
+        for (let gridX = startCell[0]; gridX <= endCell[0]; gridX++) {
+            for (let gridY = startCell[1]; gridY <= endCell[1]; gridY++) {
+                const cell = `${gridX},${gridY}`;
+                if (this.spatialGrid.has(cell)) {
+                    for (const obj of this.spatialGrid.get(cell)) {
+                        nearby.add(obj);
+                    }
+                }
+            }
+        }
+        
+        return nearby;
+    }
+
+    update(deltaTime) {
+        // Update game objects
+        for (const obj of this.gameObjects) {
+            obj.update(deltaTime);
+        }
+        
+        // Update spatial grid
+        this.updateSpatialGrid();
+        
+        // Optimized collision detection using spatial partitioning
+        for (const obj of this.gameObjects) {
+            if (obj.checkCollisions) {
+                const nearby = this.getNearbyObjects(obj.x, obj.y);
+                for (const other of nearby) {
+                    if (obj !== other && this.checkCollision(obj, other)) {
+                        obj.onCollision(other);
+                    }
+                }
+            }
+        }
+        
+        // Clean up destroyed objects and return them to pool
+        this.gameObjects = this.gameObjects.filter(obj => {
+            if (obj.destroyed) {
+                this.returnToPool(obj);
+                return false;
+            }
+            return true;
+        });
+
+        // Performance monitoring
+        this.frameCount++;
+        const currentTime = performance.now();
+        if (currentTime - this.lastUpdateTime >= this.fpsUpdateInterval) {
+            const fps = (this.frameCount * 1000) / (currentTime - this.lastUpdateTime);
+            console.log(`FPS: ${Math.round(fps)}`);
+            this.frameCount = 0;
+            this.lastUpdateTime = currentTime;
+        }
+    }
+
+    checkCollision(obj1, obj2) {
+        // Basic AABB collision detection
+        return obj1.x < obj2.x + obj2.width &&
+               obj1.x + obj1.width > obj2.x &&
+               obj1.y < obj2.y + obj2.height &&
+               obj1.y + obj2.height > obj2.y;
+    }
+
+    drawSprite(ctx, spriteName, x, y) {
+        const cachedSprite = this.spriteCache.get(spriteName);
+        if (cachedSprite) {
+            ctx.drawImage(cachedSprite, x, y);
+        } else {
+            // Fallback to original sprite drawing
+            // ...existing sprite drawing code...
         }
     }
 }

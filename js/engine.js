@@ -70,6 +70,65 @@ class GameEngine {
             blinkingLights: { frame: 0 }
         };
         this.backgroundMusicPlayer = null;
+        this.setupBufferCanvas();
+        this.spriteCache = new Map();
+
+        // Frame rate control
+        this.targetFPS = 60;
+        this.frameInterval = 1000 / this.targetFPS;
+        this.lastFrameTime = 0;
+        this.frameCount = 0;
+        this.lastFPSUpdate = 0;
+        this.currentFPS = 0;
+        
+        // Animation state
+        this.animations = new Map();
+        this.requestID = null;
+        
+        // Performance monitoring
+        this.perfStats = {
+            drawTime: 0,
+            updateTime: 0,
+            frameTime: 0
+        };
+
+        // Setup double buffering
+        this.backBuffer = document.createElement('canvas');
+        this.backBuffer.width = this.canvas.width;
+        this.backBuffer.height = this.canvas.height;
+        this.backContext = this.backBuffer.getContext('2d');
+        
+        // Frame timing
+        this.lastFrameTime = 0;
+        this.frameTime = 1000 / 60; // Target 60 FPS
+        this.accumulator = 0;
+        
+        // Performance monitoring
+        this.fpsCounter = 0;
+        this.fpsTimer = 0;
+        this.currentFPS = 0;
+
+        // Create offscreen canvas for double buffering
+        this.offscreenCanvas = document.createElement('canvas');
+        this.offscreenCanvas.width = this.canvas.width;
+        this.offscreenCanvas.height = this.canvas.height;
+        this.offscreenCtx = this.offscreenCanvas.getContext('2d');
+        
+        // Frame timing
+        this.lastFrameTime = 0;
+        this.targetFPS = 60;
+        this.frameInterval = 1000 / this.targetFPS;
+        this.accumulator = 0;
+        
+        // Color cache for optimization
+        this.colorCache = new Map();
+        
+        // Start game loop
+        this.running = true;
+        requestAnimationFrame(this.gameLoop.bind(this));
+
+        // Initialize the engine
+        this.init();
     }
 
     setupCanvas() {
@@ -81,6 +140,13 @@ class GameEngine {
         this.ctx.imageSmoothingEnabled = false;
         this.canvas.style.width = '800px';
         this.canvas.style.height = '450px';
+    }
+
+    setupBufferCanvas() {
+        this.bufferCanvas = document.createElement('canvas');
+        this.bufferCanvas.width = this.canvas.width;
+        this.bufferCanvas.height = this.canvas.height;
+        this.bufferCtx = this.bufferCanvas.getContext('2d');
     }
 
     setupColorPalette() {
@@ -120,19 +186,62 @@ class GameEngine {
     }
 
     startGameLoop() {
-        const loop = (timestamp) => {
-            // Update animation frame every 200ms
-            if (timestamp - this.lastFrameTime > 200) {
-                this.animationFrame = (this.animationFrame + 1) % 8;
-                this.updateNPCs();
-                this.lastFrameTime = timestamp;
-                this.drawCurrentScene();
-            }
-            requestAnimationFrame(loop);
-        };
-        requestAnimationFrame(loop);
+        this.isRunning = true;
+        this.lastFrameTime = performance.now();
+        requestAnimationFrame(this.gameLoop.bind(this));
     }
-    
+
+    gameLoop(timestamp) {
+        if (!this.running) return;
+
+        // Calculate delta time and maintain consistent frame rate
+        const deltaTime = timestamp - this.lastFrameTime;
+        this.accumulator += deltaTime;
+
+        while (this.accumulator >= this.frameInterval) {
+            // Update game state
+            this.update(this.frameInterval / 1000);
+            this.accumulator -= this.frameInterval;
+        }
+
+        // Render to offscreen canvas
+        this.offscreenCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.draw(this.offscreenCtx);
+
+        // Swap buffers
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.drawImage(this.offscreenCanvas, 0, 0);
+
+        this.lastFrameTime = timestamp;
+        requestAnimationFrame(this.gameLoop.bind(this));
+    }
+
+    stopGameLoop() {
+        if (this.requestID) {
+            cancelAnimationFrame(this.requestID);
+            this.requestID = null;
+        }
+    }
+
+    addAnimation(id, frames, duration) {
+        this.animations.set(id, {
+            frames,
+            duration,
+            currentFrame: 0,
+            elapsed: 0
+        });
+    }
+
+    updateAnimations(deltaTime) {
+        for (const [id, anim] of this.animations) {
+            anim.elapsed += deltaTime;
+            if (anim.elapsed >= anim.duration) {
+                anim.currentFrame = (anim.currentFrame + 1) % anim.frames.length;
+                anim.elapsed = 0;
+            }
+        }
+    }
+
     update() {
         // Handle player walking animation and movement
         if (this.isWalking && this.walkTarget) {
@@ -164,16 +273,34 @@ class GameEngine {
         }
     }
     
-    render() {
-        if (this.isWalking) {
-            // Only redraw when walking
-            this.drawCurrentScene();
+    render(interpolation) {
+        // Clear back buffer
+        this.backContext.clearRect(0, 0, this.backBuffer.width, this.backBuffer.height);
+        
+        // Draw game state to back buffer
+        this.drawCurrentScene();
+        
+        // Draw debug info if enabled
+        if (this.debugMode) {
+            this.drawDebugInfo(this.backContext);
         }
+        
+        // Flip buffers
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.drawImage(this.backBuffer, 0, 0);
     }
-    
+
+    drawDebugInfo(ctx) {
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px monospace';
+        ctx.fillText(`FPS: ${this.currentFPS}`, 10, 20);
+        ctx.fillText(`Objects: ${this.game.gameObjects.length}`, 10, 40);
+        ctx.fillText(`Draw calls: ${this.drawCallCount}`, 10, 60);
+    }
+
     drawCurrentScene() {
         // Clear canvas
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.bufferCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         // Draw scene based on current scene, not game state
         switch(this.currentScene) {
@@ -670,11 +797,29 @@ class GameEngine {
         this.drawArrowIndicator('left', 'Downtown');
     }
 
+    getCharacterSprite(uniformColor, badgeColor, facing, isWalking, isNPC, isFemale) {
+        const key = `${uniformColor}_${badgeColor}_${facing}_${isWalking}_${isNPC}_${isFemale}`;
+        if (!this.spriteCache.has(key)) {
+            const spriteCanvas = document.createElement('canvas');
+            spriteCanvas.width = 32;
+            spriteCanvas.height = 48;
+            const spriteCtx = spriteCanvas.getContext('2d');
+            this.drawPixelCharacterToContext(spriteCtx, 16, 48, uniformColor, badgeColor, facing, isWalking, isNPC, isFemale);
+            this.spriteCache.set(key, spriteCanvas);
+        }
+        return this.spriteCache.get(key);
+    }
+
     drawPixelCharacter(x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false, isFemale = false) {
+        const sprite = this.getCharacterSprite(uniformColor, badgeColor, facing, isWalking, isNPC, isFemale);
+        this.bufferCtx.drawImage(sprite, Math.floor(x - 16), Math.floor(y - 48));
+    }
+
+    drawPixelCharacterToContext(ctx, x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false, isFemale = false) {
         const pixels = 4;
         const drawPixel = (px, py, color) => {
-            this.ctx.fillStyle = color;
-            this.ctx.fillRect(
+            ctx.fillStyle = color;
+            ctx.fillRect(
                 Math.floor(x + px * pixels), 
                 Math.floor(y + py * pixels), 
                 pixels, 
@@ -1812,6 +1957,57 @@ class GameEngine {
             this.backgroundMusicPlayer.stop();
             this.backgroundMusicPlayer = null;
         }
+    }
+
+    // Optimized color handling
+    getCachedColor(r, g, b, a = 1) {
+        const key = `${r},${g},${b},${a}`;
+        if (!this.colorCache.has(key)) {
+            this.colorCache.set(key, `rgba(${r},${g},${b},${a})`);
+        }
+        return this.colorCache.get(key);
+    }
+
+    draw(ctx) {
+        // Batch similar draw operations
+        const drawBatch = new Map();
+        
+        for (const obj of this.gameObjects) {
+            const type = obj.constructor.name;
+            if (!drawBatch.has(type)) {
+                drawBatch.set(type, []);
+            }
+            drawBatch.get(type).push(obj);
+        }
+        
+        // Draw batched objects
+        for (const [type, objects] of drawBatch) {
+            ctx.save();
+            // Set common properties for this type
+            for (const obj of objects) {
+                obj.draw(ctx);
+            }
+            ctx.restore();
+        }
+    }
+
+    // Optimized pixel operations using TypedArrays
+    createPixelBuffer() {
+        const buffer = new ArrayBuffer(this.canvas.width * this.canvas.height * 4);
+        return new Uint8ClampedArray(buffer);
+    }
+
+    setPixel(buffer, x, y, r, g, b, a = 255) {
+        const index = (y * this.canvas.width + x) * 4;
+        buffer[index] = r;
+        buffer[index + 1] = g;
+        buffer[index + 2] = b;
+        buffer[index + 3] = a;
+    }
+
+    updateCanvas(buffer) {
+        const imageData = new ImageData(buffer, this.canvas.width, this.canvas.height);
+        this.offscreenCtx.putImageData(imageData, 0, 0);
     }
 }
 
