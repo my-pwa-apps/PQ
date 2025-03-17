@@ -372,18 +372,10 @@ const GAME_DATA = {
 };
 
 class Game {
-    constructor(engine) {
-        this.engine = engine;
-        this.currentCase = null;
-        this.evidence = new Set();
-        this.gameState = {
-            currentLocation: 'policeStation',
-            solvedCases: 0,
-            reputation: 0,
-            inventory: []
-        };
-        // Performance optimization - cache frequently used data
-        this.caseCache = new Map();
+    constructor() {
+        this.currentLocation = 'policeStation';
+        this.inventory = [];
+        this.gameState = {};
     }
 
     startCase(caseId) {
@@ -438,13 +430,6 @@ class Game {
             return true;
         }
         return false;
-    }
-
-    changeLocation(sceneId) {
-        this.gameState.currentLocation = sceneId;
-        this.engine.loadScene(sceneId);
-        // Save game state after location change
-        this.saveGame();
     }
 
     addToInventory(itemId) {

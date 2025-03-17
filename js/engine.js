@@ -4,7 +4,7 @@ class GameEngine {
         this.ctx = this.canvas.getContext('2d');
         this.inventory = new Set();
         this.activeCommand = null;
-        this.currentScene = null;
+        this.currentScene = 'policeStation';
         this.bgMusic = document.getElementById('bgMusic');
         this.dialogBox = document.getElementById('dialog-box');
         this.caseInfoPanel = document.getElementById('case-info');
@@ -53,41 +53,10 @@ class GameEngine {
     }
 
     init() {
-        // Initialize the game
-        try {
-            this.setupEventListeners();
-            soundManager.loadSound('click', 880, 0.1, 'square');
-            soundManager.loadSound('pickup', 660, 0.2, 'triangle');
-            soundManager.loadSound('error', 220, 0.3, 'sawtooth');
-            soundManager.loadSound('evidence', 440, 0.5, 'triangle');
-            soundManager.loadSound('success', 880, 0.1, 'sine');
-            
-            this.showDialog("Welcome to Digital Precinct! It's Monday morning at the Lytton Police Department. The sergeant has assigned you to investigate a series of downtown burglaries.");
-            this.loadScene('policeStation');
-            
-            // Initialize game with first case
-            game.startCase('case1');
-            this.updateCaseInfo();
-            
-            // Start animation loop
-            this.startGameLoop();
-            
-            // Handle resuming audio context on user interaction
-            const resumeAudio = () => {
-                const audioCtx = soundManager.audioCtx;
-                if (audioCtx && audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
-                document.removeEventListener('click', resumeAudio);
-                document.removeEventListener('keydown', resumeAudio);
-            };
-            
-            document.addEventListener('click', resumeAudio);
-            document.addEventListener('keydown', resumeAudio);
-        } catch (error) {
-            console.error("Game initialization error:", error);
-            this.showDialog("Error initializing game. Please refresh the page.");
-        }
+        this.game = new Game();
+        this.game.init();
+        this.loadScene(this.currentScene);
+        this.setupEventListeners();
     }
 
     startGameLoop() {
@@ -958,8 +927,8 @@ class GameEngine {
 
     loadScene(sceneId) {
         try {
-            // Update game state
-            game.changeLocation(sceneId);
+            // Update current scene directly
+            this.currentScene = sceneId;
             
             // Reset player position based on scene
             switch (sceneId) {
@@ -999,4 +968,4 @@ class GameEngine {
 
 // Initialize game after window loads
 const engine = new GameEngine();
-window.addEventListener('load', () => engine.init());
+engine.init();
