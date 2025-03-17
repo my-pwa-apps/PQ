@@ -182,6 +182,12 @@ class GameEngine {
             case 'briefingRoom':
                 this.drawBriefingRoom();
                 break;
+            case 'officeArea':
+                this.drawOfficeArea();
+                break;
+            default:
+                console.warn('Unknown scene:', this.currentScene);
+                this.drawPoliceStation();
         }
         
         // Draw NPCs for current scene
@@ -401,7 +407,9 @@ class GameEngine {
     drawPoliceStation() {
         const colors = this.colors;
         
-        // Enhanced room drawing
+        // Draw walls and floor
+        this.drawFloorGrid(0, 300, this.canvas.width, 150);
+        this.draw3DWall(0, 0, this.canvas.width, 300, colors.blue);
         
         // Floor (wooden floor boards)
         this.ctx.fillStyle = '#8B4513'; // Brown wooden floor
@@ -416,26 +424,9 @@ class GameEngine {
             this.ctx.stroke();
         }
         
-        // Walls with baseboards and trim
-        this.ctx.fillStyle = '#336699'; // Blue wall
-        this.ctx.fillRect(0, 0, this.canvas.width, 300); // Main wall
-        
-        // Wall trim at bottom
+        // Wall trim and texture
         this.ctx.fillStyle = '#4A4A4A';
         this.ctx.fillRect(0, 290, this.canvas.width, 10);
-        
-        // Wall texture (light panel lines)
-        for (let i = 0; i < 8; i++) {
-            this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-            this.ctx.beginPath();
-            this.ctx.moveTo(i * 100, 0);
-            this.ctx.lineTo(i * 100, 290);
-            this.ctx.stroke();
-        }
-        
-        // Wall shadows for depth
-        this.ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        this.ctx.fillRect(0, 0, this.canvas.width, 30);
         
         // Windows (repositioned to avoid overlap)
         for (let i = 0; i < 2; i++) {
@@ -456,159 +447,81 @@ class GameEngine {
             this.ctx.stroke();
         }
         
-        // Bulletin board (moved to avoid window overlap)
+        // Bulletin board
         this.ctx.fillStyle = '#8B4513';
         this.ctx.fillRect(280, 50, 120, 80);
         this.ctx.fillStyle = '#F5F5DC';
         this.ctx.fillRect(285, 55, 110, 70);
         
-        // Desks with 3D perspective
-        for (let i = 0; i < 3; i++) {
-            this.draw3DDesk(100 + i * 200, 320, 150, 80);
-        }
+        // Reception desk (single desk in main lobby)
+        this.draw3DDesk(400, 320, 150, 80);
         
-        // Evidence locker
-        this.draw3DLocker(700, 100, 80, 180);
-        
-        // Draw doors with frames (aligned with floor)
+        // Draw doors with frames
         this.drawDoorWithFrame(50, 200, 'left', "Sheriff's Office");
         this.drawDoorWithFrame(600, 200, 'right', "Briefing Room");
+        this.drawDoorWithFrame(200, 200, 'left', "Office Area");
         
-        // Add a clear exit to downtown
+        // Add exit to downtown
         this.drawExitDoor(400, 420, "Exit to Downtown");
         
         // Add exit sign
         this.addExitSign(400, 390, "Downtown");
         
-        // Draw room boundaries for debugging
-        if (this.debug) {
-            this.drawRoomBoundaries();
+        // Update collision objects for this scene
+        this.updateCollisionObjects();
+    }
+    
+    // Add new room for desks
+    drawOfficeArea() {
+        const colors = this.colors;
+        
+        // Draw walls and floor
+        this.drawFloorGrid(0, 300, this.canvas.width, 150);
+        this.draw3DWall(0, 0, this.canvas.width, 300, colors.blue);
+        
+        // Floor
+        this.ctx.fillStyle = '#8B4513';
+        this.ctx.fillRect(0, 300, this.canvas.width, 150);
+        
+        // Wall details
+        this.ctx.fillStyle = '#4A4A4A';
+        this.ctx.fillRect(0, 290, this.canvas.width, 10);
+        
+        // Multiple desks for detectives
+        for (let i = 0; i < 4; i++) {
+            this.draw3DDesk(100 + i * 150, 320, 120, 70);
+            
+            // Add computers, papers, etc on desks
+            this.ctx.fillStyle = colors.darkGray;
+            this.ctx.fillRect(120 + i * 150, 310, 40, 30);
+            this.ctx.fillStyle = colors.white;
+            this.ctx.fillRect(180 + i * 150, 315, 20, 25);
         }
-    }
-
-    // Helper functions for 3D rendering
-    drawFloorGrid(x, y, width, height) {
-        const ctx = this.ctx;
-        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-        ctx.lineWidth = 1;
-
-        // Draw horizontal lines with perspective
-        for (let i = 0; i <= height; i += 20) {
-            ctx.beginPath();
-            ctx.moveTo(x, y + i);
-            // Calculate perspective vanishing point
-            const vanishX = this.canvas.width / 2;
-            const vanishY = y - 100;
-            const perspectiveX1 = x + (x - vanishX) * (i / height);
-            const perspectiveX2 = (x + width) + ((x + width) - vanishX) * (i / height);
-            ctx.moveTo(perspectiveX1, y + i);
-            ctx.lineTo(perspectiveX2, y + i);
-            ctx.stroke();
+        
+        // Filing cabinets along the wall
+        for (let i = 0; i < 3; i++) {
+            this.ctx.fillStyle = colors.lightGray;
+            this.ctx.fillRect(50 + i * 100, 100, 80, 150);
+            
+            for (let j = 0; j < 3; j++) {
+                this.ctx.fillStyle = colors.darkGray;
+                this.ctx.fillRect(60 + i * 100, 110 + j * 45, 60, 5);
+            }
         }
-
-        // Draw vertical lines
-        for (let i = 0; i <= width; i += 40) {
-            ctx.beginPath();
-            const perspectiveX = x + i;
-            const vanishY = y - 100;
-            ctx.moveTo(perspectiveX, y);
-            ctx.lineTo(
-                x + width/2 + (perspectiveX - (x + width/2)) * 0.7,
-                y + height
-            );
-            ctx.stroke();
-        }
-    }
-
-    draw3DWall(x, y, width, height, color) {
-        const ctx = this.ctx;
-        ctx.fillStyle = color;
         
-        // Main wall
-        ctx.fillRect(x, y, width, height);
+        // Exit door
+        this.drawDoorWithFrame(400, 200, 'right', "Main Lobby");
         
-        // Add depth shading
-        const gradient = ctx.createLinearGradient(x, y, x + width, y);
-        gradient.addColorStop(0, 'rgba(0,0,0,0.2)');
-        gradient.addColorStop(0.5, 'rgba(0,0,0,0)');
-        gradient.addColorStop(1, 'rgba(0,0,0,0.2)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(x, y, width, height);
-    }
-
-    draw3DDesk(x, y, width, height) {
-        const ctx = this.ctx;
+        // Coffee machine in corner
+        this.ctx.fillStyle = colors.black;
+        this.ctx.fillRect(700, 230, 50, 70);
+        this.ctx.fillStyle = colors.red;
+        this.ctx.fillRect(715, 250, 20, 10);
+        this.ctx.fillStyle = colors.brightBlue;
+        this.ctx.fillRect(710, 270, 30, 10);
         
-        // Desk top
-        ctx.fillStyle = this.colors.brown;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + width, y);
-        ctx.lineTo(x + width - 20, y + height);
-        ctx.lineTo(x - 20, y + height);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Desk front
-        ctx.fillStyle = this.adjustColor(this.colors.brown, -20);
-        ctx.fillRect(x - 20, y + height, width, 20);
-        
-        // Desk side
-        ctx.fillStyle = this.adjustColor(this.colors.brown, -40);
-        ctx.beginPath();
-        ctx.moveTo(x + width, y);
-        ctx.lineTo(x + width - 20, y + height);
-        ctx.lineTo(x + width - 20, y + height + 20);
-        ctx.lineTo(x + width, y + 20);
-        ctx.closePath();
-        ctx.fill();
-    }
-
-    drawDoor(x, y, direction, label) {
-        const ctx = this.ctx;
-        ctx.fillStyle = this.colors.brown;
-        ctx.fillRect(x, y, 60, 120);
-        ctx.fillStyle = this.colors.yellow;
-        ctx.fillRect(direction === 'left' ? x + 45 : x + 5, y + 60, 10, 10);
-        
-        // Add door label
-        ctx.fillStyle = this.colors.white;
-        ctx.font = '12px monospace';
-        ctx.fillText(label, x - 10, y - 5);
-    }
-
-    drawDoorWithFrame(x, y, direction, label) {
-        const ctx = this.ctx;
-        
-        // Door frame
-        ctx.fillStyle = '#4A4A4A';
-        ctx.fillRect(x - 5, y - 5, 70, 130);
-        
-        // Door
-        ctx.fillStyle = '#8B4513';
-        ctx.fillRect(x, y, 60, 120);
-        
-        // Door handle
-        ctx.fillStyle = '#FFD700';
-        ctx.fillRect(direction === 'left' ? x + 45 : x + 5, y + 60, 10, 10);
-        
-        // Door sign
-        ctx.fillStyle = '#E0E0E0';
-        ctx.fillRect(x + 10, y + 10, 40, 20);
-        
-        // Label text
-        ctx.fillStyle = '#000000';
-        ctx.font = '8px monospace';
-        ctx.fillText(label.substring(0, 8), x + 12, y + 22);
-    }
-
-    // Helper function to darken/lighten colors
-    adjustColor(color, amount) {
-        const hex = color.replace('#', '');
-        const r = Math.max(0, Math.min(255, parseInt(hex.slice(0, 2), 16) + amount));
-        const g = Math.max(0, Math.min(255, parseInt(hex.slice(2, 4), 16) + amount));
-        const b = Math.max(0, Math.min(255, parseInt(hex.slice(4, 6), 16) + amount));
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        // Update collision objects
+        this.updateCollisionObjects();
     }
 
     drawDowntown() {
@@ -1068,9 +981,17 @@ class GameEngine {
         
         // Special handling for doors
         if (hitObject.type === 'door' && this.activeCommand === 'use') {
-            // Get target scene from door properties
-            const targetScene = hitObject.target || hitObject.id.replace('Door', '').toLowerCase();
-            this.showDialog(`Entering ${targetScene.replace(/([A-Z])/g, ' $1').trim()}...`);
+            // Get target scene from door properties with proper null checking
+            const targetScene = hitObject.target || 
+                (hitObject.id && hitObject.id.includes('Door') ? 
+                hitObject.id.replace('Door', '').toLowerCase() : 'policeStation');
+                
+            // Safe string manipulation with null check
+            const displayName = targetScene ? 
+                targetScene.charAt(0).toUpperCase() + targetScene.slice(1).replace(/([A-Z])/g, ' $1').trim() : 
+                "another room";
+                
+            this.showDialog(`Entering ${displayName}...`);
             
             // Transition to new scene after a brief delay
             setTimeout(() => {
@@ -1217,59 +1138,29 @@ class GameEngine {
     }
     
     updateNPCsForScene(sceneId) {
-        // Make sure we have NPC definitions for each scene
         if (!this.npcs[sceneId]) {
-            switch(sceneId) {
-                case 'sheriffsOffice':
-                    this.npcs[sceneId] = [{
-                        x: 450, y: 260,
-                        type: 'sheriff',
-                        name: 'Sheriff Grumps',
-                        patrolPoints: [{x: 450, y: 260}, {x: 400, y: 200}, {x: 500, y: 200}],
+            // ...existing code...
+            
+            // Add NPCs for the new office area
+            if (sceneId === 'officeArea') {
+                this.npcs[sceneId] = [
+                    {
+                        x: 250, y: 350,
+                        type: 'detective',
+                        name: 'Detective Johnson',
+                        patrolPoints: [{x: 250, y: 350}, {x: 400, y: 350}, {x: 600, y: 350}],
                         currentPatrolPoint: 0,
-                        facing: 'down'
-                    }];
-                    break;
-                case 'briefingRoom':
-                    this.npcs[sceneId] = [{
-                        x: 350, y: 200,
+                        facing: 'right'
+                    },
+                    {
+                        x: 500, y: 320,
                         type: 'officer',
-                        name: 'Tech Officer',
-                        patrolPoints: [{x: 350, y: 200}, {x: 500, y: 250}, {x: 700, y: 200}],
+                        name: 'Officer Smith',
+                        patrolPoints: [{x: 500, y: 320}, {x: 300, y: 320}, {x: 700, y: 380}],
                         currentPatrolPoint: 0,
-                        facing: 'right'
-                    }];
-                    break;
-                case 'downtown':
-                    this.npcs[sceneId] = [
-                        {
-                            x: 200, y: 350,
-                            type: 'civilian',
-                            name: 'Shop Clerk',
-                            patrolPoints: [{x: 200, y: 350}, {x: 300, y: 350}, {x: 250, y: 300}],
-                            currentPatrolPoint: 0,
-                            facing: 'right'
-                        },
-                        {
-                            x: 500, y: 330,
-                            type: 'witness',
-                            name: 'Witness',
-                            patrolPoints: [{x: 500, y: 330}, {x: 550, y: 350}, {x: 450, y: 350}],
-                            currentPatrolPoint: 0,
-                            facing: 'left'
-                        }
-                    ];
-                    break;
-                case 'park':
-                    this.npcs[sceneId] = [{
-                        x: 300, y: 350,
-                        type: 'civilian',
-                        name: 'Park Visitor',
-                        patrolPoints: [{x: 300, y: 350}, {x: 400, y: 300}, {x: 500, y: 350}],
-                        currentPatrolPoint: 0,
-                        facing: 'right'
-                    }];
-                    break;
+                        facing: 'left'
+                    }
+                ];
             }
         }
     }
@@ -1280,13 +1171,239 @@ class GameEngine {
         
         switch(this.currentScene) {
             case 'policeStation':
-                this.collisionObjects = [
-                    { x: 100, y: 200, width: 150, height: 80, type: 'desk' },
-                    { x: 700, y: 100, width: 80, height: 180, type: 'locker' }
-                ];
+                // Reception desk
+                this.collisionObjects.push({
+                    x: 400, y: 320, width: 150, height: 80,
+                    type: 'desk',
+                    id: 'receptionDesk',
+                    interactions: {
+                        look: "The reception desk. Officer Jenny usually sits here.",
+                        use: "You check the sign-in sheet.",
+                        take: "You can't take the desk with you, detective."
+                    }
+                });
+                
+                // Sheriff's office door
+                this.collisionObjects.push({
+                    x: 50, y: 200, width: 60, height: 120,
+                    type: 'door',
+                    id: 'sheriffsOfficeDoor',
+                    target: 'sheriffsOffice',
+                    interactions: {
+                        look: "The Sheriff's office. The door is slightly ajar.",
+                        use: "You enter the Sheriff's office.",
+                        talk: "There's no one at the door to talk to."
+                    }
+                });
+                
+                // Briefing room door
+                this.collisionObjects.push({
+                    x: 600, y: 200, width: 60, height: 120,
+                    type: 'door',
+                    id: 'briefingRoomDoor',
+                    target: 'briefingRoom',
+                    interactions: {
+                        look: "The door to the briefing room.",
+                        use: "You enter the briefing room.",
+                        talk: "There's no one at the door to talk to."
+                    }
+                });
+                
+                // Office area door
+                this.collisionObjects.push({
+                    x: 200, y: 200, width: 60, height: 120,
+                    type: 'door',
+                    id: 'officeAreaDoor',
+                    target: 'officeArea',
+                    interactions: {
+                        look: "The door to the detectives' office area.",
+                        use: "You enter the office area.",
+                        talk: "There's no one at the door to talk to."
+                    }
+                });
+                
+                // Downtown exit door
+                this.collisionObjects.push({
+                    x: 365, y: 420, width: 70, height: 30,
+                    type: 'door',
+                    id: 'exitDoor',
+                    target: 'downtown',
+                    interactions: {
+                        look: "The exit door leading downtown.",
+                        use: "You head downtown to investigate.",
+                        talk: "It's a door. It doesn't talk back."
+                    }
+                });
                 break;
-            // Add other scenes as needed
+                
+            case 'officeArea':
+                // Main lobby door
+                this.collisionObjects.push({
+                    x: 400, y: 200, width: 60, height: 120,
+                    type: 'door',
+                    id: 'mainLobbyDoor',
+                    target: 'policeStation',
+                    interactions: {
+                        look: "The door back to the main lobby.",
+                        use: "You return to the main lobby.",
+                        talk: "There's no one at the door to talk to."
+                    }
+                });
+                
+                // Detective desks
+                for (let i = 0; i < 4; i++) {
+                    this.collisionObjects.push({
+                        x: 100 + i * 150, y: 320, width: 120, height: 70,
+                        type: 'desk',
+                        id: `detectiveDesk${i+1}`,
+                        interactions: {
+                            look: `Detective desk ${i+1}. Files and paperwork are scattered across it.`,
+                            use: "You sit down and review some case files.",
+                            take: "The desk is bolted to the floor."
+                        }
+                    });
+                }
+                
+                // Coffee machine
+                this.collisionObjects.push({
+                    x: 700, y: 230, width: 50, height: 70,
+                    type: 'object',
+                    id: 'coffeeMachine',
+                    interactions: {
+                        look: "The department's coffee machine. It's seen better days.",
+                        use: "You pour yourself a cup of coffee.",
+                        take: "The other detectives would hunt you down if you took this."
+                    }
+                });
+                break;
+                
+            // ...existing code for other scenes...
         }
+    }
+
+    // Helper functions for 3D rendering
+    drawFloorGrid(x, y, width, height) {
+        const ctx = this.ctx;
+        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+        ctx.lineWidth = 1;
+
+        // Draw horizontal lines with perspective
+        for (let i = 0; i <= height; i += 20) {
+            ctx.beginPath();
+            ctx.moveTo(x, y + i);
+            // Calculate perspective vanishing point
+            const vanishX = this.canvas.width / 2;
+            const vanishY = y - 100;
+            const perspectiveX1 = x + (x - vanishX) * (i / height);
+            const perspectiveX2 = (x + width) + ((x + width) - vanishX) * (i / height);
+            ctx.moveTo(perspectiveX1, y + i);
+            ctx.lineTo(perspectiveX2, y + i);
+            ctx.stroke();
+        }
+
+        // Draw vertical lines
+        for (let i = 0; i <= width; i += 40) {
+            ctx.beginPath();
+            const perspectiveX = x + i;
+            const vanishY = y - 100;
+            ctx.moveTo(perspectiveX, y);
+            ctx.lineTo(
+                x + width/2 + (perspectiveX - (x + width/2)) * 0.7,
+                y + height
+            );
+            ctx.stroke();
+        }
+    }
+
+    draw3DWall(x, y, width, height, color) {
+        const ctx = this.ctx;
+        ctx.fillStyle = color;
+        
+        // Main wall
+        ctx.fillRect(x, y, width, height);
+        
+        // Add depth shading
+        const gradient = ctx.createLinearGradient(x, y, x + width, y);
+        gradient.addColorStop(0, 'rgba(0,0,0,0.2)');
+        gradient.addColorStop(0.5, 'rgba(0,0,0,0)');
+        gradient.addColorStop(1, 'rgba(0,0,0,0.2)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, y, width, height);
+    }
+
+    draw3DDesk(x, y, width, height) {
+        const ctx = this.ctx;
+        
+        // Desk top
+        ctx.fillStyle = this.colors.brown;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + width, y);
+        ctx.lineTo(x + width - 20, y + height);
+        ctx.lineTo(x - 20, y + height);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Desk front
+        ctx.fillStyle = this.adjustColor(this.colors.brown, -20);
+        ctx.fillRect(x - 20, y + height, width, 20);
+        
+        // Desk side
+        ctx.fillStyle = this.adjustColor(this.colors.brown, -40);
+        ctx.beginPath();
+        ctx.moveTo(x + width, y);
+        ctx.lineTo(x + width - 20, y + height);
+        ctx.lineTo(x + width - 20, y + height + 20);
+        ctx.lineTo(x + width, y + 20);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    drawDoor(x, y, direction, label) {
+        const ctx = this.ctx;
+        ctx.fillStyle = this.colors.brown;
+        ctx.fillRect(x, y, 60, 120);
+        ctx.fillStyle = this.colors.yellow;
+        ctx.fillRect(direction === 'left' ? x + 45 : x + 5, y + 60, 10, 10);
+        
+        // Add door label
+        ctx.fillStyle = this.colors.white;
+        ctx.font = '12px monospace';
+        ctx.fillText(label, x - 10, y - 5);
+    }
+
+    drawDoorWithFrame(x, y, direction, label) {
+        const ctx = this.ctx;
+        
+        // Door frame
+        ctx.fillStyle = '#4A4A4A';
+        ctx.fillRect(x - 5, y - 5, 70, 130);
+        
+        // Door
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(x, y, 60, 120);
+        
+        // Door handle
+        ctx.fillStyle = '#FFD700';
+        ctx.fillRect(direction === 'left' ? x + 45 : x + 5, y + 60, 10, 10);
+        
+        // Door sign
+        ctx.fillStyle = '#E0E0E0';
+        ctx.fillRect(x + 10, y + 10, 40, 20);
+        
+        // Label text
+        ctx.fillStyle = '#000000';
+        ctx.font = '8px monospace';
+        ctx.fillText(label.substring(0, 8), x + 12, y + 22);
+    }
+
+    // Helper function to darken/lighten colors
+    adjustColor(color, amount) {
+        const hex = color.replace('#', '');
+        const r = Math.max(0, Math.min(255, parseInt(hex.slice(0, 2), 16) + amount));
+        const g = Math.max(0, Math.min(255, parseInt(hex.slice(2, 4), 16) + amount));
+        const b = Math.max(0, Math.min(255, parseInt(hex.slice(4, 6), 16) + amount));
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     }
 
     draw3DLocker(x, y, width, height) {
