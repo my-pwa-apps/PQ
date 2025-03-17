@@ -47,6 +47,8 @@ class GameEngine {
         this.floorLevel = 450; // Base floor level for characters
         this.canvas.style.cursor = 'pointer'; // Set default cursor
         this.animationFrame = 0;
+        this.playerFacing = 'down';
+        this.walkCycle = 0;
     }
 
     setupCanvas() {
@@ -87,6 +89,7 @@ class GameEngine {
         this.setupEventListeners();
         this.drawCurrentScene();
         this.startGameLoop();
+        this.keyboardEnabled = true;
     }
 
     startGameLoop() {
@@ -308,6 +311,10 @@ class GameEngine {
         const oldX = this.playerPosition.x;
         const oldY = this.playerPosition.y;
 
+        this.playerFacing = direction;
+        this.isWalking = true;
+        this.walkCycle = (this.walkCycle + 1) % 4;
+
         switch(direction) {
             case 'up':
                 this.playerPosition.y -= moveSpeed;
@@ -327,13 +334,13 @@ class GameEngine {
         this.playerPosition.x = Math.max(50, Math.min(this.playerPosition.x, this.canvas.width - 50));
         this.playerPosition.y = Math.max(300, Math.min(this.playerPosition.y, this.floorLevel));
 
-        // Check for collisions
-        if (this.checkCollision(this.playerPosition.x, this.playerPosition.y)) {
-            this.playerPosition.x = oldX;
-            this.playerPosition.y = oldY;
-        }
-
         this.drawCurrentScene();
+        
+        // Reset walking state after movement
+        setTimeout(() => {
+            this.isWalking = false;
+            this.drawCurrentScene();
+        }, 100);
     }
 
     drawPoliceStation() {
@@ -584,10 +591,7 @@ class GameEngine {
     }
 
     drawPixelCharacter(x, y, uniformColor, badgeColor, facing = 'down', isWalking = false) {
-        // More pixelated character style with 3D depth
-        const pixels = 4; // Size of each pixel for chunky look
-        
-        // Helper function to draw a chunky pixel
+        const pixels = 4;
         const drawPixel = (px, py, color) => {
             this.ctx.fillStyle = color;
             this.ctx.fillRect(
@@ -598,72 +602,64 @@ class GameEngine {
             );
         };
 
-        // Define character shape in pixel array
-        const characterPixels = {
-            head: [
-                [0,0,1,1,1,1,0,0],
-                [0,1,1,1,1,1,1,0],
-                [1,1,1,1,1,1,1,1],
-                [1,1,1,1,1,1,1,1],
-                [1,1,1,1,1,1,1,1],
-                [1,1,1,1,1,1,1,1]
-            ],
-            body: [
-                [0,1,1,1,1,1,1,0],
-                [1,1,1,1,1,1,1,1],
-                [1,1,1,1,1,1,1,1],
-                [0,1,1,1,1,1,1,0],
-                [0,0,1,1,1,1,0,0]
-            ],
-            legs: {
-                stand: [
-                    [0,0,1,1,1,1,0,0],
-                    [0,0,1,1,1,1,0,0],
-                    [0,0,1,1,1,1,0,0],
-                    [0,0,1,1,1,1,0,0]
-                ],
-                walk1: [
-                    [0,1,1,0,0,1,1,0],
-                    [1,1,0,0,0,0,1,1],
-                    [1,0,0,0,0,0,0,1],
-                    [1,0,0,0,0,0,0,1]
-                ],
-                walk2: [
-                    [0,0,1,1,1,1,0,0],
-                    [0,1,1,0,0,1,1,0],
-                    [1,1,0,0,0,0,1,1],
-                    [1,0,0,0,0,0,0,1]
-                ]
-            }
-        };
-
-        // Draw shadow (for 3D effect)
+        // Draw shadow
         this.ctx.fillStyle = 'rgba(0,0,0,0.2)';
         this.ctx.beginPath();
         this.ctx.ellipse(x, y + 12 * pixels, 12 * pixels, 4 * pixels, 0, 0, Math.PI * 2);
         this.ctx.fill();
 
-        // Draw character based on facing direction
         let xOffset = -16;
         let yOffset = -48;
 
-        // Draw head
-        characterPixels.head.forEach((row, py) => {
-            row.forEach((pixel, px) => {
-                if (pixel) {
-                    if (facing === 'left' && px > 4) return; // Skip right side for left profile
-                    if (facing === 'right' && px < 3) return; // Skip left side for right profile
-                    drawPixel(px + xOffset, py + yOffset, '#FFD8B1');
-                }
+        // Head (now properly drawn based on direction)
+        if (facing === 'left' || facing === 'right') {
+            // Profile view head
+            const headPixels = [
+                [0,0,1,1,1,0],
+                [0,1,1,1,1,1],
+                [1,1,1,1,1,1],
+                [1,1,1,1,1,1],
+                [1,1,1,1,1,1],
+                [0,1,1,1,1,0]
+            ];
+            headPixels.forEach((row, py) => {
+                row.forEach((pixel, px) => {
+                    if (pixel) {
+                        const finalPx = facing === 'left' ? px : row.length - 1 - px;
+                        drawPixel(finalPx + xOffset, py + yOffset, '#FFD8B1');
+                    }
+                });
             });
-        });
+        } else {
+            // Front/back view head
+            const headPixels = [
+                [0,0,1,1,1,1,0,0],
+                [0,1,1,1,1,1,1,0],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [0,1,1,1,1,1,1,0]
+            ];
+            headPixels.forEach((row, py) => {
+                row.forEach((pixel, px) => {
+                    if (pixel) drawPixel(px + xOffset, py + yOffset, '#FFD8B1');
+                });
+            });
+        }
 
-        // Draw uniform
-        characterPixels.body.forEach((row, py) => {
+        // Body
+        const bodyPixels = [
+            [0,1,1,1,1,1,1,0],
+            [1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1],
+            [0,1,1,1,1,1,1,0],
+            [0,0,1,1,1,1,0,0]
+        ];
+
+        bodyPixels.forEach((row, py) => {
             row.forEach((pixel, px) => {
                 if (pixel) {
                     drawPixel(px + xOffset, py + yOffset + 6, uniformColor);
-                    // Add badge detail
                     if (py === 1 && px === 2) {
                         drawPixel(px + xOffset, py + yOffset + 6, badgeColor);
                     }
@@ -671,13 +667,32 @@ class GameEngine {
             });
         });
 
-        // Draw legs with walking animation
-        const walkFrame = Math.floor(this.animationFrame / 2); // 0-3 animation frames
-        const legs = isWalking ? 
-            (walkFrame % 2 === 0 ? characterPixels.legs.walk1 : characterPixels.legs.walk2) 
-            : characterPixels.legs.stand;
-        
-        legs.forEach((row, py) => {
+        // Legs (walking animation)
+        const walkFrame = isWalking ? (this.walkCycle % 4) : 0;
+        const legFrames = [
+            [ // Frame 0 - Standing
+                [0,0,1,1,1,1,0,0],
+                [0,0,1,1,1,1,0,0],
+                [0,0,1,1,1,1,0,0]
+            ],
+            [ // Frame 1 - Walking
+                [0,0,1,1,0,0,1,1],
+                [0,1,1,0,0,0,1,0],
+                [1,1,0,0,0,0,0,0]
+            ],
+            [ // Frame 2 - Standing
+                [0,0,1,1,1,1,0,0],
+                [0,0,1,1,1,1,0,0],
+                [0,0,1,1,1,1,0,0]
+            ],
+            [ // Frame 3 - Walking opposite
+                [1,1,0,0,1,1,0,0],
+                [0,1,0,0,0,1,1,0],
+                [0,0,0,0,0,0,1,1]
+            ]
+        ];
+
+        legFrames[walkFrame].forEach((row, py) => {
             row.forEach((pixel, px) => {
                 if (pixel) {
                     drawPixel(px + xOffset, py + yOffset + 11, '#000033');
@@ -685,20 +700,18 @@ class GameEngine {
             });
         });
 
-        // Face details based on direction
+        // Face details
         if (facing === 'down' || facing === facing) {
-            // Eyes
-            drawPixel(xOffset + 2, yOffset + 3, '#000000');
-            drawPixel(xOffset + 5, yOffset + 3, '#000000');
-            // Mouth
-            drawPixel(xOffset + 3, yOffset + 4, '#000000');
+            drawPixel(xOffset + 2, yOffset + 3, '#000000'); // Left eye
+            drawPixel(xOffset + 5, yOffset + 3, '#000000'); // Right eye
+            drawPixel(xOffset + 3, yOffset + 4, '#000000'); // Mouth
             drawPixel(xOffset + 4, yOffset + 4, '#000000');
         } else if (facing === 'left') {
             drawPixel(xOffset + 2, yOffset + 3, '#000000'); // Left eye
             drawPixel(xOffset + 2, yOffset + 4, '#000000'); // Mouth
         } else if (facing === 'right') {
-            drawPixel(xOffset + 5, yOffset + 3, '#000000'); // Right eye
-            drawPixel(xOffset + 5, yOffset + 4, '#000000'); // Mouth
+            drawPixel(xOffset + 4, yOffset + 3, '#000000'); // Right eye
+            drawPixel(xOffset + 4, yOffset + 4, '#000000'); // Mouth
         }
     }
 
