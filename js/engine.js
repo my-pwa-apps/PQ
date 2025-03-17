@@ -85,6 +85,7 @@ class GameEngine {
     }
 
     init() {
+        this.canvas.style.cursor = 'default'; // Ensure cursor is visible
         this.game.init(); // Initialize game state
         this.setupEventListeners();
         this.drawCurrentScene();
@@ -263,25 +264,8 @@ class GameEngine {
     }
 
     updateCursor() {
-        switch(this.activeCommand) {
-            case 'look':
-                this.canvas.style.cursor = 'url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAA1klEQVR4nO2WMQ7CMAxFv1MxcAPYGNgZuAgTN+AW3KUbF+lWNjbE1MFWo1RFrarUTuqEgT9ZsqXI/rJjOwaEEP+GBWABeJ3E5ZXvJXfd2U1KIJyCJsFO7eq65ztT+a7KqUPNw+MIDAEcY0YWZwDPFHcpgLJ0+gvAzoGDmOLZWwzUNqsDqp8qngKKr0AZu0rcIKQQtN9KyAYt7YKc8gwF6NvJWm+WxWKRztKNBBQP72cgJqCbSEWQnYCusO/hTmsoQGtQAvrdeHTvJEWw6Nug95R/UwkhfIUX0RFsX/v/i5YAAAAASUVORK5CYII=) 16 16, auto';
-                break;
-            case 'talk':
-                this.canvas.style.cursor = 'url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAB3klEQVR4nO2WTUsCURSGH7cfoMVQBC1atAraFLTpB7RqF7SKoHZFQUS0KKJVUVFEq/6BiyCi3xD9hKB2RREEl+ddOMIw3pk7jqm04YXLzD33fS73nHPPHAghhBBCwDRwBPQBVyvCBWAZKPgMvAmsA0MO/fPAAXAFXGqsABPAA/AC7OkioLJaCXj/KZyt/z2gF7gEaoEJbbsGGoFGY7BGfBFA7LIOYD/g2wvAnPZNA6+6rRtDRCtHFcKeXj9xmQwxDOwBcaN/E/gCjoF5oCrgOd0ahdtQBGxpx5kPp+vAFJAD9oFmY1sWAbeBCDRZbo5YHKgB9o2+OnV+zi5lZSDttLVQ/BAWEyjfdsz5+44vfzM2/v1MBGT3A7Ab8P0scGa077D/AVMNGL9HJWpAzPj/RXnwmI3/dgJTGs4rw3HOyGTx/SciEJiGxKe/wOKrjKHmQZMt9aR0jQIwqPcVaVvzJNBAkQ3z/JbScJ5S3IrYZSkjm5X0LvZqtM4z1AHXlmWLGTVvXqsGHH2s0/vfVrZ2iYBlYNOI0E9gQJ/bsqwHb/U5pwukNUMWjLoALkd6gXutjDdAr0tGJIxS2qPLVtc1MOJwXF+hkroPZA2nsZpsEmiJ+iCFEEKIPOIPzEq2zeiJoVwAAAAASUVORK5CYII=) 16 16, auto';
-                break;
-            case 'use':
-                this.canvas.style.cursor = 'url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAABDUlEQVR4nO2WQQ6CMBBFP5poPIE3UG/gETyJnsQzeAPuBJFdb6AbZKIJS0Imk06LLPiTJoQO818708wAiqIoCqcCcAVwBjACsEt5CjAHcPDsWwKYCnM96VmY47KmotQATgDaEXMzcUxVcbHWUBXbXg4ATLIw1Mg7Jq6jwXG0J8Z1pLl7Z94tUcErTB1/j6HG2EBXG5mLMYHfA5haLkZAjFOz1UJxJxQNSe/AVojj8PhOf84YgJmXwngRxIQ3ISVL+iMZ+CckXoNcaU5+C4YyESXA1Y+Jytj3gnlNrOWUHg2+Esfe2QI4+kZJyWmiTOQqYS6Q+K6QQm4MKQO5MaQM5MaQM5AbQ8qAoiiKwvEEBlT+e/++RgUAAAAASUVORK5CYII=) 16 16, auto';
-                break;
-            case 'take':
-                this.canvas.style.cursor = 'url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAABJklEQVR4nO2WMU4DMRBFP0QpECdA3AAJJMQFqKlpKJcoOMgegpaajiNwAHouQEVJh0TF3yArZWXNeL2btViJJyWKPfP1z9jjXUNRFEVRIjoCsARwC+DqgHUP4BXAHYBTWzgH8A7gA8DTAcsvADsAv1pPmrykOQPwCeAKwLkdnSxDyXab+xLAHYAtgIUrvMlw3ULMQDFYcC7CFRGYJNU5cWiMcyoEWMTlLjfJdRFgQGbOvujEkTW5NpDB6sirR54oAnPmJM8pddvdA9TwrO822JliRRuSQYZumMgMOIqFyoAitQEJ17OMHA0YkBfVjBkYWc2tMTCzmqMV8WetOwDPDW9a/YRGJ9aoHuT9l0j36KAX0e2wfQg14Rk7VVgCeNbLSFGUfvIHRthP0UJZCiMAAAAASUVORK5CYII=) 16 16, auto';
-                break;
-            case 'move':
-                this.canvas.style.cursor = 'url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAzElEQVR4nO2WQQ6DMAwExyA+wuP6zP6q9NT36JWXcEDbA5Eqm9oJNFHFSLlE9sx6HRlCCCGEkM7MAWwAHACsHwYV1URdQpwK1FBaHSMppEBhrcOtCY3/k2RxcrTbnhGFRMB0dAxSRvTdClRV0VGWtas4mshbfhRnI2jcyThLgEPhtooTOBpTD0reywQmHVDvlTQRJ0xG0WDNACS4uMzPfgTB0GhG8iuQGV/vUnpfRs6evi7jbnyOa1/n4jJCSAAkWBFCCCHeDG9njnl1F+NSSQAAAABJRU5ErkJggg==) 16 16, auto';
-                break;
-            default:
-                this.canvas.style.cursor = 'default';
-        }
+        const cursorStyle = this.activeCommand ? 'pointer' : 'default';
+        this.canvas.style.cursor = cursorStyle;
     }
 
     handleInteraction(x, y) {
@@ -602,11 +586,7 @@ class GameEngine {
             );
         };
 
-        // Draw shadow
-        this.ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        this.ctx.beginPath();
-        this.ctx.ellipse(x, y + 12 * pixels, 12 * pixels, 4 * pixels, 0, 0, Math.PI * 2);
-        this.ctx.fill();
+        // Removed shadow drawing code
 
         let xOffset = -16;
         let yOffset = -48;
@@ -919,6 +899,24 @@ class GameEngine {
         if (interaction) {
             this.showDialog(interaction);
             
+            // Handle room transitions
+            if (this.activeCommand === 'use') {
+                switch (hitObject.id) {
+                    case 'sheriffsOfficeDoor':
+                        this.currentScene = 'sheriffsOffice';
+                        this.loadScene('sheriffsOffice');
+                        break;
+                    case 'briefingRoomDoor':
+                        this.currentScene = 'briefingRoom';
+                        this.loadScene('briefingRoom');
+                        break;
+                    case 'exitDoor':
+                        this.currentScene = 'policeStation';
+                        this.loadScene('policeStation');
+                        break;
+                }
+            }
+            
             // Handle special interactions
             if (this.activeCommand === 'take' && hitObject.id === 'caseFile') {
                 game.addToInventory('caseFile');
@@ -940,25 +938,6 @@ class GameEngine {
             } else if (this.activeCommand === 'use' && hitObject.id === 'shopDoor') {
                 game.completeStage('downtown');
                 this.updateCaseInfo();
-            }
-            
-            // Handle room transitions
-            if (this.activeCommand === 'use') {
-                // Room transitions
-                switch (hitObject.id) {
-                    case 'sheriffsOfficeDoor':
-                        game.changeLocation('sheriffsOffice');
-                        break;
-                    case 'briefingRoomDoor':
-                        game.changeLocation('briefingRoom');
-                        break;
-                    case 'exitDoor':
-                        if (game.gameState.currentLocation === 'sheriffsOffice' || 
-                            game.gameState.currentLocation === 'briefingRoom') {
-                            game.changeLocation('policeStation');
-                        }
-                        break;
-                }
             }
             
             // Check if case is solved
