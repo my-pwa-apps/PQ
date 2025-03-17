@@ -1,3 +1,8 @@
+// Add dependency check at the top
+if (typeof Game === 'undefined') {
+    throw new Error('Game class must be loaded before GameEngine');
+}
+
 class GameEngine {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
@@ -966,8 +971,8 @@ class GameEngine {
     }
 }
 
-// Initialize game after window loads
-const engine = new GameEngine();
+// Move initialization to after DOM is loaded and ensure global reference
+window.engine = new GameEngine();
 window.addEventListener('DOMContentLoaded', () => {
-    engine.init();
+    window.engine.init();
 });

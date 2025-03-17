@@ -549,3 +549,11 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
+// Use window.engine instead of direct engine reference
+window.addEventListener('DOMContentLoaded', () => {
+    if (typeof window.engine === 'undefined') {
+        throw new Error('GameEngine must be initialized before game setup');
+    }
+    // Your game.js initialization code here
+});

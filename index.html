@@ -28,7 +28,9 @@
     </div>
     <audio id="bgMusic" loop></audio>
     <script src="js/soundManager.js"></script>
-    <script src="js/engine.js"></script>
+    <!-- Load game classes first -->
     <script src="js/game.js"></script>
+    <!-- Load engine after game class is available -->
+    <script src="js/engine.js"></script>
 </body>
 </html>
