@@ -1341,7 +1341,7 @@ class GameEngine {
     }
 
     // Helper functions for 3D rendering
-    drawFloorGrid(x, y, width, height) {
+    drawFloorGrid = (x, y, width, height) => {
         const ctx = this.ctx;
         ctx.strokeStyle = 'rgba(0,0,0,0.2)';
         ctx.lineWidth = 1;
@@ -1374,7 +1374,7 @@ class GameEngine {
         }
     }
 
-    draw3DWall(x, y, width, height, color) {
+    draw3DWall = (x, y, width, height, color) => {
         const ctx = this.ctx;
         ctx.fillStyle = color;
         
@@ -1390,7 +1390,7 @@ class GameEngine {
         ctx.fillRect(x, y, width, height);
     }
 
-    draw3DDesk(x, y, width, height) {
+    draw3DDesk = (x, y, width, height) => {
         const ctx = this.ctx;
         
         // Desk top
@@ -1418,7 +1418,7 @@ class GameEngine {
         ctx.fill();
     }
 
-    drawDoor(x, y, direction, label) {
+    drawDoor = (x, y, direction, label) => {
         const ctx = this.ctx;
         ctx.fillStyle = this.colors.brown;
         ctx.fillRect(x, y, 60, 120);
@@ -1431,7 +1431,7 @@ class GameEngine {
         ctx.fillText(label, x - 10, y - 5);
     }
 
-    drawDoorWithFrame(x, y, direction, label) {
+    drawDoorWithFrame = (x, y, direction, label) => {
         const ctx = this.ctx;
         
         // Door frame with proper wall connection
@@ -1459,7 +1459,7 @@ class GameEngine {
         ctx.fillText(label.substring(0, 8), x + 12, y + 22);
     }
     
-    drawWindowView(x, y, width, height) {
+    drawWindowView = (x, y, width, height) => {
         // Animated view through window
         this.ctx.fillStyle = '#87CEEB'; // Sky blue
         this.ctx.fillRect(x, y, width, height * 0.6);
@@ -1480,7 +1480,7 @@ class GameEngine {
         this.ctx.fill();
     }
     
-    drawBulletinNotices(x, y, width, height) {
+    drawBulletinNotices = (x, y, width, height) => {
         // Add notices to bulletin board
         const ctx = this.ctx;
         const notices = [
@@ -1501,7 +1501,7 @@ class GameEngine {
         });
     }
     
-    drawDeskItems(x, y, width, height) {
+    drawDeskItems = (x, y, width, height) => {
         const ctx = this.ctx;
         
         // Computer monitor
@@ -1526,7 +1526,7 @@ class GameEngine {
         ctx.fillRect(x + 105, y + 10, 30, 20);
     }
     
-    drawWallDecorations() {
+    drawWallDecorations = () => {
         const ctx = this.ctx;
         
         // Police badge emblem
@@ -1579,7 +1579,7 @@ class GameEngine {
         ctx.restore();
     }
     
-    drawAmbientAnimations() {
+    drawAmbientAnimations = () => {
         if (!this.ambientAnimations) return;
         
         const ctx = this.ctx;
@@ -1619,7 +1619,7 @@ class GameEngine {
         }
     }
     
-    setupAmbientAnimations(scene) {
+    setupAmbientAnimations = (scene) => {
         // Reset all animations
         this.ambientAnimations.coffeeSteam.active = false;
         this.ambientAnimations.typingNPC.active = false;
@@ -1649,7 +1649,7 @@ class GameEngine {
         }
     }
 
-    updateNPCs() {
+    updateNPCs = () => {
         const currentSceneNPCs = this.npcs[this.currentScene];
         if (!currentSceneNPCs) return;
 
@@ -1688,7 +1688,7 @@ class GameEngine {
         });
     }
 
-    drawRoomBoundaries() {
+    drawRoomBoundaries = () => {
         const boundaries = this.roomBoundaries[this.currentScene];
         if (!boundaries) return;
         
@@ -1707,7 +1707,7 @@ class GameEngine {
         });
     }
     
-    drawExitDoor(x, y, label) {
+    drawExitDoor = (x, y, label) => {
         const ctx = this.ctx;
         
         // Door frame with exit sign above
@@ -1744,7 +1744,7 @@ class GameEngine {
         });
     }
     
-    addExitSign(x, y, destination) {
+    addExitSign = (x, y, destination) => {
         if (!destination || typeof x !== 'number' || typeof y !== 'number') {
             console.warn('Invalid parameters for exit sign');
             return;
@@ -1774,7 +1774,7 @@ class GameEngine {
     // Memoized color adjustment for better performance
     #colorCache = new Map();
     
-    adjustColor(color, amount) {
+    adjustColor = (color, amount) => {
         const cacheKey = `${color}_${amount}`;
         if (this.#colorCache.has(cacheKey)) {
             return this.#colorCache.get(cacheKey);
@@ -1800,14 +1800,14 @@ class GameEngine {
         }
     }
 
-    startBackgroundMusic() {
+    startBackgroundMusic = () => {
         if (this.backgroundMusicPlayer) {
             this.backgroundMusicPlayer.stop();
         }
         this.backgroundMusicPlayer = window.soundManager.playBackgroundMusic();
     }
 
-    stopBackgroundMusic() {
+    stopBackgroundMusic = () => {
         if (this.backgroundMusicPlayer) {
             this.backgroundMusicPlayer.stop();
             this.backgroundMusicPlayer = null;
