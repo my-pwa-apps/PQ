@@ -44,7 +44,7 @@ class GameEngine {
                 }
             ]
         };
-        this.floorLevel = {min: 300, max: 430}; // Y-coordinate boundaries for the floor
+        this.floorLevel = {min: 200, max: 430}; // Adjust floor level for more walking space
         this.canvas.style.cursor = 'pointer'; // Set default cursor
         this.animationFrame = 0;
         this.playerFacing = 'down';
@@ -65,6 +65,11 @@ class GameEngine {
             // Add boundaries for other rooms here
         };
         this.playerWalkCycle = 0; // Separate player animation from NPCs
+        this.ambientAnimations = {
+            coffeeSteam: { x: 0, y: 0, active: false },
+            typingNPC: { x: 0, y: 0, active: false },
+            blinkingLights: { frame: 0 }
+        };
     }
 
     setupCanvas() {
@@ -190,19 +195,23 @@ class GameEngine {
                 this.drawPoliceStation();
         }
         
+        // Draw ambient animations
+        this.drawAmbientAnimations();
+        
         // Draw NPCs for current scene
         if (this.npcs[this.currentScene]) {
             this.npcs[this.currentScene].forEach(npc => {
-                // Ensure NPCs stay on the floor
-                npc.y = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
+                // Position NPCs properly on floor
+                const yPosition = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
                 
                 this.drawPixelCharacter(
-                    npc.x, npc.y, 
-                    npc.type === 'sergeant' ? this.colors.brightBlue : this.colors.blue,
+                    npc.x, yPosition, 
+                    npc.type === 'sergeant' ? this.colors.brightBlue : 
+                    npc.type === 'detective' ? this.colors.red : this.colors.blue,
                     this.colors.yellow,
                     npc.facing,
-                    true,  // NPCs are always in walking animation
-                    true   // Flag this as an NPC for animation
+                    true,
+                    true
                 );
             });
         }
@@ -215,7 +224,7 @@ class GameEngine {
             this.colors.yellow,
             this.playerFacing,
             this.isWalking,
-            false  // Not an NPC
+            false
         );
 
         this.updateCollisionObjects(); // Update collision objects when scene changes
@@ -407,28 +416,28 @@ class GameEngine {
     drawPoliceStation() {
         const colors = this.colors;
         
-        // Draw walls and floor
-        this.drawFloorGrid(0, 300, this.canvas.width, 150);
-        this.draw3DWall(0, 0, this.canvas.width, 300, colors.blue);
-        
-        // Floor (wooden floor boards)
+        // Draw floor first (expand floor area)
         this.ctx.fillStyle = '#8B4513'; // Brown wooden floor
-        this.ctx.fillRect(0, 300, this.canvas.width, 150);
+        this.ctx.fillRect(0, this.floorLevel.min, this.canvas.width, 
+                         this.canvas.height - this.floorLevel.min);
         
         // Add floor texture
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 30; i++) {
             this.ctx.strokeStyle = 'rgba(0,0,0,0.2)';
             this.ctx.beginPath();
-            this.ctx.moveTo(0, 300 + i * 10);
-            this.ctx.lineTo(this.canvas.width, 300 + i * 10);
+            this.ctx.moveTo(0, this.floorLevel.min + i * 10);
+            this.ctx.lineTo(this.canvas.width, this.floorLevel.min + i * 10);
             this.ctx.stroke();
         }
         
-        // Wall trim and texture
-        this.ctx.fillStyle = '#4A4A4A';
-        this.ctx.fillRect(0, 290, this.canvas.width, 10);
+        // Draw wall (reduced height)
+        this.draw3DWall(0, 0, this.canvas.width, this.floorLevel.min, colors.blue);
         
-        // Windows (repositioned to avoid overlap)
+        // Wall trim at floor junction
+        this.ctx.fillStyle = '#4A4A4A';
+        this.ctx.fillRect(0, this.floorLevel.min - 10, this.canvas.width, 10);
+        
+        // Windows (repositioned for lower wall)
         for (let i = 0; i < 2; i++) {
             // Window frame
             this.ctx.fillStyle = '#A0A0A0';
@@ -445,6 +454,9 @@ class GameEngine {
             this.ctx.moveTo(160 + i * 350, 55);
             this.ctx.lineTo(160 + i * 350, 145);
             this.ctx.stroke();
+            
+            // Add animated view through window
+            this.drawWindowView(105 + i * 350, 55, 110, 90);
         }
         
         // Bulletin board
@@ -453,19 +465,31 @@ class GameEngine {
         this.ctx.fillStyle = '#F5F5DC';
         this.ctx.fillRect(285, 55, 110, 70);
         
-        // Reception desk (single desk in main lobby)
-        this.draw3DDesk(400, 320, 150, 80);
+        // Add notices to bulletin board
+        this.drawBulletinNotices(285, 55, 110, 70);
         
-        // Draw doors with frames
-        this.drawDoorWithFrame(50, 200, 'left', "Sheriff's Office");
-        this.drawDoorWithFrame(600, 200, 'right', "Briefing Room");
-        this.drawDoorWithFrame(200, 200, 'left', "Office Area");
+        // Reception desk (aligned with floor)
+        this.draw3DDesk(400, this.floorLevel.min + 20, 150, 80);
+        
+        // Draw phones and computer on reception desk
+        this.drawDeskItems(400, this.floorLevel.min + 20, 150, 80);
+        
+        // Draw doors aligned with floor/wall
+        this.drawDoorWithFrame(50, this.floorLevel.min - 120, 'left', "Sheriff's Office");
+        this.drawDoorWithFrame(600, this.floorLevel.min - 120, 'right', "Briefing Room");
+        this.drawDoorWithFrame(200, this.floorLevel.min - 120, 'left', "Office Area");
         
         // Add exit to downtown
-        this.drawExitDoor(400, 420, "Exit to Downtown");
+        this.drawExitDoor(400, this.canvas.height - 30, "Exit to Downtown");
         
         // Add exit sign
-        this.addExitSign(400, 390, "Downtown");
+        this.addExitSign(400, this.canvas.height - 60, "Downtown");
+        
+        // Add wall decorations
+        this.drawWallDecorations();
+        
+        // Set up ambient animations
+        this.setupAmbientAnimations('policeStation');
         
         // Update collision objects for this scene
         this.updateCollisionObjects();
@@ -1101,7 +1125,7 @@ class GameEngine {
             // Reset player position based on scene, ensuring they're on the floor
             switch(sceneId) {
                 case 'policeStation':
-                    this.playerPosition = { x: 400, y: 380 };
+                    this.playerPosition = { x: 400, y: this.floorLevel.min + 100 };
                     break;
                 case 'downtown':
                     this.playerPosition = { x: 400, y: 350 };
@@ -1110,15 +1134,21 @@ class GameEngine {
                     this.playerPosition = { x: 400, y: 350 };
                     break;
                 case 'sheriffsOffice':
-                    this.playerPosition = { x: 200, y: 350 };
+                    this.playerPosition = { x: 200, y: this.floorLevel.min + 100 };
                     break;
                 case 'briefingRoom':
-                    this.playerPosition = { x: 200, y: 350 };
+                    this.playerPosition = { x: 200, y: this.floorLevel.min + 100 };
+                    break;
+                case 'officeArea':
+                    this.playerPosition = { x: 400, y: this.floorLevel.min + 100 };
                     break;
                 default:
                     console.warn('Unknown scene:', sceneId);
-                    this.playerPosition = { x: 400, y: 350 };
+                    this.playerPosition = { x: 400, y: this.floorLevel.min + 100 };
             }
+            
+            // Setup ambient animations for new scene
+            this.setupAmbientAnimations(sceneId);
             
             // Reset walking state
             this.isWalking = false;
@@ -1375,13 +1405,16 @@ class GameEngine {
     drawDoorWithFrame(x, y, direction, label) {
         const ctx = this.ctx;
         
-        // Door frame
+        // Door frame with proper wall connection
         ctx.fillStyle = '#4A4A4A';
         ctx.fillRect(x - 5, y - 5, 70, 130);
         
         // Door
         ctx.fillStyle = '#8B4513';
         ctx.fillRect(x, y, 60, 120);
+        
+        // Make the door reach exactly to the floor
+        ctx.fillRect(x, y, 60, this.floorLevel.min - y);
         
         // Door handle
         ctx.fillStyle = '#FFD700';
@@ -1396,44 +1429,195 @@ class GameEngine {
         ctx.font = '8px monospace';
         ctx.fillText(label.substring(0, 8), x + 12, y + 22);
     }
-
-    // Helper function to darken/lighten colors
-    adjustColor(color, amount) {
-        const hex = color.replace('#', '');
-        const r = Math.max(0, Math.min(255, parseInt(hex.slice(0, 2), 16) + amount));
-        const g = Math.max(0, Math.min(255, parseInt(hex.slice(2, 4), 16) + amount));
-        const b = Math.max(0, Math.min(255, parseInt(hex.slice(4, 6), 16) + amount));
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    
+    drawWindowView(x, y, width, height) {
+        // Animated view through window
+        this.ctx.fillStyle = '#87CEEB'; // Sky blue
+        this.ctx.fillRect(x, y, width, height * 0.6);
+        
+        // Draw buildings in distance
+        this.ctx.fillStyle = '#555555';
+        for (let i = 0; i < 5; i++) {
+            const buildingHeight = 20 + Math.sin(i + this.animationFrame * 0.1) * 5;
+            this.ctx.fillRect(x + 5 + i * 22, y + height * 0.6 - buildingHeight, 15, buildingHeight);
+        }
+        
+        // Animate clouds
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.beginPath();
+        this.ctx.arc(x + 20 + (this.animationFrame % 50), y + 30, 10, 0, Math.PI * 2);
+        this.ctx.arc(x + 35 + (this.animationFrame % 50), y + 25, 12, 0, Math.PI * 2);
+        this.ctx.arc(x + 50 + (this.animationFrame % 50), y + 30, 10, 0, Math.PI * 2);
+        this.ctx.fill();
     }
-
-    draw3DLocker(x, y, width, height) {
+    
+    drawBulletinNotices(x, y, width, height) {
+        // Add notices to bulletin board
+        const ctx = this.ctx;
+        const notices = [
+            {color: '#FFFFFF', width: 30, height: 25},
+            {color: '#FFFFCC', width: 40, height: 20},
+            {color: '#CCFFFF', width: 25, height: 30}
+        ];
+        
+        notices.forEach((notice, i) => {
+            ctx.fillStyle = notice.color;
+            ctx.fillRect(x + 5 + i * 35, y + 5 + (i % 2) * 30, notice.width, notice.height);
+            
+            // Add some lines of "text"
+            ctx.fillStyle = '#000000';
+            for (let j = 0; j < 3; j++) {
+                ctx.fillRect(x + 8 + i * 35, y + 10 + (i % 2) * 30 + j * 5, notice.width - 6, 1);
+            }
+        });
+    }
+    
+    drawDeskItems(x, y, width, height) {
         const ctx = this.ctx;
         
-        // Locker front
-        ctx.fillStyle = this.colors.lightGray;
-        ctx.fillRect(x, y, width, height);
+        // Computer monitor
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(x + width/2 - 20, y - 30, 40, 30);
+        ctx.fillStyle = '#00AAAA';
+        ctx.fillRect(x + width/2 - 17, y - 27, 34, 24);
         
-        // Locker side (for 3D effect)
-        ctx.fillStyle = this.adjustColor(this.colors.lightGray, -30);
+        // Keyboard
+        ctx.fillStyle = '#666666';
+        ctx.fillRect(x + width/2 - 25, y - 5, 50, 15);
+        
+        // Phone
+        ctx.fillStyle = '#222222';
+        ctx.fillRect(x + 20, y + 20, 30, 15);
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(x + 25, y + 5, 20, 15);
+        
+        // Papers
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(x + 100, y + 15, 30, 20);
+        ctx.fillRect(x + 105, y + 10, 30, 20);
+    }
+    
+    drawWallDecorations() {
+        const ctx = this.ctx;
+        
+        // Police badge emblem
+        ctx.fillStyle = '#FFD700';
         ctx.beginPath();
-        ctx.moveTo(x + width, y);
-        ctx.lineTo(x + width + 20, y + 20);
-        ctx.lineTo(x + width + 20, y + height + 20);
-        ctx.lineTo(x + width, y + height);
+        ctx.moveTo(400, 50);
+        ctx.lineTo(430, 65);
+        ctx.lineTo(430, 95);
+        ctx.lineTo(400, 110);
+        ctx.lineTo(370, 95);
+        ctx.lineTo(370, 65);
         ctx.closePath();
         ctx.fill();
         
-        // Locker door details
-        ctx.fillStyle = this.colors.darkGray;
-        ctx.fillRect(x + 5, y + 5, width - 10, height - 10);
+        ctx.fillStyle = '#0000AA';
+        ctx.beginPath();
+        ctx.arc(400, 80, 20, 0, Math.PI * 2);
+        ctx.fill();
         
-        // Handle
-        ctx.fillStyle = this.colors.yellow;
-        ctx.fillRect(x + width - 15, y + height/2 - 10, 8, 20);
+        // Wall clock
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(650, 70, 25, 0, Math.PI * 2);
+        ctx.stroke();
         
-        // Lock
-        ctx.fillStyle = this.colors.black;
-        ctx.fillRect(x + width - 15, y + height/2 - 30, 8, 8);
+        // Clock hands
+        const time = new Date();
+        const hours = time.getHours() % 12;
+        const minutes = time.getMinutes();
+        
+        // Hour hand
+        ctx.save();
+        ctx.translate(650, 70);
+        ctx.rotate(hours * Math.PI/6 + minutes * Math.PI/360);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -12);
+        ctx.stroke();
+        ctx.restore();
+        
+        // Minute hand
+        ctx.save();
+        ctx.translate(650, 70);
+        ctx.rotate(minutes * Math.PI/30);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -18);
+        ctx.stroke();
+        ctx.restore();
+    }
+    
+    drawAmbientAnimations() {
+        if (!this.ambientAnimations) return;
+        
+        const ctx = this.ctx;
+        const anim = this.ambientAnimations;
+        
+        // Coffee steam
+        if (anim.coffeeSteam.active) {
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            for (let i = 0; i < 3; i++) {
+                const offsetX = Math.sin((this.animationFrame + i * 5) * 0.2) * 3;
+                const size = 3 + Math.sin(this.animationFrame * 0.3) * 2;
+                ctx.beginPath();
+                ctx.arc(
+                    anim.coffeeSteam.x + offsetX, 
+                    anim.coffeeSteam.y - i * 5 - this.animationFrame % 10, 
+                    size, 0, Math.PI * 2
+                );
+                ctx.fill();
+            }
+        }
+        
+        // Typing NPC animation
+        if (anim.typingNPC.active) {
+            // Typing hands animation on keyboard
+            const typingOffset = this.animationFrame % 4 === 0 ? 2 : 0;
+            ctx.fillStyle = '#FFD8B1'; // Skin color
+            ctx.fillRect(anim.typingNPC.x, anim.typingNPC.y + typingOffset, 5, 5);
+            ctx.fillRect(anim.typingNPC.x + 15, anim.typingNPC.y + typingOffset, 5, 5);
+        }
+        
+        // Blinking lights
+        if ((this.animationFrame % 50) < 5) {
+            ctx.fillStyle = '#FF0000';
+            ctx.beginPath();
+            ctx.arc(750, 50, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    
+    setupAmbientAnimations(scene) {
+        // Reset all animations
+        this.ambientAnimations.coffeeSteam.active = false;
+        this.ambientAnimations.typingNPC.active = false;
+        
+        switch(scene) {
+            case 'policeStation':
+                // No coffee in main lobby
+                this.ambientAnimations.typingNPC.x = 400;
+                this.ambientAnimations.typingNPC.y = this.floorLevel.min - 8;
+                this.ambientAnimations.typingNPC.active = true;
+                break;
+                
+            case 'officeArea':
+                // Coffee machine steam
+                this.ambientAnimations.coffeeSteam.x = 725;
+                this.ambientAnimations.coffeeSteam.y = 230;
+                this.ambientAnimations.coffeeSteam.active = true;
+                break;
+                
+            case 'briefingRoom':
+                // Projector light
+                this.ambientAnimations.projectorLight = {
+                    x: 350, y: 30, width: 200, height: 100,
+                    active: true, frame: 0
+                };
+                break;
+        }
     }
 
     updateNPCs() {
@@ -1449,6 +1633,14 @@ class GameEngine {
             if (distance < 2) {
                 // Move to next patrol point
                 npc.currentPatrolPoint = (npc.currentPatrolPoint + 1) % npc.patrolPoints.length;
+                
+                // Add idle animation or interaction at waypoints
+                if (Math.random() > 0.7) {
+                    npc.idleAction = {
+                        type: Math.random() > 0.5 ? 'talk' : 'look',
+                        duration: Math.floor(Math.random() * 3) + 2
+                    };
+                }
             } else {
                 // Move towards current target
                 const speed = 2;
@@ -1457,6 +1649,9 @@ class GameEngine {
                 
                 // Update facing direction
                 npc.facing = dx > 0 ? 'right' : 'left';
+                
+                // Reset any idle action when moving
+                npc.idleAction = null;
             }
             
             // Ensure NPCs stay on the floor
