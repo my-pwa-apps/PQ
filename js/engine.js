@@ -375,43 +375,24 @@ class GameEngine {
                 break;
         }
 
-        // Boundary checks - ensure player stays on floor
-        this.playerPosition.x = Math.max(50, Math.min(this.playerPosition.x, this.canvas.width - 50));
-        this.playerPosition.y = Math.max(this.floorLevel.min + 50, Math.min(this.playerPosition.y, this.floorLevel.max));
-
-        // Check for collisions with walls and doors
-        const boundaries = this.roomBoundaries[this.currentScene];
-        if (boundaries) {
-            // Check walls
-            for (const wall of boundaries.walls) {
-                if (this.playerPosition.x >= wall.x && 
-                    this.playerPosition.x <= wall.x + wall.width &&
-                    this.playerPosition.y >= wall.y && 
-                    this.playerPosition.y <= wall.y + wall.height) {
-                    // Revert movement if colliding with wall
-                    this.playerPosition.x = oldX;
-                    this.playerPosition.y = oldY;
-                    return;
-                }
-            }
-            
-            // Check doors (don't block but trigger room transition if using 'use' command)
-            for (const door of boundaries.doors) {
-                if (this.playerPosition.x >= door.x && 
-                    this.playerPosition.x <= door.x + door.width &&
-                    this.playerPosition.y >= door.y && 
-                    this.playerPosition.y <= door.y + door.height &&
-                    this.activeCommand === 'use') {
-                    this.currentScene = door.target;
-                    this.loadScene(door.target);
-                    return;
-                }
+        // Check all collisions
+        const collision = this.checkCollision(this.playerPosition.x, this.playerPosition.y);
+        if (collision) {
+            if (collision.type === 'desk' || collision.type === 'wall') {
+                // Revert movement if colliding with desk or wall
+                this.playerPosition.x = oldX;
+                this.playerPosition.y = oldY;
+                return;
+            } else if (collision.type === 'door' && this.activeCommand === 'use') {
+                // Handle door transitions
+                this.currentScene = collision.target;
+                this.loadScene(collision.target);
+                return;
             }
         }
 
         this.drawCurrentScene();
         
-        // Reset walking state after movement
         setTimeout(() => {
             this.isWalking = false;
             this.drawCurrentScene();
@@ -478,6 +459,24 @@ class GameEngine {
         
         // Draw phones and computer on reception desk
         this.drawDeskItems(400, this.floorLevel.min + 20, 150, 80);
+        
+        // Add female officer at desk
+        this.drawPixelCharacter(
+            450, // Centered at desk
+            this.floorLevel.min + 40, // Proper height for sitting
+            this.colors.blue, // Police uniform
+            this.colors.yellow, // Badge
+            'down', // Facing forward
+            false, // Not walking
+            true, // Is NPC
+            true // Is female
+        );
+
+        // Add sitting animation
+        if (this.animationFrame % 4 === 0) {
+            // Typing animation
+            this.drawDeskItems(400, this.floorLevel.min + 15, 150, 80);
+        }
         
         // Draw doors aligned with floor/wall
         this.drawDoorWithFrame(50, this.floorLevel.min - 120, 'left', "Sheriff's Office");
@@ -671,7 +670,7 @@ class GameEngine {
         this.drawArrowIndicator('left', 'Downtown');
     }
 
-    drawPixelCharacter(x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false) {
+    drawPixelCharacter(x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false, isFemale = false) {
         const pixels = 4;
         const drawPixel = (px, py, color) => {
             this.ctx.fillStyle = color;
@@ -688,7 +687,24 @@ class GameEngine {
         let xOffset = -16;
         let yOffset = -48;
 
-        // Head (now properly drawn based on direction)
+        // Police hat
+        const hatPixels = [
+            [0,0,1,1,1,1,1,0],
+            [1,1,1,1,1,1,1,1]
+        ];
+        
+        hatPixels.forEach((row, py) => {
+            row.forEach((pixel, px) => {
+                if (pixel) {
+                    drawPixel(px + xOffset, py + yOffset - 2, '#000033'); // Dark blue hat
+                }
+            });
+        });
+        
+        // Hat badge
+        drawPixel(xOffset + 3, yOffset - 2, '#FFD700'); // Gold badge
+
+        // Head with gender-specific hairstyle
         if (facing === 'left' || facing === 'right') {
             // Profile view head
             const headPixels = [
@@ -699,6 +715,23 @@ class GameEngine {
                 [1,1,1,1,1,1],
                 [0,1,1,1,1,0]
             ];
+            
+            if (isFemale) {
+                // Add hair for female characters
+                const hairPixels = [
+                    [0,1,1,1,0,0],
+                    [1,1,1,1,1,0]
+                ];
+                hairPixels.forEach((row, py) => {
+                    row.forEach((pixel, px) => {
+                        if (pixel) {
+                            const finalPx = facing === 'left' ? px : row.length - 1 - px;
+                            drawPixel(finalPx + xOffset - 1, py + yOffset, '#663300'); // Brown hair
+                        }
+                    });
+                });
+            }
+            
             headPixels.forEach((row, py) => {
                 row.forEach((pixel, px) => {
                     if (pixel) {
@@ -717,6 +750,22 @@ class GameEngine {
                 [1,1,1,1,1,1,1,1],
                 [0,1,1,1,1,1,1,0]
             ];
+            
+            if (isFemale) {
+                // Add hair for female characters
+                const hairPixels = [
+                    [0,1,1,1,1,1,1,0],
+                    [1,1,1,1,1,1,1,1]
+                ];
+                hairPixels.forEach((row, py) => {
+                    row.forEach((pixel, px) => {
+                        if (pixel) {
+                            drawPixel(px + xOffset, py + yOffset - 1, '#663300');
+                        }
+                    });
+                });
+            }
+            
             headPixels.forEach((row, py) => {
                 row.forEach((pixel, px) => {
                     if (pixel) drawPixel(px + xOffset, py + yOffset, '#FFD8B1');
@@ -939,67 +988,36 @@ class GameEngine {
     }
 
     checkCollision(x, y) {
-        // Define interactive areas
-        const interactiveAreas = [
-            // Desks
-            ...Array(3).fill().map((_, i) => ({
-                x: 100 + i * 200,
-                y: 320,
-                width: 150,
-                height: 80,
-                type: 'desk',
-                interactions: GAME_DATA.scenes.policeStation.hotspots.find(h => h.id === 'desk')?.interactions
-            })),
-            // Evidence locker
-            {
-                x: 700,
-                y: 100,
-                width: 80,
-                height: 180,
-                type: 'locker',
-                interactions: GAME_DATA.scenes.policeStation.hotspots.find(h => h.id === 'evidenceLocker')?.interactions
-            },
-            // Doors
-            {
-                x: 50,
-                y: 100,
-                width: 60,
-                height: 120,
-                type: 'door',
-                interactions: GAME_DATA.scenes.policeStation.hotspots.find(h => h.id === 'sheriffsOfficeDoor')?.interactions
-            },
-            {
-                x: 600,
-                y: 100,
-                width: 60,
-                height: 120,
-                type: 'door',
-                interactions: GAME_DATA.scenes.policeStation.hotspots.find(h => h.id === 'briefingRoomDoor')?.interactions
+        // Check desk collisions first
+        const desks = this.collisionObjects.filter(obj => obj.type === 'desk');
+        for (const desk of desks) {
+            if (x >= desk.x && x <= desk.x + desk.width &&
+                y >= desk.y && y <= desk.y + desk.height) {
+                return desk;
             }
-        ];
+        }
 
-        const hitObject = interactiveAreas.find(area => 
-            x >= area.x && 
-            x <= area.x + area.width && 
-            y >= area.y && 
-            y <= area.y + area.height
-        );
+        // Then check doors
+        const doors = this.collisionObjects.filter(obj => obj.type === 'door');
+        for (const door of doors) {
+            if (x >= door.x && x <= door.x + door.width &&
+                y >= door.y && y <= door.y + door.height) {
+                return door;
+            }
+        }
 
-        if (hitObject) return hitObject;
-
-        // Then check room boundaries
+        // Finally check room boundaries
         const boundaries = this.roomBoundaries[this.currentScene];
         if (boundaries) {
-            // Check walls
             for (const wall of boundaries.walls) {
                 if (x >= wall.x && x <= wall.x + wall.width &&
                     y >= wall.y && y <= wall.y + wall.height) {
-                    return true; // Collision with wall
+                    return { type: 'wall' };
                 }
             }
         }
-        
-        return false;
+
+        return null;
     }
 
     processInteraction(hitObject) {
