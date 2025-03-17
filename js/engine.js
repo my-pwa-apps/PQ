@@ -1021,6 +1021,36 @@ class GameEngine {
             // Add other scenes as needed
         }
     }
+
+    draw3DLocker(x, y, width, height) {
+        const ctx = this.ctx;
+        
+        // Locker front
+        ctx.fillStyle = this.colors.lightGray;
+        ctx.fillRect(x, y, width, height);
+        
+        // Locker side (for 3D effect)
+        ctx.fillStyle = this.adjustColor(this.colors.lightGray, -30);
+        ctx.beginPath();
+        ctx.moveTo(x + width, y);
+        ctx.lineTo(x + width + 20, y + 20);
+        ctx.lineTo(x + width + 20, y + height + 20);
+        ctx.lineTo(x + width, y + height);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Locker door details
+        ctx.fillStyle = this.colors.darkGray;
+        ctx.fillRect(x + 5, y + 5, width - 10, height - 10);
+        
+        // Handle
+        ctx.fillStyle = this.colors.yellow;
+        ctx.fillRect(x + width - 15, y + height/2 - 10, 8, 20);
+        
+        // Lock
+        ctx.fillStyle = this.colors.black;
+        ctx.fillRect(x + width - 15, y + height/2 - 30, 8, 8);
+    }
 }
 
 // Move initialization to after DOM is loaded and ensure global reference
