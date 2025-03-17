@@ -24,6 +24,12 @@ class GameEngine {
         this.walkTarget = null;
         this.game = new Game(); // Create game instance in constructor
         this.collisionObjects = []; // Add collision objects array
+        this.npcs = {
+            policeStation: [
+                { x: 300, y: 300, type: 'officer', name: 'Officer Keith' },
+                { x: 500, y: 250, type: 'sergeant', name: 'Sergeant Dooley' }
+            ]
+        };
     }
 
     setupCanvas() {
@@ -121,8 +127,8 @@ class GameEngine {
         // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Draw appropriate scene
-        switch (game.gameState.currentLocation) {
+        // Draw scene based on current scene, not game state
+        switch(this.currentScene) {
             case 'policeStation':
                 this.drawPoliceStation();
                 break;
@@ -140,6 +146,15 @@ class GameEngine {
                 break;
         }
         
+        // Draw NPCs for current scene
+        if (this.npcs[this.currentScene]) {
+            this.npcs[this.currentScene].forEach(npc => {
+                this.drawPixelCharacter(npc.x, npc.y, 
+                    npc.type === 'sergeant' ? this.colors.brightBlue : this.colors.blue,
+                    this.colors.yellow);
+            });
+        }
+
         // Draw player at current position
         this.drawPixelCharacter(
             this.playerPosition.x, 
@@ -335,15 +350,17 @@ class GameEngine {
         // Draw walls with perspective
         this.draw3DWall(0, 0, this.canvas.width, 300, colors.blue);
         
-        // Draw desks with 3D perspective
+        // Draw multiple desks with 3D perspective
         for (let i = 0; i < 3; i++) {
             this.draw3DDesk(100 + i * 200, 200, 150, 80);
         }
         
-        // Draw other elements with depth
+        // Draw evidence locker
         this.draw3DLocker(700, 100, 80, 180);
         
-        // ...rest of existing police station code...
+        // Draw doors
+        this.drawDoor(50, 100, 'left', 'Sheriff\'s Office');
+        this.drawDoor(600, 100, 'right', 'Briefing Room');
     }
 
     // Helper functions for 3D rendering
@@ -422,6 +439,19 @@ class GameEngine {
         ctx.lineTo(x + width, y + 20);
         ctx.closePath();
         ctx.fill();
+    }
+
+    drawDoor(x, y, direction, label) {
+        const ctx = this.ctx;
+        ctx.fillStyle = this.colors.brown;
+        ctx.fillRect(x, y, 60, 120);
+        ctx.fillStyle = this.colors.yellow;
+        ctx.fillRect(direction === 'left' ? x + 45 : x + 5, y + 60, 10, 10);
+        
+        // Add door label
+        ctx.fillStyle = this.colors.white;
+        ctx.font = '12px monospace';
+        ctx.fillText(label, x - 10, y - 5);
     }
 
     // Helper function to darken/lighten colors
