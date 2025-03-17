@@ -44,7 +44,7 @@ class GameEngine {
                 }
             ]
         };
-        this.floorLevel = 450; // Base floor level for characters
+        this.floorLevel = {min: 300, max: 430}; // Y-coordinate boundaries for the floor
         this.canvas.style.cursor = 'pointer'; // Set default cursor
         this.animationFrame = 0;
         this.playerFacing = 'down';
@@ -64,6 +64,7 @@ class GameEngine {
             },
             // Add boundaries for other rooms here
         };
+        this.playerWalkCycle = 0; // Separate player animation from NPCs
     }
 
     setupCanvas() {
@@ -186,9 +187,17 @@ class GameEngine {
         // Draw NPCs for current scene
         if (this.npcs[this.currentScene]) {
             this.npcs[this.currentScene].forEach(npc => {
-                this.drawPixelCharacter(npc.x, npc.y, 
+                // Ensure NPCs stay on the floor
+                npc.y = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
+                
+                this.drawPixelCharacter(
+                    npc.x, npc.y, 
                     npc.type === 'sergeant' ? this.colors.brightBlue : this.colors.blue,
-                    this.colors.yellow, npc.facing, true);
+                    this.colors.yellow,
+                    npc.facing,
+                    true,  // NPCs are always in walking animation
+                    true   // Flag this as an NPC for animation
+                );
             });
         }
 
@@ -197,7 +206,10 @@ class GameEngine {
             this.playerPosition.x, 
             this.playerPosition.y, 
             this.colors.blue, 
-            this.colors.yellow
+            this.colors.yellow,
+            this.playerFacing,
+            this.isWalking,
+            false  // Not an NPC
         );
 
         this.updateCollisionObjects(); // Update collision objects when scene changes
@@ -281,7 +293,7 @@ class GameEngine {
         this.canvas.addEventListener('mousemove', (e) => {
             const rect = this.canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
-            const y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+            const y = (e.clientY - (rect.top) * (this.canvas.height / rect.height));
             
             // Change cursor if hovering over interactive element
             if (this.checkCollision(x, y)) {
@@ -326,7 +338,7 @@ class GameEngine {
 
         this.playerFacing = direction;
         this.isWalking = true;
-        this.walkCycle = (this.walkCycle + 1) % 4;
+        this.playerWalkCycle = (this.playerWalkCycle + 1) % 4;
 
         switch(direction) {
             case 'up':
@@ -343,9 +355,9 @@ class GameEngine {
                 break;
         }
 
-        // Boundary checks
+        // Boundary checks - ensure player stays on floor
         this.playerPosition.x = Math.max(50, Math.min(this.playerPosition.x, this.canvas.width - 50));
-        this.playerPosition.y = Math.max(300, Math.min(this.playerPosition.y, this.floorLevel));
+        this.playerPosition.y = Math.max(this.floorLevel.min + 50, Math.min(this.playerPosition.y, this.floorLevel.max));
 
         // Check for collisions with walls and doors
         const boundaries = this.roomBoundaries[this.currentScene];
@@ -425,30 +437,30 @@ class GameEngine {
         this.ctx.fillStyle = 'rgba(0,0,0,0.2)';
         this.ctx.fillRect(0, 0, this.canvas.width, 30);
         
-        // Windows
+        // Windows (repositioned to avoid overlap)
         for (let i = 0; i < 2; i++) {
             // Window frame
             this.ctx.fillStyle = '#A0A0A0';
-            this.ctx.fillRect(150 + i * 300, 50, 120, 100);
+            this.ctx.fillRect(100 + i * 350, 50, 120, 100);
             
             // Window glass
             this.ctx.fillStyle = '#B0E0FF';
-            this.ctx.fillRect(155 + i * 300, 55, 110, 90);
+            this.ctx.fillRect(105 + i * 350, 55, 110, 90);
             
             // Window frame dividers
             this.ctx.strokeStyle = '#A0A0A0';
             this.ctx.lineWidth = 2;
             this.ctx.beginPath();
-            this.ctx.moveTo(210 + i * 300, 55);
-            this.ctx.lineTo(210 + i * 300, 145);
+            this.ctx.moveTo(160 + i * 350, 55);
+            this.ctx.lineTo(160 + i * 350, 145);
             this.ctx.stroke();
         }
         
-        // Bulletin board
+        // Bulletin board (moved to avoid window overlap)
         this.ctx.fillStyle = '#8B4513';
-        this.ctx.fillRect(400, 50, 120, 80);
+        this.ctx.fillRect(280, 50, 120, 80);
         this.ctx.fillStyle = '#F5F5DC';
-        this.ctx.fillRect(405, 55, 110, 70);
+        this.ctx.fillRect(285, 55, 110, 70);
         
         // Desks with 3D perspective
         for (let i = 0; i < 3; i++) {
@@ -458,9 +470,9 @@ class GameEngine {
         // Evidence locker
         this.draw3DLocker(700, 100, 80, 180);
         
-        // Draw doors with frames
-        this.drawDoorWithFrame(50, 100, 'left', "Sheriff's Office");
-        this.drawDoorWithFrame(600, 100, 'right', "Briefing Room");
+        // Draw doors with frames (aligned with floor)
+        this.drawDoorWithFrame(50, 200, 'left', "Sheriff's Office");
+        this.drawDoorWithFrame(600, 200, 'right', "Briefing Room");
         
         // Add a clear exit to downtown
         this.drawExitDoor(400, 420, "Exit to Downtown");
@@ -717,7 +729,7 @@ class GameEngine {
         this.drawArrowIndicator('left', 'Downtown');
     }
 
-    drawPixelCharacter(x, y, uniformColor, badgeColor, facing = 'down', isWalking = false) {
+    drawPixelCharacter(x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false) {
         const pixels = 4;
         const drawPixel = (px, py, color) => {
             this.ctx.fillStyle = color;
@@ -791,7 +803,8 @@ class GameEngine {
         });
 
         // Legs (walking animation)
-        const walkFrame = isWalking ? (this.walkCycle % 4) : 0;
+        const walkCycle = isNPC ? this.animationFrame % 4 : this.playerWalkCycle % 4;
+        const legFrame = isWalking ? walkCycle : 0;
         const legFrames = [
             [ // Frame 0 - Standing
                 [0,0,1,1,1,1,0,0],
@@ -815,7 +828,7 @@ class GameEngine {
             ]
         ];
 
-        legFrames[walkFrame].forEach((row, py) => {
+        legFrames[legFrame].forEach((row, py) => {
             row.forEach((pixel, px) => {
                 if (pixel) {
                     drawPixel(px + xOffset, py + yOffset + 11, '#000033');
@@ -1164,7 +1177,7 @@ class GameEngine {
             // Reset collision objects for new scene
             this.collisionObjects = [];
             
-            // Reset player position based on scene
+            // Reset player position based on scene, ensuring they're on the floor
             switch(sceneId) {
                 case 'policeStation':
                     this.playerPosition = { x: 400, y: 380 };
@@ -1328,6 +1341,9 @@ class GameEngine {
                 // Update facing direction
                 npc.facing = dx > 0 ? 'right' : 'left';
             }
+            
+            // Ensure NPCs stay on the floor
+            npc.y = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
         });
     }
 
