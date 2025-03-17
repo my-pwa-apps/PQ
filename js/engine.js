@@ -30,6 +30,8 @@ class GameEngine {
                 { x: 500, y: 250, type: 'sergeant', name: 'Sergeant Dooley' }
             ]
         };
+        this.floorLevel = 450; // Base floor level for characters
+        this.canvas.style.cursor = 'pointer'; // Set default cursor
     }
 
     setupCanvas() {
@@ -204,17 +206,39 @@ class GameEngine {
             
             switch(e.key) {
                 case 'ArrowUp':
+                case 'w':
                     this.handleMovement('up');
+                    e.preventDefault();
                     break;
                 case 'ArrowDown':
+                case 's':
                     this.handleMovement('down');
+                    e.preventDefault();
                     break;
                 case 'ArrowLeft':
+                case 'a':
                     this.handleMovement('left');
+                    e.preventDefault();
                     break;
                 case 'ArrowRight':
+                case 'd':
                     this.handleMovement('right');
+                    e.preventDefault();
                     break;
+            }
+        });
+
+        // Improved mouse interaction
+        this.canvas.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+            
+            // Change cursor if hovering over interactive element
+            if (this.checkCollision(x, y)) {
+                this.canvas.style.cursor = 'pointer';
+            } else {
+                this.updateCursor(); // Use action-specific cursor
             }
         });
     }
@@ -281,64 +305,36 @@ class GameEngine {
     }
 
     handleMovement(direction) {
-        // Map each location to possible destinations in each direction
-        const navigationMap = {
-            'policeStation': {
-                'down': 'downtown',
-                'right': 'downtown',
-                'up': 'sheriffsOffice',
-                'left': 'briefingRoom'
-            },
-            'downtown': {
-                'up': 'policeStation',
-                'down': 'park',
-                'left': 'policeStation',
-                'right': 'park'
-            },
-            'park': {
-                'up': 'downtown',
-                'left': 'downtown'
-            },
-            'sheriffsOffice': {
-                'down': 'policeStation',
-                'right': 'briefingRoom'
-            },
-            'briefingRoom': {
-                'down': 'policeStation',
-                'left': 'sheriffsOffice'
-            }
-        };
+        const moveSpeed = 5;
+        const oldX = this.playerPosition.x;
+        const oldY = this.playerPosition.y;
 
-        const currentLocation = game.gameState.currentLocation;
-        const possibleDestinations = navigationMap[currentLocation];
-        
-        if (possibleDestinations && possibleDestinations[direction]) {
-            const newLocation = possibleDestinations[direction];
-            soundManager.playSound('click');
-            
-            // Show appropriate message for the transition
-            let message = "";
-            switch(newLocation) {
-                case 'policeStation':
-                    message = "You return to the police station.";
-                    break;
-                case 'downtown':
-                    message = "You head downtown to investigate.";
-                    break;
-                case 'park':
-                    message = "You go to the city park to follow up on a lead.";
-                    break;
-                case 'sheriffsOffice':
-                    message = "You enter the Sheriff's office.";
-                    break;
-                case 'briefingRoom':
-                    message = "You enter the briefing room.";
-                    break;
-            }
-            
-            this.showDialog(message);
-            game.changeLocation(newLocation);
+        switch(direction) {
+            case 'up':
+                this.playerPosition.y -= moveSpeed;
+                break;
+            case 'down':
+                this.playerPosition.y += moveSpeed;
+                break;
+            case 'left':
+                this.playerPosition.x -= moveSpeed;
+                break;
+            case 'right':
+                this.playerPosition.x += moveSpeed;
+                break;
         }
+
+        // Boundary checks
+        this.playerPosition.x = Math.max(50, Math.min(this.playerPosition.x, this.canvas.width - 50));
+        this.playerPosition.y = Math.max(300, Math.min(this.playerPosition.y, this.floorLevel));
+
+        // Check for collisions
+        if (this.checkCollision(this.playerPosition.x, this.playerPosition.y)) {
+            this.playerPosition.x = oldX;
+            this.playerPosition.y = oldY;
+        }
+
+        this.drawCurrentScene();
     }
 
     drawPoliceStation() {
@@ -350,9 +346,16 @@ class GameEngine {
         // Draw walls with perspective
         this.draw3DWall(0, 0, this.canvas.width, 300, colors.blue);
         
-        // Draw multiple desks with 3D perspective
+        // Draw desks at proper height
         for (let i = 0; i < 3; i++) {
-            this.draw3DDesk(100 + i * 200, 200, 150, 80);
+            this.draw3DDesk(100 + i * 200, 320, 150, 80);
+        }
+        
+        // Update NPC positions to proper floor level
+        if (this.npcs.policeStation) {
+            this.npcs.policeStation.forEach(npc => {
+                npc.y = Math.min(npc.y, this.floorLevel);
+            });
         }
         
         // Draw evidence locker
@@ -844,15 +847,51 @@ class GameEngine {
     }
 
     checkCollision(x, y) {
-        if (!this.collisionObjects) {
-            this.collisionObjects = [];
-        }
-        return this.collisionObjects.find(obj => {
-            return x >= obj.x && 
-                   x <= obj.x + obj.width && 
-                   y >= obj.y && 
-                   y <= obj.y + obj.height;
-        });
+        // Define interactive areas
+        const interactiveAreas = [
+            // Desks
+            ...Array(3).fill().map((_, i) => ({
+                x: 100 + i * 200,
+                y: 320,
+                width: 150,
+                height: 80,
+                type: 'desk',
+                interactions: GAME_DATA.scenes.policeStation.hotspots.find(h => h.id === 'desk')?.interactions
+            })),
+            // Evidence locker
+            {
+                x: 700,
+                y: 100,
+                width: 80,
+                height: 180,
+                type: 'locker',
+                interactions: GAME_DATA.scenes.policeStation.hotspots.find(h => h.id === 'evidenceLocker')?.interactions
+            },
+            // Doors
+            {
+                x: 50,
+                y: 100,
+                width: 60,
+                height: 120,
+                type: 'door',
+                interactions: GAME_DATA.scenes.policeStation.hotspots.find(h => h.id === 'sheriffsOfficeDoor')?.interactions
+            },
+            {
+                x: 600,
+                y: 100,
+                width: 60,
+                height: 120,
+                type: 'door',
+                interactions: GAME_DATA.scenes.policeStation.hotspots.find(h => h.id === 'briefingRoomDoor')?.interactions
+            }
+        ];
+
+        return interactiveAreas.find(area => 
+            x >= area.x && 
+            x <= area.x + area.width && 
+            y >= area.y && 
+            y <= area.y + area.height
+        );
     }
 
     processInteraction(hitObject) {
