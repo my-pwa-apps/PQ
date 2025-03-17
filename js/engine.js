@@ -107,7 +107,6 @@ class GameEngine {
 
     init() {
         this.canvas.style.cursor = 'default'; // Ensure cursor is visible
-        this.game.init(); // Initialize game state
         this.setupEventListeners();
         this.drawCurrentScene();
         this.startGameLoop();
