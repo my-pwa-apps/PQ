@@ -14,6 +14,9 @@ class GameEngine {
         this.isRendering = false;
         this.lastFrameTime = 0;
         this.colors = this.setupColorPalette();
+        this.playerPosition = { x: 400, y: 350 }; // Default player position
+        this.isWalking = false;
+        this.walkTarget = null;
     }
 
     setupCanvas() {
@@ -102,13 +105,73 @@ class GameEngine {
     }
     
     update() {
-        // Game state updates can go here
-        // This runs every frame
+        // Handle player walking animation and movement
+        if (this.isWalking && this.walkTarget) {
+            // Calculate direction and distance
+            const dx = this.walkTarget.x - this.playerPosition.x;
+            const dy = this.walkTarget.y - this.playerPosition.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // If we've reached the target (or close enough), stop walking
+            if (distance < 5) {
+                this.isWalking = false;
+                this.walkTarget = null;
+                // Check if we reached a hotspot
+                const hitObject = this.checkCollision(this.playerPosition.x, this.playerPosition.y);
+                if (hitObject) {
+                    this.processInteraction(hitObject);
+                }
+            } else {
+                // Move player towards target
+                const speed = 3; // pixels per frame
+                const moveX = (dx / distance) * speed;
+                const moveY = (dy / distance) * speed;
+                this.playerPosition.x += moveX;
+                this.playerPosition.y += moveY;
+                
+                // Redraw the scene with updated player position
+                this.drawCurrentScene();
+            }
+        }
     }
     
     render() {
-        // Don't need to re-render every frame
-        // Scene rendering is handled by loadScene
+        if (this.isWalking) {
+            // Only redraw when walking
+            this.drawCurrentScene();
+        }
+    }
+    
+    drawCurrentScene() {
+        // Clear canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Draw appropriate scene
+        switch (game.gameState.currentLocation) {
+            case 'policeStation':
+                this.drawPoliceStation();
+                break;
+            case 'downtown':
+                this.drawDowntown();
+                break;
+            case 'park':
+                this.drawPark();
+                break;
+            case 'sheriffsOffice':
+                this.drawSheriffsOffice();
+                break;
+            case 'briefingRoom':
+                this.drawBriefingRoom();
+                break;
+        }
+        
+        // Draw player at current position
+        this.drawPixelCharacter(
+            this.playerPosition.x, 
+            this.playerPosition.y, 
+            this.colors.blue, 
+            this.colors.yellow
+        );
     }
 
     setupEventListeners() {
@@ -187,28 +250,41 @@ class GameEngine {
     }
 
     handleInteraction(x, y) {
+        // Modified to handle walking
+        if (this.activeCommand === 'move') {
+            // Start walking to clicked position
+            this.walkTarget = { x, y };
+            this.isWalking = true;
+            return;
+        }
+        
+        // For other commands, check if player is close enough to the object
         const hitObject = this.checkCollision(x, y);
         if (hitObject) {
-            soundManager.playSound('click');
-            this.processInteraction(hitObject);
-        } else if (this.activeCommand === 'move') {
-            // Handle scene transitions based on click position
-            if (y > this.canvas.height - 50) {
-                switch (game.gameState.currentLocation) {
-                    case 'policeStation':
-                        game.changeLocation('downtown');
-                        this.showDialog("You arrive downtown to investigate the latest break-in.");
-                        break;
-                    case 'downtown':
-                        game.changeLocation('park');
-                        this.showDialog("You head to the city park to follow up on a lead.");
-                        break;
-                    case 'park':
-                        game.changeLocation('policeStation');
-                        this.showDialog("You return to the police station.");
-                        break;
-                }
+            // Calculate distance from player to object
+            const objectCenterX = hitObject.x + (hitObject.width / 2);
+            const objectCenterY = hitObject.y + (hitObject.height / 2);
+            const dx = objectCenterX - this.playerPosition.x;
+            const dy = objectCenterY - this.playerPosition.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // If player is close enough, interact immediately
+            if (distance < 100) { // Within 100px
+                soundManager.playSound('click');
+                this.processInteraction(hitObject);
+            } else {
+                // Otherwise, walk to the object first
+                this.walkTarget = { 
+                    x: objectCenterX - (dx > 0 ? 50 : -50), // Stand to the left or right
+                    y: objectCenterY + 20 // Stand a bit in front
+                };
+                this.isWalking = true;
+                
+                // We'll check for interaction once we reach the target
             }
+        } else if (this.activeCommand !== 'move') {
+            soundManager.playSound('error');
+            this.showDialog("There's nothing there to " + this.activeCommand);
         }
     }
 
@@ -217,7 +293,9 @@ class GameEngine {
         const navigationMap = {
             'policeStation': {
                 'down': 'downtown',
-                'right': 'downtown'
+                'right': 'downtown',
+                'up': 'sheriffsOffice',
+                'left': 'briefingRoom'
             },
             'downtown': {
                 'up': 'policeStation',
@@ -228,6 +306,14 @@ class GameEngine {
             'park': {
                 'up': 'downtown',
                 'left': 'downtown'
+            },
+            'sheriffsOffice': {
+                'down': 'policeStation',
+                'right': 'briefingRoom'
+            },
+            'briefingRoom': {
+                'down': 'policeStation',
+                'left': 'sheriffsOffice'
             }
         };
 
@@ -249,6 +335,12 @@ class GameEngine {
                     break;
                 case 'park':
                     message = "You go to the city park to follow up on a lead.";
+                    break;
+                case 'sheriffsOffice':
+                    message = "You enter the Sheriff's office.";
+                    break;
+                case 'briefingRoom':
+                    message = "You enter the briefing room.";
                     break;
             }
             
@@ -549,13 +641,24 @@ class GameEngine {
             
             switch (sceneId) {
                 case 'policeStation':
+                    this.playerPosition = { x: 400, y: 350 };
                     this.drawPoliceStation();
                     break;
                 case 'downtown':
+                    this.playerPosition = { x: 150, y: 350 };
                     this.drawDowntown();
                     break;
                 case 'park':
+                    this.playerPosition = { x: 400, y: 350 };
                     this.drawPark();
+                    break;
+                case 'sheriffsOffice':
+                    this.playerPosition = { x: 400, y: 350 };
+                    this.drawSheriffsOffice();
+                    break;
+                case 'briefingRoom':
+                    this.playerPosition = { x: 400, y: 350 };
+                    this.drawBriefingRoom();
                     break;
                 default:
                     console.error("Unknown scene:", sceneId);
@@ -565,6 +668,154 @@ class GameEngine {
         } catch (error) {
             console.error("Error loading scene:", error);
         }
+        
+        // Draw scene with player
+        this.drawCurrentScene();
+    }
+
+    drawSheriffsOffice() {
+        const colors = this.colors;
+        
+        // Draw walls (dark wood paneling)
+        this.ctx.fillStyle = colors.brown;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Floor
+        this.ctx.fillStyle = colors.darkGray;
+        this.ctx.fillRect(0, 300, this.canvas.width, 150);
+        
+        // Sheriff's desk (bigger, more ornate)
+        this.ctx.fillStyle = '#663300'; // Darker wood
+        this.ctx.fillRect(350, 150, 250, 100);
+        
+        // Chair behind desk
+        this.ctx.fillStyle = colors.black;
+        this.ctx.fillRect(450, 260, 50, 60);
+        
+        // Computer
+        this.ctx.fillStyle = colors.darkGray;
+        this.ctx.fillRect(400, 160, 60, 40);
+        this.ctx.fillStyle = colors.brightCyan;
+        this.ctx.fillRect(405, 165, 50, 30);
+        
+        // Window
+        this.ctx.fillStyle = colors.brightBlue;
+        this.ctx.fillRect(600, 50, 150, 100);
+        this.ctx.strokeStyle = colors.black;
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(600, 50, 150, 100);
+        this.ctx.beginPath();
+        this.ctx.moveTo(675, 50);
+        this.ctx.lineTo(675, 150);
+        this.ctx.stroke();
+        
+        // Filing cabinet
+        this.ctx.fillStyle = colors.lightGray;
+        this.ctx.fillRect(50, 150, 70, 120);
+        this.ctx.fillStyle = colors.black;
+        this.ctx.fillRect(85, 180, 20, 5);
+        this.ctx.fillRect(85, 210, 20, 5);
+        this.ctx.fillRect(85, 240, 20, 5);
+        
+        // Sheriff's badge on wall
+        this.ctx.fillStyle = colors.yellow;
+        this.ctx.beginPath();
+        this.ctx.arc(200, 100, 30, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.fillStyle = colors.black;
+        this.ctx.beginPath();
+        this.ctx.arc(200, 100, 15, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Door
+        this.ctx.fillStyle = colors.brown;
+        this.ctx.fillRect(100, 320, 60, 120);
+        this.ctx.fillStyle = colors.yellow;
+        this.ctx.fillRect(145, 380, 10, 10);
+        
+        // Name plate
+        this.ctx.fillStyle = colors.black;
+        this.ctx.fillRect(420, 130, 100, 15);
+        this.ctx.fillStyle = colors.white;
+        this.ctx.font = '12px monospace';
+        this.ctx.fillText('SHERIFF', 445, 142);
+        
+        // Sign
+        this.ctx.fillStyle = colors.brown;
+        this.ctx.fillRect(10, 50, 150, 40);
+        this.ctx.fillStyle = colors.yellow;
+        this.ctx.font = '16px monospace';
+        this.ctx.fillText('SHERIFF\'S OFFICE', 15, 75);
+
+        // Navigation arrows
+        this.drawArrowIndicator('down', 'Station');
+        this.drawArrowIndicator('right', 'Briefing');
+    }
+
+    drawBriefingRoom() {
+        const colors = this.colors;
+        
+        // Walls
+        this.ctx.fillStyle = colors.blue;
+        this.ctx.fillRect(0, 0, this.canvas.width, 300);
+        
+        // Floor
+        this.ctx.fillStyle = colors.darkGray;
+        this.ctx.fillRect(0, 300, this.canvas.width, 150);
+        
+        // Long table
+        this.ctx.fillStyle = colors.brown;
+        this.ctx.fillRect(150, 180, 500, 120);
+        
+        // Chairs around the table
+        for (let i = 0; i < 6; i++) {
+            // Chairs on one side
+            this.ctx.fillStyle = colors.darkGray;
+            this.ctx.fillRect(170 + i * 80, 140, 40, 40);
+            
+            // Chairs on the other side
+            this.ctx.fillStyle = colors.darkGray;
+            this.ctx.fillRect(170 + i * 80, 300, 40, 40);
+        }
+        
+        // Projector screen
+        this.ctx.fillStyle = colors.white;
+        this.ctx.fillRect(350, 30, 200, 100);
+        this.ctx.strokeStyle = colors.black;
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(350, 30, 200, 100);
+        
+        // Case photos on the wall
+        for (let i = 0; i < 4; i++) {
+            this.ctx.fillStyle = colors.white;
+            this.ctx.fillRect(50 + i * 120, 60, 80, 60);
+            this.ctx.strokeStyle = colors.black;
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(50 + i * 120, 60, 80, 60);
+        }
+        
+        // Door
+        this.ctx.fillStyle = colors.brown;
+        this.ctx.fillRect(100, 320, 60, 120);
+        this.ctx.fillStyle = colors.yellow;
+        this.ctx.fillRect(145, 380, 10, 10);
+        
+        // Coffee machine
+        this.ctx.fillStyle = colors.black;
+        this.ctx.fillRect(700, 200, 50, 80);
+        this.ctx.fillStyle = colors.red;
+        this.ctx.fillRect(715, 220, 20, 10);
+        
+        // Sign
+        this.ctx.fillStyle = colors.brown;
+        this.ctx.fillRect(10, 50, 180, 40);
+        this.ctx.fillStyle = colors.yellow;
+        this.ctx.font = '16px monospace';
+        this.ctx.fillText('BRIEFING ROOM', 25, 75);
+        
+        // Navigation arrows
+        this.drawArrowIndicator('down', 'Station');
+        this.drawArrowIndicator('left', 'Sheriff');
     }
 
     checkCollision(x, y) {
@@ -607,6 +858,25 @@ class GameEngine {
             } else if (this.activeCommand === 'use' && hitObject.id === 'shopDoor') {
                 game.completeStage('downtown');
                 this.updateCaseInfo();
+            }
+            
+            // Handle room transitions
+            if (this.activeCommand === 'use') {
+                // Room transitions
+                switch (hitObject.id) {
+                    case 'sheriffsOfficeDoor':
+                        game.changeLocation('sheriffsOffice');
+                        break;
+                    case 'briefingRoomDoor':
+                        game.changeLocation('briefingRoom');
+                        break;
+                    case 'exitDoor':
+                        if (game.gameState.currentLocation === 'sheriffsOffice' || 
+                            game.gameState.currentLocation === 'briefingRoom') {
+                            game.changeLocation('policeStation');
+                        }
+                        break;
+                }
             }
             
             // Check if case is solved

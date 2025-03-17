@@ -51,6 +51,32 @@ const GAME_DATA = {
                         use: "You open the case file and begin reviewing the details.",
                         take: "You add the case file to your inventory."
                     }
+                },
+                {
+                    id: 'sheriffsOfficeDoor',
+                    x: 50,
+                    y: 100,
+                    width: 60,
+                    height: 120,
+                    interactions: {
+                        look: "The Sheriff's office. The door is slightly ajar.",
+                        use: "You enter the Sheriff's office.",
+                        talk: "There's no one at the door to talk to.",
+                        take: "You can't take a door."
+                    }
+                },
+                {
+                    id: 'briefingRoomDoor',
+                    x: 600,
+                    y: 100, 
+                    width: 60,
+                    height: 120,
+                    interactions: {
+                        look: "The door to the briefing room. Daily meetings are held here.",
+                        use: "You enter the briefing room.",
+                        talk: "There's no one at the door to talk to.",
+                        take: "You can't take a door."
+                    }
                 }
             ]
         },
@@ -146,6 +172,138 @@ const GAME_DATA = {
                         look: "A suspicious individual matching the witness description.",
                         talk: "\"I don't know what you're talking about, officer. I was home all night.\"",
                         use: "With proper probable cause, you could search the suspect."
+                    }
+                }
+            ]
+        },
+        sheriffsOffice: {
+            background: '',
+            music: 'station_theme',
+            hotspots: [
+                {
+                    id: 'sheriffsDesk',
+                    x: 350,
+                    y: 150,
+                    width: 250,
+                    height: 100,
+                    interactions: {
+                        look: "The Sheriff's desk. It's much larger and tidier than your own.",
+                        use: "You shouldn't rummage through the Sheriff's things without permission.",
+                        take: "You can't take the Sheriff's desk."
+                    }
+                },
+                {
+                    id: 'sheriff',
+                    x: 450,
+                    y: 260,
+                    width: 50,
+                    height: 60,
+                    interactions: {
+                        look: "Sheriff Johnson. A stern but fair leader with 30 years on the force.",
+                        talk: "\"Detective, I need you to wrap up this burglary case ASAP. The mayor's breathing down my neck about these break-ins.\"",
+                        use: "I don't think the Sheriff would appreciate that."
+                    }
+                },
+                {
+                    id: 'filingCabinet',
+                    x: 50,
+                    y: 150,
+                    width: 70,
+                    height: 120,
+                    interactions: {
+                        look: "A filing cabinet containing old case files. Some date back decades.",
+                        use: "You find an old case file that might have similarities to your current burglary investigation.",
+                        take: "You can't take the entire filing cabinet, but you could take specific files."
+                    }
+                },
+                {
+                    id: 'oldCaseFile',
+                    x: 85,
+                    y: 180,
+                    width: 20,
+                    height: 5,
+                    interactions: {
+                        look: "A case file from 1985 about a series of electronics store burglaries.",
+                        use: "You review the file and notice the burglar used the same entry technique as your current case.",
+                        take: "You take the file to compare with your current case."
+                    }
+                },
+                {
+                    id: 'exitDoor',
+                    x: 100,
+                    y: 320,
+                    width: 60,
+                    height: 120,
+                    interactions: {
+                        look: "Door leading back to the main station.",
+                        use: "You head back to the main station area.",
+                        take: "You can't take the door."
+                    }
+                }
+            ]
+        },
+        briefingRoom: {
+            background: '',
+            music: 'station_theme',
+            hotspots: [
+                {
+                    id: 'conferenceTable',
+                    x: 150,
+                    y: 180,
+                    width: 500,
+                    height: 120,
+                    interactions: {
+                        look: "The large conference table where daily briefings are held.",
+                        use: "You sit at the table and review some notes.",
+                        take: "You can't take the conference table."
+                    }
+                },
+                {
+                    id: 'projectorScreen',
+                    x: 350,
+                    y: 30,
+                    width: 200,
+                    height: 100,
+                    interactions: {
+                        look: "A projector screen displaying information about recent crimes in the area.",
+                        use: "You examine the crime statistics more closely.",
+                        take: "You can't take the projector screen."
+                    }
+                },
+                {
+                    id: 'casePhotos',
+                    x: 50,
+                    y: 60,
+                    width: 320,
+                    height: 60,
+                    interactions: {
+                        look: "Photos from various crime scenes posted on the wall.",
+                        use: "You examine the photos and notice a pattern in the burglary scenes.",
+                        take: "These need to stay here for the briefing."
+                    }
+                },
+                {
+                    id: 'coffeeMachine',
+                    x: 700,
+                    y: 200,
+                    width: 50,
+                    height: 80,
+                    interactions: {
+                        look: "The department coffee machine. It's seen better days, but still makes a decent cup.",
+                        use: "You pour yourself a cup of coffee. You feel more alert now.",
+                        take: "The other officers would hunt you down if you took the coffee machine."
+                    }
+                },
+                {
+                    id: 'exitDoor',
+                    x: 100,
+                    y: 320,
+                    width: 60,
+                    height: 120,
+                    interactions: {
+                        look: "Door leading back to the main station.",
+                        use: "You head back to the main station area.",
+                        take: "You can't take the door."
                     }
                 }
             ]
