@@ -23,6 +23,7 @@ class GameEngine {
         this.isWalking = false;
         this.walkTarget = null;
         this.game = new Game(); // Create game instance in constructor
+        this.collisionObjects = []; // Add collision objects array
     }
 
     setupCanvas() {
@@ -146,6 +147,8 @@ class GameEngine {
             this.colors.blue, 
             this.colors.yellow
         );
+
+        this.updateCollisionObjects(); // Update collision objects when scene changes
     }
 
     setupEventListeners() {
@@ -811,11 +814,15 @@ class GameEngine {
     }
 
     checkCollision(x, y) {
-        if (!this.currentScene) return null;
-        return this.currentScene.hotspots.find(hotspot =>
-            x >= hotspot.x && x <= hotspot.x + hotspot.width &&
-            y >= hotspot.y && y <= hotspot.y + hotspot.height
-        );
+        if (!this.collisionObjects) {
+            this.collisionObjects = [];
+        }
+        return this.collisionObjects.find(obj => {
+            return x >= obj.x && 
+                   x <= obj.x + obj.width && 
+                   y >= obj.y && 
+                   y <= obj.y + obj.height;
+        });
     }
 
     processInteraction(hitObject) {
@@ -967,6 +974,21 @@ class GameEngine {
         } catch (error) {
             console.error("Error loading scene:", error);
             this.showDialog("Error loading scene. Please try again.");
+        }
+    }
+
+    // Add method to update collision objects based on current scene
+    updateCollisionObjects() {
+        this.collisionObjects = [];
+        
+        switch(this.currentScene) {
+            case 'policeStation':
+                this.collisionObjects = [
+                    { x: 100, y: 200, width: 150, height: 80, type: 'desk' },
+                    { x: 700, y: 100, width: 80, height: 180, type: 'locker' }
+                ];
+                break;
+            // Add other scenes as needed
         }
     }
 }
