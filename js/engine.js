@@ -1716,36 +1716,63 @@ class GameEngine {
     }
     
     addExitSign(x, y, destination) {
+        if (!destination || typeof x !== 'number' || typeof y !== 'number') {
+            console.warn('Invalid parameters for exit sign');
+            return;
+        }
+
         const ctx = this.ctx;
+        const ARROW_SIZE = 15;
+        const TEXT_OFFSET = 25;
         
         // Arrow pointing down
-        ctx.fillStyle = '#FFFF00';
+        ctx.fillStyle = this.colors.yellow;
         ctx.beginPath();
         ctx.moveTo(x, y);
-        ctx.lineTo(x - 15, y - 20);
-        ctx.lineTo(x + 15, y - 20);
+        ctx.lineTo(x - ARROW_SIZE, y - ARROW_SIZE * 1.33);
+        ctx.lineTo(x + ARROW_SIZE, y - ARROW_SIZE * 1.33);
         ctx.closePath();
         ctx.fill();
         
         // Destination text
-        ctx.fillStyle = '#FFFFFF';
+        ctx.fillStyle = this.colors.white;
         ctx.font = '12px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(destination, x, y - 25);
-        ctx.textAlign = 'left'; // Reset alignment
+        ctx.fillText(destination, x, y - TEXT_OFFSET);
+        ctx.textAlign = 'left'; // Reset to default
     }
 
-    // Helper function to darken/lighten colors
+    // Memoized color adjustment for better performance
+    #colorCache = new Map();
+    
     adjustColor(color, amount) {
-        const hex = color.replace('#', '');
-        const r = Math.max(0, Math.min(255, parseInt(hex.substring(0, 2), 16) + amount));
-        const g = Math.max(0, Math.min(255, parseInt(hex.substring(2, 4), 16) + amount));
-        const b = Math.max(0, Math.min(255, parseInt(hex.substring(4, 6), 16) + amount));
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        const cacheKey = `${color}_${amount}`;
+        if (this.#colorCache.has(cacheKey)) {
+            return this.#colorCache.get(cacheKey);
+        }
+
+        try {
+            const hex = color.replace('#', '');
+            const adjust = (value) => {
+                const adjusted = Math.max(0, Math.min(255, parseInt(value, 16) + amount));
+                return adjusted.toString(16).padStart(2, '0');
+            };
+
+            const r = adjust(hex.substring(0, 2));
+            const g = adjust(hex.substring(2, 4));
+            const b = adjust(hex.substring(4, 6));
+            
+            const result = `#${r}${g}${b}`;
+            this.#colorCache.set(cacheKey, result);
+            return result;
+        } catch (error) {
+            console.warn('Error adjusting color:', error);
+            return color; // Return original color if adjustment fails
+        }
     }
 }
 
-// Move initialization to after DOM is loaded and ensure global reference
+// Initialize engine after DOM is loaded and ensure global reference
 window.engine = new GameEngine();
 window.addEventListener('DOMContentLoaded', () => {
     window.engine.init();

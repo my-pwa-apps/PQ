@@ -3,18 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Precinct - A Police Quest Tribute</title>
+    <title>Police Quest</title>
+    
+    <!-- Preload critical assets -->
+    <link rel="preload" href="css/style.css" as="style">
+    <link rel="preload" href="js/engine.js" as="script">
+    <link rel="preload" href="js/game.js" as="script">
+    <link rel="preload" href="js/soundManager.js" as="script">
+    
+    <!-- Styles -->
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div id="game-container">
         <div id="game-screen">
-            <div id="game-title">DIGITAL PRECINCT</div>
-            <div id="case-info"></div>
-            <div id="controls-guide">Use arrow keys or click to navigate</div>
-            <canvas id="gameCanvas"></canvas>
+            <!-- Game title -->
+            <div id="game-title">Police Quest</div>
+            
+            <!-- Main game canvas with performance attributes -->
+            <canvas id="gameCanvas" width="800" height="450"></canvas>
+            
+            <!-- Case information panel -->
+            <div id="case-info" class="gpu-accelerated"></div>
+            
+            <!-- Controls guide -->
+            <div id="controls-guide">
+                WASD/Arrows: Move | Ctrl+S: Save | Ctrl+L: Load | Ctrl+N: New Game
+            </div>
         </div>
+        
         <div id="ui-container">
+            <!-- Command buttons -->
             <div id="command-panel">
                 <button class="cmd-btn" data-action="look">Look</button>
                 <button class="cmd-btn" data-action="talk">Talk</button>
@@ -22,15 +41,23 @@
                 <button class="cmd-btn" data-action="take">Take</button>
                 <button class="cmd-btn" data-action="move">Move</button>
             </div>
-            <div id="inventory-panel"></div>
-            <div id="dialog-box">Welcome to Digital Precinct. You are a detective tasked with solving cases in Lytton City.</div>
+            
+            <!-- Dialog and inventory container -->
+            <div id="interaction-container">
+                <div id="dialog-box" class="gpu-accelerated"></div>
+                <div id="inventory-panel" class="gpu-accelerated"></div>
+            </div>
         </div>
     </div>
-    <audio id="bgMusic" loop></audio>
-    <script src="js/soundManager.js"></script>
-    <!-- Load game classes first -->
-    <script src="js/game.js"></script>
-    <!-- Load engine after game class is available -->
-    <script src="js/engine.js"></script>
+    
+    <!-- Background music (preload="none" for better initial load) -->
+    <audio id="bgMusic" preload="none" loop>
+        <source src="sounds/background.mp3" type="audio/mpeg">
+    </audio>
+    
+    <!-- Load scripts in optimal order -->
+    <script src="js/soundManager.js" defer></script>
+    <script src="js/game.js" defer></script>
+    <script src="js/engine.js" defer></script>
 </body>
 </html>

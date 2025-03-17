@@ -1,165 +1,116 @@
 class SoundManager {
     constructor() {
-        this.bgMusic = document.getElementById('bgMusic');
         this.sounds = new Map();
-        this.musicPatterns = new Map();
-        this.currentMusic = '';
-        this.audioCtx = null;
-        this.musicInterval = null;
-        this.activeOscillators = [];
+        this.masterVolume = 0.7;
+        this.soundEnabled = true;
+        this.audioContext = null;
+        this.gainNode = null;
+        this.bufferCache = new Map();
+        
+        this.initAudioContext();
     }
 
     initAudioContext() {
-        if (!this.audioCtx) {
-            this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.audioContext = new AudioContext();
+            this.gainNode = this.audioContext.createGain();
+            this.gainNode.connect(this.audioContext.destination);
+            this.gainNode.gain.value = this.masterVolume;
+        } catch (error) {
+            console.warn('Web Audio API not supported:', error);
         }
-        return this.audioCtx;
     }
 
-    generateSound(frequency, duration, type = 'square', volume = 0.3) {
-        const audioCtx = this.initAudioContext();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
+    async loadSound(name, url) {
+        if (this.bufferCache.has(url)) {
+            this.sounds.set(name, this.bufferCache.get(url));
+            return;
+        }
 
-        oscillator.type = type;
-        oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + duration);
-        
-        // Track active oscillators for cleanup
-        this.activeOscillators.push({ oscillator, gainNode });
-        
-        // Remove from tracking once completed
-        setTimeout(() => {
-            const index = this.activeOscillators.findIndex(item => item.oscillator === oscillator);
-            if (index !== -1) this.activeOscillators.splice(index, 1);
-            oscillator.disconnect();
-            gainNode.disconnect();
-        }, duration * 1000);
-        
-        return { oscillator, gainNode };
+        try {
+            const response = await fetch(url);
+            const arrayBuffer = await response.arrayBuffer();
+            const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+            this.sounds.set(name, audioBuffer);
+            this.bufferCache.set(url, audioBuffer);
+        } catch (error) {
+            console.error(`Error loading sound ${name}:`, error);
+        }
     }
 
-    // Create a melody that plays as background music
-    playMusic(key) {
-        if (this.currentMusic === key) return;
-        this.stopMusic();
-        this.currentMusic = key;
-        
-        const audioCtx = this.initAudioContext();
-        let noteIndex = 0;
-        
-        // Define different music patterns
-        const patterns = {
-            'station_theme': [
-                { note: 220, duration: 0.2 },
-                { note: 277.18, duration: 0.2 },
-                { note: 329.63, duration: 0.3 },
-                { note: 220, duration: 0.2 },
-                { note: 277.18, duration: 0.2 },
-                { note: 329.63, duration: 0.3 },
-                { note: 440, duration: 0.4 },
-                { note: 329.63, duration: 0.4 }
-            ],
-            'downtown_theme': [
-                { note: 196, duration: 0.3 },
-                { note: 220, duration: 0.3 },
-                { note: 246.94, duration: 0.3 },
-                { note: 261.63, duration: 0.5 },
-                { note: 246.94, duration: 0.3 },
-                { note: 220, duration: 0.3 },
-                { note: 196, duration: 0.5 }
-            ],
-            'park_theme': [
-                { note: 392, duration: 0.2 },
-                { note: 440, duration: 0.2 },
-                { note: 493.88, duration: 0.4 },
-                { note: 392, duration: 0.2 },
-                { note: 440, duration: 0.2 },
-                { note: 329.63, duration: 0.4 }
-            ],
-            'case_start': [
-                { note: 523.25, duration: 0.2 },
-                { note: 587.33, duration: 0.2 },
-                { note: 659.25, duration: 0.3 },
-                { note: 698.46, duration: 0.4 },
-                { note: 783.99, duration: 0.6 }
-            ]
+    playSound(name, volume = 1.0, loop = false) {
+        if (!this.soundEnabled || !this.audioContext) return;
+
+        const sound = this.sounds.get(name);
+        if (!sound) {
+            console.warn(`Sound not found: ${name}`);
+            return;
+        }
+
+        try {
+            const source = this.audioContext.createBufferSource();
+            source.buffer = sound;
+            source.loop = loop;
+
+            const gainNode = this.audioContext.createGain();
+            gainNode.gain.value = volume * this.masterVolume;
+            
+            source.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+            
+            source.start(0);
+            
+            // Cleanup when sound finishes
+            source.onended = () => {
+                source.disconnect();
+                gainNode.disconnect();
+            };
+
+            return source;
+        } catch (error) {
+            console.error(`Error playing sound ${name}:`, error);
+        }
+    }
+
+    setMasterVolume(volume) {
+        this.masterVolume = Math.max(0, Math.min(1, volume));
+        if (this.gainNode) {
+            this.gainNode.gain.value = this.masterVolume;
+        }
+    }
+
+    toggleSound() {
+        this.soundEnabled = !this.soundEnabled;
+        if (this.gainNode) {
+            this.gainNode.gain.value = this.soundEnabled ? this.masterVolume : 0;
+        }
+    }
+
+    // Add support for handling mobile audio unlocking
+    initMobileAudio() {
+        const unlockAudio = () => {
+            if (this.audioContext && this.audioContext.state === 'suspended') {
+                this.audioContext.resume();
+            }
+            document.removeEventListener('touchstart', unlockAudio);
+            document.removeEventListener('click', unlockAudio);
         };
         
-        // Play pattern in loop
-        if (patterns[key]) {
-            this.musicInterval = setInterval(() => {
-                if (audioCtx.state === 'suspended') {
-                    // Try to resume audio context if it was suspended
-                    audioCtx.resume();
-                    return;
-                }
-                const note = patterns[key][noteIndex];
-                this.generateSound(note.note, note.duration, 'square', 0.1);
-                noteIndex = (noteIndex + 1) % patterns[key].length;
-            }, 500);
-        }
-    }
-
-    playSound(key) {
-        const sound = this.sounds.get(key);
-        if (sound) {
-            sound();
-        }
-    }
-
-    loadSound(key, frequency, duration, type) {
-        this.sounds.set(key, () => this.generateSound(frequency, duration, type));
-    }
-
-    stopMusic() {
-        if (this.musicInterval) {
-            clearInterval(this.musicInterval);
-            this.musicInterval = null;
-        }
-        
-        // Clean up any active oscillators
-        this.activeOscillators.forEach(({ oscillator, gainNode }) => {
-            try {
-                oscillator.stop();
-                oscillator.disconnect();
-                gainNode.disconnect();
-            } catch (e) {
-                // Ignore errors from already stopped oscillators
-            }
-        });
-        this.activeOscillators = [];
-        
-        this.currentMusic = '';
-    }
-    
-    // Call this when game is paused or page is unloaded
-    cleanup() {
-        this.stopMusic();
-        if (this.audioCtx) {
-            this.audioCtx.close().catch(e => console.error("Error closing audio context:", e));
-            this.audioCtx = null;
-        }
+        document.addEventListener('touchstart', unlockAudio);
+        document.addEventListener('click', unlockAudio);
     }
 }
 
-const soundManager = new SoundManager();
+// Initialize sound manager and export as global
+window.soundManager = new SoundManager();
 
-// Load sounds
-soundManager.loadSound('click', 880, 0.1, 'square');
-soundManager.loadSound('pickup', 660, 0.2, 'triangle');
-soundManager.loadSound('error', 220, 0.3, 'sawtooth');
-soundManager.loadSound('evidence', 440, 0.5, 'triangle');
-soundManager.loadSound('success', 880, 0.1, 'sine');
-
-// Cleanup sounds when page unloads
-window.addEventListener('beforeunload', () => {
-    soundManager.cleanup();
+// Load common sounds when document is ready
+document.addEventListener('DOMContentLoaded', () => {
+    const manager = window.soundManager;
+    manager.loadSound('click', 'sounds/click.mp3');
+    manager.loadSound('error', 'sounds/error.mp3');
+    manager.loadSound('footsteps', 'sounds/footsteps.mp3');
+    manager.loadSound('door', 'sounds/door.mp3');
+    manager.initMobileAudio();
 });

@@ -373,59 +373,78 @@ const GAME_DATA = {
 
 class Game {
     constructor() {
-        this.inventory = [];
         this.gameState = {
-            caseSolved: false,
-            evidenceCollected: [],
-            dialoguesCompleted: []
+            inventory: new Set(),
+            currentCase: null,
+            evidence: new Set(),
+            completedStages: new Set(),
+            flags: new Map()
         };
-    }
-
-    init() {
-        this.inventory = [];
-        this.gameState = {
-            caseSolved: false,
-            evidenceCollected: [],
-            dialoguesCompleted: []
-        };
-    }
-
-    startCase(caseId) {
-        // Check cache first
-        if (this.caseCache.has(caseId)) {
-            this.currentCase = this.caseCache.get(caseId);
-        } else {
-            // Create a deep copy to prevent modifying the original data
-            this.currentCase = JSON.parse(JSON.stringify(GAME_DATA.cases[caseId]));
-            this.caseCache.set(caseId, this.currentCase);
-        }
-        soundManager.playMusic('case_start');
-        return this.currentCase;
-    }
-
-    collectEvidence(evidenceId) {
-        if (!this.currentCase) return false;
         
-        if (!this.currentCase.evidence.includes(evidenceId)) {
-            this.currentCase.evidence.push(evidenceId);
-            soundManager.playSound('evidence');
-            // Save game state after collecting evidence
-            this.saveGame();
-            return true;
-        }
-        return false;
+        // Use WeakMap for NPC state to allow garbage collection
+        this.npcState = new WeakMap();
+        
+        // Cache DOM elements
+        this.domElements = new Map();
+        
+        // Performance optimization for frequent checks
+        this.lastInteractionTime = 0;
+        this.interactionCooldown = 300; // ms
+        
+        // Initialize game data
+        this.initializeGameData();
+    }
+
+    initializeGameData() {
+        this.cases = [{
+            id: 'case1',
+            title: 'The Missing Evidence',
+            description: 'Important evidence has gone missing from the evidence locker.',
+            stages: [
+                { id: 'review', description: 'Review case file', completed: false },
+                { id: 'interview', description: 'Interview witnesses', completed: false },
+                { id: 'evidence', description: 'Collect evidence', completed: false },
+                { id: 'downtown', description: 'Investigate downtown', completed: false },
+                { id: 'suspect', description: 'Question suspect', completed: false }
+            ],
+            requiredEvidence: ['tool', 'document', 'photo']
+        }];
+        
+        this.currentCase = this.cases[0];
+        this.gameState.currentCase = this.currentCase;
+    }
+
+    addToInventory(item) {
+        if (!item) return false;
+        
+        // Throttle inventory updates
+        const now = performance.now();
+        if (now - this.lastInteractionTime < this.interactionCooldown) return false;
+        
+        this.lastInteractionTime = now;
+        this.gameState.inventory.add(item);
+        this.updateUI();
+        return true;
+    }
+
+    removeFromInventory(item) {
+        const result = this.gameState.inventory.delete(item);
+        if (result) this.updateUI();
+        return result;
+    }
+
+    collectEvidence(evidence) {
+        if (!evidence) return false;
+        this.gameState.evidence.add(evidence);
+        return true;
     }
 
     completeStage(stageId) {
-        if (!this.currentCase) return false;
-        
         const stage = this.currentCase.stages.find(s => s.id === stageId);
         if (stage && !stage.completed) {
             stage.completed = true;
-            this.gameState.reputation += 10;
-            soundManager.playSound('success');
-            // Save game state after completing a stage
-            this.saveGame();
+            this.gameState.completedStages.add(stageId);
+            this.checkCaseSolved();
             return true;
         }
         return false;
@@ -434,91 +453,126 @@ class Game {
     checkCaseSolved() {
         if (!this.currentCase) return false;
         
-        const allStagesCompleted = this.currentCase.stages.every(stage => stage.completed);
-        if (allStagesCompleted) {
-            this.gameState.solvedCases++;
-            // Save game after solving a case
-            this.saveGame();
-            return true;
-        }
-        return false;
+        // Check if all required evidence is collected
+        const hasAllEvidence = this.currentCase.requiredEvidence.every(
+            evidence => this.gameState.evidence.has(evidence)
+        );
+        
+        // Check if all stages are completed
+        const allStagesCompleted = this.currentCase.stages.every(
+            stage => stage.completed
+        );
+        
+        return hasAllEvidence && allStagesCompleted;
     }
 
-    addToInventory(itemId) {
-        if (!this.gameState.inventory.includes(itemId)) {
-            this.gameState.inventory.push(itemId);
-            // Save game state after inventory update
-            this.saveGame();
-            return true;
-        }
-        return false;
+    // Optimized UI updates using requestAnimationFrame
+    updateUI() {
+        if (this.updatePending) return;
+        
+        this.updatePending = true;
+        requestAnimationFrame(() => {
+            this.updatePending = false;
+            this.updateInventoryUI();
+            this.updateCaseInfo();
+        });
     }
 
-    // Save game state to localStorage
+    updateInventoryUI() {
+        const inventoryPanel = this.getDomElement('inventory-panel');
+        if (!inventoryPanel) return;
+        
+        const fragment = document.createDocumentFragment();
+        this.gameState.inventory.forEach(item => {
+            const itemElement = document.createElement('div');
+            itemElement.className = 'inventory-item';
+            itemElement.textContent = item.substring(0, 2).toUpperCase();
+            itemElement.title = item;
+            fragment.appendChild(itemElement);
+        });
+        
+        inventoryPanel.innerHTML = '';
+        inventoryPanel.appendChild(fragment);
+    }
+
+    updateCaseInfo() {
+        const caseInfoPanel = this.getDomElement('case-info');
+        if (!caseInfoPanel || !this.currentCase) return;
+        
+        const fragment = document.createDocumentFragment();
+        
+        const title = document.createElement('h3');
+        title.textContent = this.currentCase.title;
+        fragment.appendChild(title);
+        
+        const stagesList = document.createElement('ul');
+        this.currentCase.stages.forEach(stage => {
+            const li = document.createElement('li');
+            li.textContent = `${stage.description} ${stage.completed ? '✓' : ''}`;
+            stagesList.appendChild(li);
+        });
+        fragment.appendChild(stagesList);
+        
+        caseInfoPanel.innerHTML = '';
+        caseInfoPanel.appendChild(fragment);
+    }
+
+    // Cache DOM elements for better performance
+    getDomElement(id) {
+        if (!this.domElements.has(id)) {
+            const element = document.getElementById(id);
+            if (element) {
+                this.domElements.set(id, element);
+            }
+        }
+        return this.domElements.get(id);
+    }
+
+    // Save/Load game state
     saveGame() {
         try {
             const saveData = {
-                gameState: this.gameState,
-                currentCase: this.currentCase,
-                timestamp: new Date().toISOString()
+                inventory: Array.from(this.gameState.inventory),
+                evidence: Array.from(this.gameState.evidence),
+                completedStages: Array.from(this.gameState.completedStages),
+                flags: Object.fromEntries(this.gameState.flags),
+                currentCaseId: this.currentCase?.id
             };
-            localStorage.setItem('digitalPrecinctSave', JSON.stringify(saveData));
-            console.log("Game saved:", new Date().toLocaleTimeString());
-        } catch (e) {
-            console.error("Failed to save game:", e);
+            
+            localStorage.setItem('gameState', JSON.stringify(saveData));
+            return true;
+        } catch (error) {
+            console.error('Error saving game:', error);
+            return false;
         }
     }
 
-    // Load game state from localStorage
     loadGame() {
         try {
-            const saveData = JSON.parse(localStorage.getItem('digitalPrecinctSave'));
-            if (saveData) {
-                this.gameState = saveData.gameState;
-                this.currentCase = saveData.currentCase;
-                if (this.engine) {
-                    this.engine.loadScene(this.gameState.currentLocation);
-                    this.engine.updateInventoryUI();
-                    this.engine.updateCaseInfo();
-                    this.engine.showDialog("Game loaded from previous session.");
-                }
-                return true;
+            const saveData = JSON.parse(localStorage.getItem('gameState'));
+            if (!saveData) return false;
+            
+            this.gameState.inventory = new Set(saveData.inventory);
+            this.gameState.evidence = new Set(saveData.evidence);
+            this.gameState.completedStages = new Set(saveData.completedStages);
+            this.gameState.flags = new Map(Object.entries(saveData.flags));
+            
+            if (saveData.currentCaseId) {
+                this.currentCase = this.cases.find(c => c.id === saveData.currentCaseId);
+                this.gameState.currentCase = this.currentCase;
             }
-        } catch (e) {
-            console.error("Failed to load game:", e);
-        }
-        return false;
-    }
-
-    // Reset game to initial state
-    resetGame() {
-        this.gameState = {
-            currentLocation: 'policeStation',
-            solvedCases: 0,
-            reputation: 0,
-            inventory: []
-        };
-        this.currentCase = null;
-        this.caseCache.clear();
-        localStorage.removeItem('digitalPrecinctSave');
-        if (this.engine) {
-            this.engine.loadScene('policeStation');
-            this.engine.updateInventoryUI();
-            this.engine.showDialog("Starting a new game.");
-            this.startCase('case1');
-            this.engine.updateCaseInfo();
+            
+            this.updateUI();
+            return true;
+        } catch (error) {
+            console.error('Error loading game:', error);
+            return false;
         }
     }
 }
 
-// Create game instance correctly
-const game = new Game(); // Just define it first, but don't initialize with engine yet
-
-// Wait for engine to be created and window to load before connecting objects
-window.addEventListener('load', () => {
-    // Connect game and engine after both are created
-    game.engine = engine;
-});
+// Export game instance
+window.game = new Game();
 
 // Add load/save keyboard shortcuts
 document.addEventListener('keydown', (e) => {
