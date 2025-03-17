@@ -955,6 +955,46 @@ class GameEngine {
         if (!text) return;
         this.dialogBox.innerText = text;
     }
+
+    loadScene(sceneId) {
+        try {
+            // Update game state
+            game.changeLocation(sceneId);
+            
+            // Reset player position based on scene
+            switch (sceneId) {
+                case 'policeStation':
+                    this.playerPosition = { x: 400, y: 350 };
+                    break;
+                case 'downtown':
+                    this.playerPosition = { x: 150, y: 350 };
+                    break;
+                case 'park':
+                    this.playerPosition = { x: 400, y: 350 };
+                    break;
+                case 'sheriffsOffice':
+                    this.playerPosition = { x: 400, y: 350 };
+                    break;
+                case 'briefingRoom':
+                    this.playerPosition = { x: 400, y: 350 };
+                    break;
+                default:
+                    console.warn('Unknown scene:', sceneId);
+                    this.playerPosition = { x: 400, y: 350 };
+            }
+            
+            // Reset walking state
+            this.isWalking = false;
+            this.walkTarget = null;
+            
+            // Draw the new scene
+            this.drawCurrentScene();
+            
+        } catch (error) {
+            console.error("Error loading scene:", error);
+            this.showDialog("Error loading scene. Please try again.");
+        }
+    }
 }
 
 // Initialize game after window loads
