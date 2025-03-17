@@ -17,6 +17,7 @@ class GameEngine {
         this.playerPosition = { x: 400, y: 350 }; // Default player position
         this.isWalking = false;
         this.walkTarget = null;
+        this.game = new Game(); // Create game instance in constructor
     }
 
     setupCanvas() {
@@ -53,6 +54,7 @@ class GameEngine {
     }
 
     init() {
+        this.game.init(); // Initialize game state
         this.setupEventListeners();
         this.drawCurrentScene();
     }
@@ -966,4 +968,6 @@ class GameEngine {
 
 // Initialize game after window loads
 const engine = new GameEngine();
-engine.init();
+window.addEventListener('DOMContentLoaded', () => {
+    engine.init();
+});
