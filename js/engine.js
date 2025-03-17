@@ -226,6 +226,20 @@ class GameEngine {
             const rect = this.canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) * (this.canvas.width / rect.width / (window.devicePixelRatio || 1));
             const y = (e.clientY - rect.top) * (this.canvas.height / rect.height / (window.devicePixelRatio || 1));
+            
+            // First check for door interactions
+            const doors = this.collisionObjects.filter(obj => obj.type === 'door');
+            for (const door of doors) {
+                if (x >= door.x && x <= door.x + door.width &&
+                    y >= door.y && y <= door.y + door.height) {
+                    if (this.activeCommand === 'use') {
+                        this.processInteraction(door);
+                        return;
+                    }
+                }
+            }
+            
+            // Otherwise handle movement or other interactions
             this.handleInteraction(x, y);
         });
 
@@ -447,6 +461,12 @@ class GameEngine {
         // Draw doors with frames
         this.drawDoorWithFrame(50, 100, 'left', "Sheriff's Office");
         this.drawDoorWithFrame(600, 100, 'right', "Briefing Room");
+        
+        // Add a clear exit to downtown
+        this.drawExitDoor(400, 420, "Exit to Downtown");
+        
+        // Add exit sign
+        this.addExitSign(400, 390, "Downtown");
         
         // Draw room boundaries for debugging
         if (this.debug) {
@@ -1033,28 +1053,25 @@ class GameEngine {
             return;
         }
         
-        const interaction = hitObject.interactions[this.activeCommand];
+        // Special handling for doors
+        if (hitObject.type === 'door' && this.activeCommand === 'use') {
+            // Get target scene from door properties
+            const targetScene = hitObject.target || hitObject.id.replace('Door', '').toLowerCase();
+            this.showDialog(`Entering ${targetScene.replace(/([A-Z])/g, ' $1').trim()}...`);
+            
+            // Transition to new scene after a brief delay
+            setTimeout(() => {
+                this.currentScene = targetScene;
+                this.loadScene(targetScene);
+            }, 500);
+            
+            return;
+        }
         
+        // Handle standard interactions
+        const interaction = hitObject.interactions && hitObject.interactions[this.activeCommand];
         if (interaction) {
             this.showDialog(interaction);
-            
-            // Handle room transitions
-            if (this.activeCommand === 'use') {
-                switch (hitObject.id) {
-                    case 'sheriffsOfficeDoor':
-                        this.currentScene = 'sheriffsOffice';
-                        this.loadScene('sheriffsOffice');
-                        break;
-                    case 'briefingRoomDoor':
-                        this.currentScene = 'briefingRoom';
-                        this.loadScene('briefingRoom');
-                        break;
-                    case 'exitDoor':
-                        this.currentScene = 'policeStation';
-                        this.loadScene('policeStation');
-                        break;
-                }
-            }
             
             // Handle special interactions
             if (this.activeCommand === 'take' && hitObject.id === 'caseFile') {
@@ -1140,25 +1157,29 @@ class GameEngine {
 
     loadScene(sceneId) {
         try {
-            // Update current scene directly
+            console.log(`Loading scene: ${sceneId}`);
+            // Update current scene
             this.currentScene = sceneId;
             
+            // Reset collision objects for new scene
+            this.collisionObjects = [];
+            
             // Reset player position based on scene
-            switch (sceneId) {
+            switch(sceneId) {
                 case 'policeStation':
-                    this.playerPosition = { x: 400, y: 350 };
+                    this.playerPosition = { x: 400, y: 380 };
                     break;
                 case 'downtown':
-                    this.playerPosition = { x: 150, y: 350 };
+                    this.playerPosition = { x: 400, y: 350 };
                     break;
                 case 'park':
                     this.playerPosition = { x: 400, y: 350 };
                     break;
                 case 'sheriffsOffice':
-                    this.playerPosition = { x: 400, y: 350 };
+                    this.playerPosition = { x: 200, y: 350 };
                     break;
                 case 'briefingRoom':
-                    this.playerPosition = { x: 400, y: 350 };
+                    this.playerPosition = { x: 200, y: 350 };
                     break;
                 default:
                     console.warn('Unknown scene:', sceneId);
@@ -1169,12 +1190,74 @@ class GameEngine {
             this.isWalking = false;
             this.walkTarget = null;
             
+            // Update NPCs for the new scene
+            this.updateNPCsForScene(sceneId);
+            
             // Draw the new scene
             this.drawCurrentScene();
             
+            console.log(`Scene loaded: ${sceneId}`);
         } catch (error) {
             console.error("Error loading scene:", error);
             this.showDialog("Error loading scene. Please try again.");
+        }
+    }
+    
+    updateNPCsForScene(sceneId) {
+        // Make sure we have NPC definitions for each scene
+        if (!this.npcs[sceneId]) {
+            switch(sceneId) {
+                case 'sheriffsOffice':
+                    this.npcs[sceneId] = [{
+                        x: 450, y: 260,
+                        type: 'sheriff',
+                        name: 'Sheriff Grumps',
+                        patrolPoints: [{x: 450, y: 260}, {x: 400, y: 200}, {x: 500, y: 200}],
+                        currentPatrolPoint: 0,
+                        facing: 'down'
+                    }];
+                    break;
+                case 'briefingRoom':
+                    this.npcs[sceneId] = [{
+                        x: 350, y: 200,
+                        type: 'officer',
+                        name: 'Tech Officer',
+                        patrolPoints: [{x: 350, y: 200}, {x: 500, y: 250}, {x: 700, y: 200}],
+                        currentPatrolPoint: 0,
+                        facing: 'right'
+                    }];
+                    break;
+                case 'downtown':
+                    this.npcs[sceneId] = [
+                        {
+                            x: 200, y: 350,
+                            type: 'civilian',
+                            name: 'Shop Clerk',
+                            patrolPoints: [{x: 200, y: 350}, {x: 300, y: 350}, {x: 250, y: 300}],
+                            currentPatrolPoint: 0,
+                            facing: 'right'
+                        },
+                        {
+                            x: 500, y: 330,
+                            type: 'witness',
+                            name: 'Witness',
+                            patrolPoints: [{x: 500, y: 330}, {x: 550, y: 350}, {x: 450, y: 350}],
+                            currentPatrolPoint: 0,
+                            facing: 'left'
+                        }
+                    ];
+                    break;
+                case 'park':
+                    this.npcs[sceneId] = [{
+                        x: 300, y: 350,
+                        type: 'civilian',
+                        name: 'Park Visitor',
+                        patrolPoints: [{x: 300, y: 350}, {x: 400, y: 300}, {x: 500, y: 350}],
+                        currentPatrolPoint: 0,
+                        facing: 'right'
+                    }];
+                    break;
+            }
         }
     }
 
@@ -1265,6 +1348,63 @@ class GameEngine {
         boundaries.doors.forEach(door => {
             this.ctx.strokeRect(door.x, door.y, door.width, door.height);
         });
+    }
+    
+    drawExitDoor(x, y, label) {
+        const ctx = this.ctx;
+        
+        // Door frame with exit sign above
+        ctx.fillStyle = '#4A4A4A';
+        ctx.fillRect(x - 40, y - 5, 80, 35);
+        
+        // Door
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(x - 35, y, 70, 30);
+        
+        // Exit sign
+        ctx.fillStyle = '#228B22'; // Forest green
+        ctx.fillRect(x - 30, y - 25, 60, 20);
+        
+        // Exit text
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '14px monospace';
+        ctx.fillText('EXIT', x - 20, y - 10);
+        
+        // Add to interactive elements
+        this.collisionObjects.push({
+            x: x - 35,
+            y: y,
+            width: 70,
+            height: 30,
+            type: 'door',
+            id: 'exitDoor',
+            target: 'downtown',
+            interactions: {
+                look: "The exit door leading downtown.",
+                use: "You head downtown to investigate.",
+                talk: "It's a door. It doesn't talk back."
+            }
+        });
+    }
+    
+    addExitSign(x, y, destination) {
+        const ctx = this.ctx;
+        
+        // Arrow pointing down
+        ctx.fillStyle = '#FFFF00';
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 15, y - 20);
+        ctx.lineTo(x + 15, y - 20);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Destination text
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(destination, x, y - 25);
+        ctx.textAlign = 'left'; // Reset alignment
     }
 }
 
