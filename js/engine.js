@@ -26,12 +26,27 @@ class GameEngine {
         this.collisionObjects = []; // Add collision objects array
         this.npcs = {
             policeStation: [
-                { x: 300, y: 300, type: 'officer', name: 'Officer Keith' },
-                { x: 500, y: 250, type: 'sergeant', name: 'Sergeant Dooley' }
+                { 
+                    x: 300, y: 350, 
+                    type: 'officer', 
+                    name: 'Officer Keith',
+                    patrolPoints: [{x: 300, y: 350}, {x: 500, y: 350}, {x: 500, y: 400}],
+                    currentPatrolPoint: 0,
+                    facing: 'right'
+                },
+                { 
+                    x: 500, y: 350, 
+                    type: 'sergeant', 
+                    name: 'Sergeant Dooley',
+                    patrolPoints: [{x: 500, y: 350}, {x: 200, y: 350}, {x: 350, y: 400}],
+                    currentPatrolPoint: 0,
+                    facing: 'left'
+                }
             ]
         };
         this.floorLevel = 450; // Base floor level for characters
         this.canvas.style.cursor = 'pointer'; // Set default cursor
+        this.animationFrame = 0;
     }
 
     setupCanvas() {
@@ -71,16 +86,17 @@ class GameEngine {
         this.game.init(); // Initialize game state
         this.setupEventListeners();
         this.drawCurrentScene();
+        this.startGameLoop();
     }
 
     startGameLoop() {
-        // Use requestAnimationFrame for smoother rendering
         const loop = (timestamp) => {
-            // Limit to ~30fps for retro feel and performance
-            if (timestamp - this.lastFrameTime > 33) { // ~30fps
-                this.update();
-                this.render();
+            // Update animation frame every 200ms
+            if (timestamp - this.lastFrameTime > 200) {
+                this.animationFrame = (this.animationFrame + 1) % 8;
+                this.updateNPCs();
                 this.lastFrameTime = timestamp;
+                this.drawCurrentScene();
             }
             requestAnimationFrame(loop);
         };
@@ -153,7 +169,7 @@ class GameEngine {
             this.npcs[this.currentScene].forEach(npc => {
                 this.drawPixelCharacter(npc.x, npc.y, 
                     npc.type === 'sergeant' ? this.colors.brightBlue : this.colors.blue,
-                    this.colors.yellow);
+                    this.colors.yellow, npc.facing, true);
             });
         }
 
@@ -266,41 +282,24 @@ class GameEngine {
     }
 
     handleInteraction(x, y) {
-        // Modified to handle walking
         if (this.activeCommand === 'move') {
-            // Start walking to clicked position
-            this.walkTarget = { x, y };
-            this.isWalking = true;
+            // Move character to clicked location
+            const rect = this.canvas.getBoundingClientRect();
+            const targetX = (x - rect.left) * (this.canvas.width / rect.width);
+            const targetY = (y - rect.top) * (this.canvas.height / rect.height);
+            
+            // Ensure target is within walkable area
+            if (targetY >= 300 && targetY <= this.floorLevel) {
+                this.walkTarget = { x: targetX, y: targetY };
+                this.isWalking = true;
+            }
             return;
         }
-        
-        // For other commands, check if player is close enough to the object
-        const hitObject = this.checkCollision(x, y);
-        if (hitObject) {
-            // Calculate distance from player to object
-            const objectCenterX = hitObject.x + (hitObject.width / 2);
-            const objectCenterY = hitObject.y + (hitObject.height / 2);
-            const dx = objectCenterX - this.playerPosition.x;
-            const dy = objectCenterY - this.playerPosition.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            // If player is close enough, interact immediately
-            if (distance < 100) { // Within 100px
-                soundManager.playSound('click');
-                this.processInteraction(hitObject);
-            } else {
-                // Otherwise, walk to the object first
-                this.walkTarget = { 
-                    x: objectCenterX - (dx > 0 ? 50 : -50), // Stand to the left or right
-                    y: objectCenterY + 20 // Stand a bit in front
-                };
-                this.isWalking = true;
-                
-                // We'll check for interaction once we reach the target
-            }
-        } else if (this.activeCommand !== 'move') {
-            soundManager.playSound('error');
-            this.showDialog("There's nothing there to " + this.activeCommand);
+
+        // Check for clickable objects
+        const clickedObject = this.checkCollision(x, y);
+        if (clickedObject) {
+            this.processInteraction(clickedObject);
         }
     }
 
@@ -584,7 +583,7 @@ class GameEngine {
         this.drawArrowIndicator('left', 'Downtown');
     }
 
-    drawPixelCharacter(x, y, uniformColor, badgeColor, facing = 'down', walkCycle = 0) {
+    drawPixelCharacter(x, y, uniformColor, badgeColor, facing = 'down', isWalking = false) {
         // More pixelated character style with 3D depth
         const pixels = 4; // Size of each pixel for chunky look
         
@@ -673,8 +672,10 @@ class GameEngine {
         });
 
         // Draw legs with walking animation
-        const legFrame = walkCycle < 4 ? 'walk1' : 'walk2';
-        const legs = this.isWalking ? characterPixels.legs[legFrame] : characterPixels.legs.stand;
+        const walkFrame = Math.floor(this.animationFrame / 2); // 0-3 animation frames
+        const legs = isWalking ? 
+            (walkFrame % 2 === 0 ? characterPixels.legs.walk1 : characterPixels.legs.walk2) 
+            : characterPixels.legs.stand;
         
         legs.forEach((row, py) => {
             row.forEach((pixel, px) => {
@@ -1089,6 +1090,31 @@ class GameEngine {
         // Lock
         ctx.fillStyle = this.colors.black;
         ctx.fillRect(x + width - 15, y + height/2 - 30, 8, 8);
+    }
+
+    updateNPCs() {
+        const currentSceneNPCs = this.npcs[this.currentScene];
+        if (!currentSceneNPCs) return;
+
+        currentSceneNPCs.forEach(npc => {
+            const target = npc.patrolPoints[npc.currentPatrolPoint];
+            const dx = target.x - npc.x;
+            const dy = target.y - npc.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 2) {
+                // Move to next patrol point
+                npc.currentPatrolPoint = (npc.currentPatrolPoint + 1) % npc.patrolPoints.length;
+            } else {
+                // Move towards current target
+                const speed = 2;
+                npc.x += (dx / distance) * speed;
+                npc.y += (dy / distance) * speed;
+                
+                // Update facing direction
+                npc.facing = dx > 0 ? 'right' : 'left';
+            }
+        });
     }
 }
 
