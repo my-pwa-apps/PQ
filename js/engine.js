@@ -10,7 +10,6 @@ class GameEngine {
         this.inventory = new Set();
         this.activeCommand = null;
         this.currentScene = 'policeStation';
-        this.bgMusic = document.getElementById('bgMusic');
         this.dialogBox = document.getElementById('dialog-box');
         this.caseInfoPanel = document.getElementById('case-info');
         this.inventoryPanel = document.getElementById('inventory-panel');
@@ -70,6 +69,7 @@ class GameEngine {
             typingNPC: { x: 0, y: 0, active: false },
             blinkingLights: { frame: 0 }
         };
+        this.backgroundMusicPlayer = null;
     }
 
     setupCanvas() {
@@ -111,6 +111,11 @@ class GameEngine {
         this.drawCurrentScene();
         this.startGameLoop();
         this.keyboardEnabled = true;
+        
+        // Start background music using Web Audio API
+        if (window.soundManager) {
+            this.startBackgroundMusic();
+        }
     }
 
     startGameLoop() {
@@ -1114,6 +1119,9 @@ class GameEngine {
 
     loadScene(sceneId) {
         try {
+            // Stop current background music
+            this.stopBackgroundMusic();
+            
             console.log(`Loading scene: ${sceneId}`);
             // Update current scene
             this.currentScene = sceneId;
@@ -1158,6 +1166,9 @@ class GameEngine {
             
             // Draw the new scene
             this.drawCurrentScene();
+            
+            // Start new background music
+            this.startBackgroundMusic();
             
             console.log(`Scene loaded: ${sceneId}`);
         } catch (error) {
@@ -1769,10 +1780,41 @@ class GameEngine {
             return color; // Return original color if adjustment fails
         }
     }
+
+    startBackgroundMusic() {
+        if (this.backgroundMusicPlayer) {
+            this.backgroundMusicPlayer.stop();
+        }
+        this.backgroundMusicPlayer = window.soundManager.playBackgroundMusic();
+    }
+
+    stopBackgroundMusic() {
+        if (this.backgroundMusicPlayer) {
+            this.backgroundMusicPlayer.stop();
+            this.backgroundMusicPlayer = null;
+        }
+    }
 }
 
 // Initialize engine after DOM is loaded and ensure global reference
 window.engine = new GameEngine();
 window.addEventListener('DOMContentLoaded', () => {
-    window.engine.init();
+    try {
+        // Initialize game engine
+        window.engine.init();
+
+        // Ensure sound manager is ready
+        if (window.soundManager) {
+            // Try to resume audio context (needed for some browsers)
+            if (window.soundManager.audioContext && 
+                window.soundManager.audioContext.state === 'suspended') {
+                window.soundManager.audioContext.resume();
+            }
+        }
+
+        // Start initial scene
+        window.engine.loadScene('policeStation');
+    } catch (error) {
+        console.error('Error during game initialization:', error);
+    }
 });
