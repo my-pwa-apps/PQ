@@ -350,65 +350,110 @@ class GameEngine {
     }
 
     drawPoliceStation() {
-        // Use the stored color palette for consistency
         const colors = this.colors;
         
-        // Draw background wall
-        this.ctx.fillStyle = colors.blue;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Draw floor
-        this.ctx.fillStyle = colors.darkGray;
-        this.ctx.fillRect(0, 300, this.canvas.width, 150);
-
-        // Draw desks
+        // Draw 3D perspective floor grid
+        this.drawFloorGrid(0, 300, this.canvas.width, 150);
+        
+        // Draw walls with perspective
+        this.draw3DWall(0, 0, this.canvas.width, 300, colors.blue);
+        
+        // Draw desks with 3D perspective
         for (let i = 0; i < 3; i++) {
-            // Desk
-            this.ctx.fillStyle = colors.brown;
-            this.ctx.fillRect(100 + i * 200, 200, 150, 80);
-            
-            // Computer on desk
-            this.ctx.fillStyle = colors.darkGray;
-            this.ctx.fillRect(120 + i * 200, 210, 60, 40);
-            this.ctx.fillStyle = colors.brightCyan;
-            this.ctx.fillRect(125 + i * 200, 215, 50, 30);
-            
-            // Chair
-            this.ctx.fillStyle = colors.darkGray;
-            this.ctx.fillRect(130 + i * 200, 290, 40, 50);
-            
-            // Papers
-            this.ctx.fillStyle = colors.white;
-            this.ctx.fillRect(200 + i * 200, 220, 30, 20);
+            this.draw3DDesk(100 + i * 200, 200, 150, 80);
+        }
+        
+        // Draw other elements with depth
+        this.draw3DLocker(700, 100, 80, 180);
+        
+        // ...rest of existing police station code...
+    }
+
+    // Helper functions for 3D rendering
+    drawFloorGrid(x, y, width, height) {
+        const ctx = this.ctx;
+        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+        ctx.lineWidth = 1;
+
+        // Draw horizontal lines with perspective
+        for (let i = 0; i <= height; i += 20) {
+            ctx.beginPath();
+            ctx.moveTo(x, y + i);
+            // Calculate perspective vanishing point
+            const vanishX = this.canvas.width / 2;
+            const vanishY = y - 100;
+            const perspectiveX1 = x + (x - vanishX) * (i / height);
+            const perspectiveX2 = (x + width) + ((x + width) - vanishX) * (i / height);
+            ctx.moveTo(perspectiveX1, y + i);
+            ctx.lineTo(perspectiveX2, y + i);
+            ctx.stroke();
         }
 
-        // Evidence locker
-        this.ctx.fillStyle = colors.lightGray;
-        this.ctx.fillRect(700, 100, 80, 180);
-        this.ctx.fillStyle = colors.black;
-        this.ctx.fillRect(720, 150, 40, 5);
-        this.ctx.fillRect(720, 180, 40, 5);
-        this.ctx.fillRect(720, 210, 40, 5);
+        // Draw vertical lines
+        for (let i = 0; i <= width; i += 40) {
+            ctx.beginPath();
+            const perspectiveX = x + i;
+            const vanishY = y - 100;
+            ctx.moveTo(perspectiveX, y);
+            ctx.lineTo(
+                x + width/2 + (perspectiveX - (x + width/2)) * 0.7,
+                y + height
+            );
+            ctx.stroke();
+        }
+    }
 
-        // Police officer (pixel style)
-        this.drawPixelCharacter(400, 350, colors.blue, colors.yellow);
+    draw3DWall(x, y, width, height, color) {
+        const ctx = this.ctx;
+        ctx.fillStyle = color;
+        
+        // Main wall
+        ctx.fillRect(x, y, width, height);
+        
+        // Add depth shading
+        const gradient = ctx.createLinearGradient(x, y, x + width, y);
+        gradient.addColorStop(0, 'rgba(0,0,0,0.2)');
+        gradient.addColorStop(0.5, 'rgba(0,0,0,0)');
+        gradient.addColorStop(1, 'rgba(0,0,0,0.2)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, y, width, height);
+    }
 
-        // Sign
-        this.ctx.fillStyle = colors.brown;
-        this.ctx.fillRect(10, 50, 150, 40);
-        this.ctx.fillStyle = colors.yellow;
-        this.ctx.font = '16px monospace';
-        this.ctx.fillText('POLICE STATION', 20, 75);
+    draw3DDesk(x, y, width, height) {
+        const ctx = this.ctx;
         
-        // Exit sign
-        this.ctx.fillStyle = colors.red;
-        this.ctx.fillRect(350, 430, 100, 20);
-        this.ctx.fillStyle = colors.white;
-        this.ctx.fillText('EXIT', 385, 445);
+        // Desk top
+        ctx.fillStyle = this.colors.brown;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + width, y);
+        ctx.lineTo(x + width - 20, y + height);
+        ctx.lineTo(x - 20, y + height);
+        ctx.closePath();
+        ctx.fill();
         
-        // Arrow indicators for keyboard navigation
-        this.drawArrowIndicator('right', 'Downtown');
-        this.drawArrowIndicator('down', 'Downtown');
+        // Desk front
+        ctx.fillStyle = this.adjustColor(this.colors.brown, -20);
+        ctx.fillRect(x - 20, y + height, width, 20);
+        
+        // Desk side
+        ctx.fillStyle = this.adjustColor(this.colors.brown, -40);
+        ctx.beginPath();
+        ctx.moveTo(x + width, y);
+        ctx.lineTo(x + width - 20, y + height);
+        ctx.lineTo(x + width - 20, y + height + 20);
+        ctx.lineTo(x + width, y + 20);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // Helper function to darken/lighten colors
+    adjustColor(color, amount) {
+        const hex = color.replace('#', '');
+        const r = Math.max(0, Math.min(255, parseInt(hex.slice(0, 2), 16) + amount));
+        const g = Math.max(0, Math.min(255, parseInt(hex.slice(2, 4), 16) + amount));
+        const b = Math.max(0, Math.min(255, parseInt(hex.slice(4, 6), 16) + amount));
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     }
 
     drawDowntown() {
@@ -529,148 +574,121 @@ class GameEngine {
         this.drawArrowIndicator('left', 'Downtown');
     }
 
-    drawPixelCharacter(x, y, uniformColor, badgeColor) {
-        // Head
-        this.ctx.fillStyle = '#FFD8B1';
-        this.ctx.fillRect(x, y - 50, 20, 20);
+    drawPixelCharacter(x, y, uniformColor, badgeColor, facing = 'down', walkCycle = 0) {
+        // More pixelated character style with 3D depth
+        const pixels = 4; // Size of each pixel for chunky look
         
-        // Body
-        this.ctx.fillStyle = uniformColor;
-        this.ctx.fillRect(x - 5, y - 30, 30, 30);
-        
-        // Badge
-        this.ctx.fillStyle = badgeColor;
-        this.ctx.fillRect(x + 5, y - 25, 10, 5);
-        
-        // Arms
-        this.ctx.fillStyle = uniformColor;
-        this.ctx.fillRect(x - 15, y - 25, 10, 20);
-        this.ctx.fillRect(x + 25, y - 25, 10, 20);
-        
-        // Legs
-        this.ctx.fillStyle = '#000000';
-        this.ctx.fillRect(x, y, 10, 20);
-        this.ctx.fillRect(x + 10, y, 10, 20);
-    }
-
-    drawArrowIndicator(direction, destination) {
-        const colors = {
-            arrow: '#FFFF55', // Yellow
-            text: '#FFFFFF'   // White
+        // Helper function to draw a chunky pixel
+        const drawPixel = (px, py, color) => {
+            this.ctx.fillStyle = color;
+            this.ctx.fillRect(
+                Math.floor(x + px * pixels), 
+                Math.floor(y + py * pixels), 
+                pixels, 
+                pixels
+            );
         };
-        
-        this.ctx.fillStyle = colors.arrow;
-        this.ctx.strokeStyle = '#000000';
-        this.ctx.lineWidth = 1;
-        
-        let x, y, arrowPath;
-        
-        switch(direction) {
-            case 'up':
-                x = this.canvas.width / 2;
-                y = 25;
-                this.ctx.beginPath();
-                this.ctx.moveTo(x, y);
-                this.ctx.lineTo(x - 10, y + 15);
-                this.ctx.lineTo(x + 10, y + 15);
-                this.ctx.closePath();
-                break;
-            case 'down':
-                x = this.canvas.width / 2;
-                y = this.canvas.height - 25;
-                this.ctx.beginPath();
-                this.ctx.moveTo(x, y);
-                this.ctx.lineTo(x - 10, y - 15);
-                this.ctx.lineTo(x + 10, y - 15);
-                this.ctx.closePath();
-                break;
-            case 'left':
-                x = 25;
-                y = this.canvas.height / 2;
-                this.ctx.beginPath();
-                this.ctx.moveTo(x, y);
-                this.ctx.lineTo(x + 15, y - 10);
-                this.ctx.lineTo(x + 15, y + 10);
-                this.ctx.closePath();
-                break;
-            case 'right':
-                x = this.canvas.width - 25;
-                y = this.canvas.height / 2;
-                this.ctx.beginPath();
-                this.ctx.moveTo(x, y);
-                this.ctx.lineTo(x - 15, y - 10);
-                this.ctx.lineTo(x - 15, y + 10);
-                this.ctx.closePath();
-                break;
-        }
-        
-        this.ctx.fill();
-        this.ctx.stroke();
-        
-        // Add destination text
-        this.ctx.fillStyle = colors.text;
-        this.ctx.font = '12px monospace';
-        this.ctx.textAlign = 'center';
-        
-        switch(direction) {
-            case 'up':
-                this.ctx.fillText(destination, x, y - 5);
-                break;
-            case 'down':
-                this.ctx.fillText(destination, x, y + 25);
-                break;
-            case 'left':
-                this.ctx.fillText(destination, x + 20, y - 15);
-                break;
-            case 'right':
-                this.ctx.fillText(destination, x - 20, y - 15);
-                break;
-        }
-    }
 
-    loadScene(sceneId) {
-        try {
-            this.currentScene = GAME_DATA.scenes[sceneId];
-            if (!this.currentScene) {
-                console.error("Scene not found:", sceneId);
-                return;
+        // Define character shape in pixel array
+        const characterPixels = {
+            head: [
+                [0,0,1,1,1,1,0,0],
+                [0,1,1,1,1,1,1,0],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1]
+            ],
+            body: [
+                [0,1,1,1,1,1,1,0],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [0,1,1,1,1,1,1,0],
+                [0,0,1,1,1,1,0,0]
+            ],
+            legs: {
+                stand: [
+                    [0,0,1,1,1,1,0,0],
+                    [0,0,1,1,1,1,0,0],
+                    [0,0,1,1,1,1,0,0],
+                    [0,0,1,1,1,1,0,0]
+                ],
+                walk1: [
+                    [0,1,1,0,0,1,1,0],
+                    [1,1,0,0,0,0,1,1],
+                    [1,0,0,0,0,0,0,1],
+                    [1,0,0,0,0,0,0,1]
+                ],
+                walk2: [
+                    [0,0,1,1,1,1,0,0],
+                    [0,1,1,0,0,1,1,0],
+                    [1,1,0,0,0,0,1,1],
+                    [1,0,0,0,0,0,0,1]
+                ]
             }
-            
-            // Clear canvas before drawing new scene
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            
-            switch (sceneId) {
-                case 'policeStation':
-                    this.playerPosition = { x: 400, y: 350 };
-                    this.drawPoliceStation();
-                    break;
-                case 'downtown':
-                    this.playerPosition = { x: 150, y: 350 };
-                    this.drawDowntown();
-                    break;
-                case 'park':
-                    this.playerPosition = { x: 400, y: 350 };
-                    this.drawPark();
-                    break;
-                case 'sheriffsOffice':
-                    this.playerPosition = { x: 400, y: 350 };
-                    this.drawSheriffsOffice();
-                    break;
-                case 'briefingRoom':
-                    this.playerPosition = { x: 400, y: 350 };
-                    this.drawBriefingRoom();
-                    break;
-                default:
-                    console.error("Unknown scene:", sceneId);
-                    return;
-            }
-            soundManager.playMusic(this.currentScene.music);
-        } catch (error) {
-            console.error("Error loading scene:", error);
-        }
+        };
+
+        // Draw shadow (for 3D effect)
+        this.ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        this.ctx.beginPath();
+        this.ctx.ellipse(x, y + 12 * pixels, 12 * pixels, 4 * pixels, 0, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Draw character based on facing direction
+        let xOffset = -16;
+        let yOffset = -48;
+
+        // Draw head
+        characterPixels.head.forEach((row, py) => {
+            row.forEach((pixel, px) => {
+                if (pixel) {
+                    if (facing === 'left' && px > 4) return; // Skip right side for left profile
+                    if (facing === 'right' && px < 3) return; // Skip left side for right profile
+                    drawPixel(px + xOffset, py + yOffset, '#FFD8B1');
+                }
+            });
+        });
+
+        // Draw uniform
+        characterPixels.body.forEach((row, py) => {
+            row.forEach((pixel, px) => {
+                if (pixel) {
+                    drawPixel(px + xOffset, py + yOffset + 6, uniformColor);
+                    // Add badge detail
+                    if (py === 1 && px === 2) {
+                        drawPixel(px + xOffset, py + yOffset + 6, badgeColor);
+                    }
+                }
+            });
+        });
+
+        // Draw legs with walking animation
+        const legFrame = walkCycle < 4 ? 'walk1' : 'walk2';
+        const legs = this.isWalking ? characterPixels.legs[legFrame] : characterPixels.legs.stand;
         
-        // Draw scene with player
-        this.drawCurrentScene();
+        legs.forEach((row, py) => {
+            row.forEach((pixel, px) => {
+                if (pixel) {
+                    drawPixel(px + xOffset, py + yOffset + 11, '#000033');
+                }
+            });
+        });
+
+        // Face details based on direction
+        if (facing === 'down' || facing === facing) {
+            // Eyes
+            drawPixel(xOffset + 2, yOffset + 3, '#000000');
+            drawPixel(xOffset + 5, yOffset + 3, '#000000');
+            // Mouth
+            drawPixel(xOffset + 3, yOffset + 4, '#000000');
+            drawPixel(xOffset + 4, yOffset + 4, '#000000');
+        } else if (facing === 'left') {
+            drawPixel(xOffset + 2, yOffset + 3, '#000000'); // Left eye
+            drawPixel(xOffset + 2, yOffset + 4, '#000000'); // Mouth
+        } else if (facing === 'right') {
+            drawPixel(xOffset + 5, yOffset + 3, '#000000'); // Right eye
+            drawPixel(xOffset + 5, yOffset + 4, '#000000'); // Mouth
+        }
     }
 
     drawSheriffsOffice() {
