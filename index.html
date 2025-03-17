@@ -7,8 +7,8 @@
     
     <!-- Preload critical assets -->
     <link rel="preload" href="css/style.css" as="style">
-    <link rel="preload" href="js/engine.js" as="script">
     <link rel="preload" href="js/game.js" as="script">
+    <link rel="preload" href="js/engine.js" as="script">
     <link rel="preload" href="js/soundManager.js" as="script">
     
     <!-- Styles -->
@@ -50,9 +50,9 @@
         </div>
     </div>
     
-    <!-- Load scripts in optimal order -->
-    <script src="js/soundManager.js" defer></script>
+    <!-- Load scripts in correct dependency order -->
     <script src="js/game.js" defer></script>
+    <script src="js/soundManager.js" defer></script>
     <script src="js/engine.js" defer></script>
 </body>
 </html>

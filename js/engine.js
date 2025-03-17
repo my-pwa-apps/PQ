@@ -106,6 +106,7 @@ class GameEngine {
     }
 
     init() {
+        // Remove game.init() call since initialization happens in constructor
         this.canvas.style.cursor = 'default'; // Ensure cursor is visible
         this.setupEventListeners();
         this.drawCurrentScene();
