@@ -373,9 +373,21 @@ const GAME_DATA = {
 
 class Game {
     constructor() {
-        this.currentLocation = 'policeStation';
         this.inventory = [];
-        this.gameState = {};
+        this.gameState = {
+            caseSolved: false,
+            evidenceCollected: [],
+            dialoguesCompleted: []
+        };
+    }
+
+    init() {
+        this.inventory = [];
+        this.gameState = {
+            caseSolved: false,
+            evidenceCollected: [],
+            dialoguesCompleted: []
+        };
     }
 
     startCase(caseId) {

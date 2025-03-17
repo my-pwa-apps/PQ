@@ -53,10 +53,8 @@ class GameEngine {
     }
 
     init() {
-        this.game = new Game();
-        this.game.init();
-        this.loadScene(this.currentScene);
         this.setupEventListeners();
+        this.drawCurrentScene();
     }
 
     startGameLoop() {
