@@ -49,6 +49,21 @@ class GameEngine {
         this.animationFrame = 0;
         this.playerFacing = 'down';
         this.walkCycle = 0;
+        this.roomBoundaries = {
+            policeStation: {
+                walls: [
+                    {x: 0, y: 300, width: this.canvas.width, height: 10}, // North wall
+                    {x: 0, y: 0, width: 10, height: 450}, // West wall
+                    {x: 790, y: 0, width: 10, height: 450}, // East wall
+                    {x: 0, y: 450, width: this.canvas.width, height: 10} // South wall
+                ],
+                doors: [
+                    {x: 50, y: 100, width: 60, height: 120, target: 'sheriffsOffice'}, // Sheriff's door
+                    {x: 600, y: 100, width: 60, height: 120, target: 'briefingRoom'} // Briefing room door
+                ]
+            },
+            // Add boundaries for other rooms here
+        };
     }
 
     setupCanvas() {
@@ -318,6 +333,36 @@ class GameEngine {
         this.playerPosition.x = Math.max(50, Math.min(this.playerPosition.x, this.canvas.width - 50));
         this.playerPosition.y = Math.max(300, Math.min(this.playerPosition.y, this.floorLevel));
 
+        // Check for collisions with walls and doors
+        const boundaries = this.roomBoundaries[this.currentScene];
+        if (boundaries) {
+            // Check walls
+            for (const wall of boundaries.walls) {
+                if (this.playerPosition.x >= wall.x && 
+                    this.playerPosition.x <= wall.x + wall.width &&
+                    this.playerPosition.y >= wall.y && 
+                    this.playerPosition.y <= wall.y + wall.height) {
+                    // Revert movement if colliding with wall
+                    this.playerPosition.x = oldX;
+                    this.playerPosition.y = oldY;
+                    return;
+                }
+            }
+            
+            // Check doors (don't block but trigger room transition if using 'use' command)
+            for (const door of boundaries.doors) {
+                if (this.playerPosition.x >= door.x && 
+                    this.playerPosition.x <= door.x + door.width &&
+                    this.playerPosition.y >= door.y && 
+                    this.playerPosition.y <= door.y + door.height &&
+                    this.activeCommand === 'use') {
+                    this.currentScene = door.target;
+                    this.loadScene(door.target);
+                    return;
+                }
+            }
+        }
+
         this.drawCurrentScene();
         
         // Reset walking state after movement
@@ -330,30 +375,83 @@ class GameEngine {
     drawPoliceStation() {
         const colors = this.colors;
         
-        // Draw 3D perspective floor grid
-        this.drawFloorGrid(0, 300, this.canvas.width, 150);
+        // Enhanced room drawing
         
-        // Draw walls with perspective
-        this.draw3DWall(0, 0, this.canvas.width, 300, colors.blue);
+        // Floor (wooden floor boards)
+        this.ctx.fillStyle = '#8B4513'; // Brown wooden floor
+        this.ctx.fillRect(0, 300, this.canvas.width, 150);
         
-        // Draw desks at proper height
+        // Add floor texture
+        for (let i = 0; i < 20; i++) {
+            this.ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, 300 + i * 10);
+            this.ctx.lineTo(this.canvas.width, 300 + i * 10);
+            this.ctx.stroke();
+        }
+        
+        // Walls with baseboards and trim
+        this.ctx.fillStyle = '#336699'; // Blue wall
+        this.ctx.fillRect(0, 0, this.canvas.width, 300); // Main wall
+        
+        // Wall trim at bottom
+        this.ctx.fillStyle = '#4A4A4A';
+        this.ctx.fillRect(0, 290, this.canvas.width, 10);
+        
+        // Wall texture (light panel lines)
+        for (let i = 0; i < 8; i++) {
+            this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            this.ctx.beginPath();
+            this.ctx.moveTo(i * 100, 0);
+            this.ctx.lineTo(i * 100, 290);
+            this.ctx.stroke();
+        }
+        
+        // Wall shadows for depth
+        this.ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        this.ctx.fillRect(0, 0, this.canvas.width, 30);
+        
+        // Windows
+        for (let i = 0; i < 2; i++) {
+            // Window frame
+            this.ctx.fillStyle = '#A0A0A0';
+            this.ctx.fillRect(150 + i * 300, 50, 120, 100);
+            
+            // Window glass
+            this.ctx.fillStyle = '#B0E0FF';
+            this.ctx.fillRect(155 + i * 300, 55, 110, 90);
+            
+            // Window frame dividers
+            this.ctx.strokeStyle = '#A0A0A0';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.moveTo(210 + i * 300, 55);
+            this.ctx.lineTo(210 + i * 300, 145);
+            this.ctx.stroke();
+        }
+        
+        // Bulletin board
+        this.ctx.fillStyle = '#8B4513';
+        this.ctx.fillRect(400, 50, 120, 80);
+        this.ctx.fillStyle = '#F5F5DC';
+        this.ctx.fillRect(405, 55, 110, 70);
+        
+        // Desks with 3D perspective
         for (let i = 0; i < 3; i++) {
             this.draw3DDesk(100 + i * 200, 320, 150, 80);
         }
         
-        // Update NPC positions to proper floor level
-        if (this.npcs.policeStation) {
-            this.npcs.policeStation.forEach(npc => {
-                npc.y = Math.min(npc.y, this.floorLevel);
-            });
-        }
-        
-        // Draw evidence locker
+        // Evidence locker
         this.draw3DLocker(700, 100, 80, 180);
         
-        // Draw doors
-        this.drawDoor(50, 100, 'left', 'Sheriff\'s Office');
-        this.drawDoor(600, 100, 'right', 'Briefing Room');
+        // Draw doors with frames
+        this.drawDoorWithFrame(50, 100, 'left', "Sheriff's Office");
+        this.drawDoorWithFrame(600, 100, 'right', "Briefing Room");
+        
+        // Draw room boundaries for debugging
+        if (this.debug) {
+            this.drawRoomBoundaries();
+        }
     }
 
     // Helper functions for 3D rendering
@@ -445,6 +543,31 @@ class GameEngine {
         ctx.fillStyle = this.colors.white;
         ctx.font = '12px monospace';
         ctx.fillText(label, x - 10, y - 5);
+    }
+
+    drawDoorWithFrame(x, y, direction, label) {
+        const ctx = this.ctx;
+        
+        // Door frame
+        ctx.fillStyle = '#4A4A4A';
+        ctx.fillRect(x - 5, y - 5, 70, 130);
+        
+        // Door
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(x, y, 60, 120);
+        
+        // Door handle
+        ctx.fillStyle = '#FFD700';
+        ctx.fillRect(direction === 'left' ? x + 45 : x + 5, y + 60, 10, 10);
+        
+        // Door sign
+        ctx.fillStyle = '#E0E0E0';
+        ctx.fillRect(x + 10, y + 10, 40, 20);
+        
+        // Label text
+        ctx.fillStyle = '#000000';
+        ctx.font = '8px monospace';
+        ctx.fillText(label.substring(0, 8), x + 12, y + 22);
     }
 
     // Helper function to darken/lighten colors
@@ -880,12 +1003,28 @@ class GameEngine {
             }
         ];
 
-        return interactiveAreas.find(area => 
+        const hitObject = interactiveAreas.find(area => 
             x >= area.x && 
             x <= area.x + area.width && 
             y >= area.y && 
             y <= area.y + area.height
         );
+
+        if (hitObject) return hitObject;
+
+        // Then check room boundaries
+        const boundaries = this.roomBoundaries[this.currentScene];
+        if (boundaries) {
+            // Check walls
+            for (const wall of boundaries.walls) {
+                if (x >= wall.x && x <= wall.x + wall.width &&
+                    y >= wall.y && y <= wall.y + wall.height) {
+                    return true; // Collision with wall
+                }
+            }
+        }
+        
+        return false;
     }
 
     processInteraction(hitObject) {
@@ -1106,6 +1245,25 @@ class GameEngine {
                 // Update facing direction
                 npc.facing = dx > 0 ? 'right' : 'left';
             }
+        });
+    }
+
+    drawRoomBoundaries() {
+        const boundaries = this.roomBoundaries[this.currentScene];
+        if (!boundaries) return;
+        
+        this.ctx.strokeStyle = 'rgba(255,0,0,0.5)';
+        this.ctx.lineWidth = 2;
+        
+        // Draw wall boundaries
+        boundaries.walls.forEach(wall => {
+            this.ctx.strokeRect(wall.x, wall.y, wall.width, wall.height);
+        });
+        
+        // Draw door boundaries
+        this.ctx.strokeStyle = 'rgba(0,255,0,0.5)';
+        boundaries.doors.forEach(door => {
+            this.ctx.strokeRect(door.x, door.y, door.width, door.height);
         });
     }
 }
