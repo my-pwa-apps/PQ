@@ -40,6 +40,16 @@ class GameEngine {
                     patrolPoints: [{x: 500, y: 350}, {x: 200, y: 350}, {x: 350, y: 400}],
                     currentPatrolPoint: 0,
                     facing: 'left'
+                },
+                {
+                    x: 450, y: 340,
+                    type: 'officer',
+                    name: 'Officer Sarah',
+                    patrolPoints: [{x: 450, y: 340}], // Stationary at desk
+                    currentPatrolPoint: 0,
+                    facing: 'down',
+                    isFemale: true,
+                    isReceptionist: true
                 }
             ]
         };
@@ -54,7 +64,8 @@ class GameEngine {
                     {x: 0, y: 300, width: this.canvas.width, height: 10}, // North wall
                     {x: 0, y: 0, width: 10, height: 450}, // West wall
                     {x: 790, y: 0, width: 10, height: 450}, // East wall
-                    {x: 0, y: 450, width: this.canvas.width, height: 10} // South wall
+                    {x: 0, y: 450, width: this.canvas.width, height: 10}, // South wall
+                    {x: 380, y: 320, width: 190, height: 60} // Reception desk collision
                 ],
                 doors: [
                     {x: 50, y: 100, width: 60, height: 120, target: 'sheriffsOffice'}, // Sheriff's door
@@ -2008,6 +2019,48 @@ class GameEngine {
     updateCanvas(buffer) {
         const imageData = new ImageData(buffer, this.canvas.width, this.canvas.height);
         this.offscreenCtx.putImageData(imageData, 0, 0);
+    }
+
+    renderScene() {
+        // Draw background and base elements first
+        // ...existing code...
+
+        // Draw wall items with proper z-indexing and spacing
+        const wallItems = this.currentScene.wallItems;
+        if (wallItems) {
+            wallItems.sort((a, b) => a.zIndex - b.zIndex).forEach(item => {
+                const spacing = 20; // Minimum spacing between wall items
+                item.x = Math.max(item.x, item.lastX + spacing);
+                this.drawSprite(item.type, item.x, item.y);
+                item.lastX = item.x + item.width;
+            });
+        }
+
+        // Draw desk items in fixed positions
+        if (this.currentScene.id === 'policeStation') {
+            this.staticItems.desk.items.forEach(item => {
+                this.drawSprite(item.type, item.x, item.y);
+            });
+
+            // Draw female officer at desk
+            const officerSarah = this.npcs.policeStation.find(npc => npc.isReceptionist);
+            if (officerSarah) {
+                this.drawCharacter(
+                    officerSarah.x,
+                    officerSarah.y,
+                    'officer_female',
+                    officerSarah.facing
+                );
+            }
+        }
+
+        // Draw other NPCs and interactive elements
+        // ...existing code...
+    }
+
+    drawCharacter(x, y, type, facing) {
+        const sprite = this.sprites[type]?.[facing] || this.sprites.default;
+        this.ctx.drawImage(sprite, x, y);
     }
 }
 

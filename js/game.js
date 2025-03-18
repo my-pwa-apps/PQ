@@ -486,6 +486,47 @@ class Game {
         this.lastUpdateTime = performance.now();
         this.frameCount = 0;
         this.fpsUpdateInterval = 1000;
+
+        // Define static item positions to prevent movement
+        this.staticItems = {
+            desk: {
+                items: [
+                    { x: 420, y: 330, type: 'computer' },
+                    { x: 460, y: 325, type: 'phone' },
+                    { x: 500, y: 330, type: 'papers' }
+                ],
+                bounds: { x: 400, y: 320, width: 150, height: 80 }
+            },
+            wall: {
+                items: [
+                    { x: 280, y: 50, type: 'board', width: 120, height: 80, zIndex: 1 },
+                    { x: 450, y: 40, type: 'badge', width: 60, height: 60, zIndex: 2 },
+                    { x: 600, y: 50, type: 'clock', width: 50, height: 50, zIndex: 1 }
+                ]
+            }
+        };
+
+        // Fixed NPC patrol routes that avoid desk
+        this.npcRoutes = {
+            policeStation: [
+                {
+                    points: [
+                        {x: 200, y: 350},
+                        {x: 300, y: 350},
+                        {x: 300, y: 400}
+                    ],
+                    avoidAreas: [this.staticItems.desk.bounds]
+                },
+                {
+                    points: [
+                        {x: 500, y: 350},
+                        {x: 600, y: 350},
+                        {x: 600, y: 400}
+                    ],
+                    avoidAreas: [this.staticItems.desk.bounds]
+                }
+            ]
+        };
     }
 
     init() {
@@ -805,6 +846,144 @@ class Game {
         } else {
             // Fallback to original sprite drawing
             // ...existing sprite drawing code...
+        }
+    }
+
+    // Update NPC movement to respect boundaries and fixed paths
+    updateNPCs() {
+        if (!this.currentScene || !this.npcRoutes[this.currentScene]) return;
+        
+        this.npcs[this.currentScene].forEach((npc, index) => {
+            const route = this.npcRoutes[this.currentScene][index % this.npcRoutes[this.currentScene].length];
+            if (!route) return;
+
+            const currentTarget = route.points[npc.currentPatrolPoint];
+            if (!currentTarget) return;
+
+            const dx = currentTarget.x - npc.x;
+            const dy = currentTarget.y - npc.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Check if NPC would collide with desk or other static items
+            const nextX = npc.x + (dx / distance) * 2;
+            const nextY = npc.y + (dy / distance) * 2;
+
+            let collision = false;
+            route.avoidAreas.forEach(area => {
+                if (nextX >= area.x && nextX <= area.x + area.width &&
+                    nextY >= area.y && nextY <= area.y + area.height) {
+                    collision = true;
+                }
+            });
+
+            if (!collision) {
+                if (distance < 2) {
+                    // Move to next patrol point
+                    npc.currentPatrolPoint = (npc.currentPatrolPoint + 1) % route.points.length;
+                } else {
+                    // Move towards current target
+                    npc.x = nextX;
+                    npc.y = nextY;
+                }
+            }
+        });
+    }
+
+    // Ensure static items remain fixed
+    drawStaticItems(scene) {
+        if (scene === 'policeStation') {
+            // Draw desk items in fixed positions
+            this.staticItems.desk.items.forEach(item => {
+                switch(item.type) {
+                    case 'computer':
+                        this.drawComputer(item.x, item.y);
+                        break;
+                    case 'phone':
+                        this.drawPhone(item.x, item.y);
+                        break;
+                    case 'papers':
+                        this.drawPapers(item.x, item.y);
+                        break;
+                }
+            });
+
+            // Draw wall items with proper z-indexing
+            this.staticItems.wall.items
+                .sort((a, b) => a.zIndex - b.zIndex)
+                .forEach(item => {
+                    switch(item.type) {
+                        case 'board':
+                            this.drawBulletinBoard(item.x, item.y, item.width, item.height);
+                            break;
+                        case 'badge':
+                            this.drawPoliceBadge(item.x, item.y, item.width, item.height);
+                            break;
+                        case 'clock':
+                            this.drawWallClock(item.x, item.y, item.width, item.height);
+                            break;
+                    }
+                });
+        }
+    }
+
+    initPoliceStation() {
+        // Define fixed positions for desk items
+        this.staticItems.desk = {
+            items: [
+                { type: 'computer', x: 320, y: 180, fixed: true },
+                { type: 'papers', x: 280, y: 185, fixed: true },
+                { type: 'phone', x: 370, y: 185, fixed: true },
+                { type: 'coffee', x: 400, y: 185, fixed: true }
+            ]
+        };
+
+        // Define NPC paths that avoid the desk area
+        this.npcs.policeStation = [
+            {
+                id: 'officer1',
+                x: 100,
+                y: 250,
+                path: [
+                    { x: 100, y: 250 },
+                    { x: 200, y: 250 },
+                    { x: 200, y: 300 },
+                    { x: 100, y: 300 }
+                ],
+                speed: 1
+            },
+            {
+                id: 'receptionist',
+                isReceptionist: true,
+                x: 320,
+                y: 200,
+                facing: 'south',
+                fixed: true
+            }
+        ];
+
+        // Set desk area as no-walk zone
+        this.noWalkZones.push({
+            x: 260,
+            y: 170,
+            width: 200,
+            height: 80
+        });
+    }
+
+    moveNPCAlongPath(npc) {
+        if (!npc.path || npc.fixed) return;
+        
+        // Move NPC along defined path while avoiding no-walk zones
+        const currentPoint = npc.path[npc.currentPathIndex || 0];
+        const dx = currentPoint.x - npc.x;
+        const dy = currentPoint.y - npc.y;
+        
+        if (Math.abs(dx) < npc.speed && Math.abs(dy) < npc.speed) {
+            npc.currentPathIndex = ((npc.currentPathIndex || 0) + 1) % npc.path.length;
+        } else {
+            const angle = Math.atan2(dy, dx);
+            npc.x += Math.cos(angle) * npc.speed;
+            npc.y += Math.sin(angle) * npc.speed;
         }
     }
 }
