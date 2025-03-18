@@ -7,169 +7,73 @@ class GameEngine {
     constructor() {
         console.log("Initializing GameEngine");
         
+        // Basic initialization
         this.canvas = document.getElementById('gameCanvas');
-        this.ctx = this.canvas.getContext('2d', { alpha: false }); // Optimize context
+        this.ctx = this.canvas.getContext('2d', { alpha: false });
         this.inventory = new Set();
         this.activeCommand = null;
         this.currentScene = 'policeStation';
         this.dialogBox = document.getElementById('dialog-box');
         this.caseInfoPanel = document.getElementById('case-info');
         this.inventoryPanel = document.getElementById('inventory-panel');
-        this.keyboardEnabled = true;
         
-        this.isRendering = false;
-        this.lastFrameTime = 0;
-        this.colors = this.setupColorPalette();
-        this.playerPosition = { x: 400, y: 350 }; // Default player position
-        this.isWalking = false;
-        this.walkTarget = null;
-        this.collisionObjects = []; // Add collision objects array
-        this.npcs = {
-            policeStation: [
-                { 
-                    x: 300, y: 350, 
-                    type: 'officer', 
-                    name: 'Officer Keith',
-                    patrolPoints: [{x: 300, y: 350}, {x: 500, y: 350}, {x: 500, y: 400}],
-                    currentPatrolPoint: 0,
-                    facing: 'right',
-                    isWalking: false,
-                    waitTime: 0
-                },
-                { 
-                    x: 500, y: 350, 
-                    type: 'sergeant', 
-                    name: 'Sergeant Dooley',
-                    patrolPoints: [{x: 500, y: 350}, {x: 200, y: 350}, {x: 350, y: 400}],
-                    currentPatrolPoint: 0,
-                    facing: 'left',
-                    isWalking: false,
-                    waitTime: 0
-                },
-                {
-                    x: 450, y: 340,
-                    type: 'officer',
-                    name: 'Officer Sarah',
-                    // Add patrol points for the female officer
-                    patrolPoints: [
-                        {x: 450, y: 340}, // At desk (default position)
-                        {x: 300, y: 350}, // Talking to Officer Keith
-                        {x: 450, y: 340}, // Back to desk
-                        {x: 500, y: 350}, // Talking to Sergeant Dooley
-                        {x: 450, y: 340}  // Back to desk
-                    ],
-                    currentPatrolPoint: 0,
-                    facing: 'down',
-                    isFemale: true,
-                    isReceptionist: true,
-                    isWalking: false,
-                    waitTime: 0,
-                    conversationTime: 0
-                }
-            ]
+        // Initialize floor levels
+        this.floorLevel = {
+            min: 300,
+            max: 400
         };
-        this.floorLevel = {min: 200, max: 430}; // Adjust floor level for more walking space
-        this.canvas.style.cursor = 'pointer'; // Set default cursor
-        this.animationFrame = 0;
-        this.playerFacing = 'down';
-        this.walkCycle = 0;
-        this.roomBoundaries = {
-            policeStation: {
-                walls: [
-                    {x: 0, y: 300, width: this.canvas.width, height: 10}, // North wall
-                    {x: 0, y: 0, width: 10, height: 450}, // West wall
-                    {x: 790, y: 0, width: 10, height: 450}, // East wall
-                    {x: 0, y: 450, width: this.canvas.width, height: 10}, // South wall
-                    {x: 380, y: 320, width: 190, height: 60} // Reception desk collision
-                ],
-                doors: [
-                    {x: 50, y: 100, width: 60, height: 120, target: 'sheriffsOffice'}, // Sheriff's door
-                    {x: 600, y: 100, width: 60, height: 120, target: 'briefingRoom'} // Briefing room door
-                ]
-            },
-            // Add boundaries for other rooms later
-        };
-        this.playerWalkCycle = 0; // Separate player animation from NPCs
-        this.ambientAnimations = {
-            coffeeSteam: { x: 0, y: 0, active: false },
-            typingNPC: { x: 0, y: 0, active: false },
-            blinkingLights: { frame: 0 }
-        };
-        this.backgroundMusicPlayer = null;
         
-        // Create game instance AFTER setting up all the engine properties
-        this.game = new Game(); 
-        
-        // Set up additional rendering capabilities
-        this.setupCanvas();
-        this.setupBufferCanvas();
-        this.spriteCache = new Map();
-
-        // Frame rate control
-        this.targetFPS = 60;
-        this.frameInterval = 1000 / this.targetFPS;
-        this.lastFrameTime = 0;
-        this.frameCount = 0;
-        this.lastFPSUpdate = 0;
-        this.currentFPS = 0;
-        
-        // Animation state
-        this.animations = new Map();
-        this.requestID = null;
-        
-        // Performance monitoring
-        this.perfStats = {
-            drawTime: 0,
-            updateTime: 0,
-            frameTime: 0
-        };
-
-        // Setup double buffering
-        this.backBuffer = document.createElement('canvas');
-        this.backBuffer.width = this.canvas.width;
-        this.backBuffer.height = this.canvas.height;
-        this.backContext = this.backBuffer.getContext('2d', { alpha: false });
-        
-        // Frame timing
-        this.lastFrameTime = 0;
-        this.frameTime = 1000 / 60; // Target 60 FPS
-        this.accumulator = 0;
-        
-        // Performance monitoring
-        this.fpsCounter = 0;
-        this.fpsTimer = 0;
-        this.currentFPS = 0;
-
-        // Create offscreen canvas for double buffering
-        this.offscreenCanvas = document.createElement('canvas');
-        this.offscreenCanvas.width = this.canvas.width;
-        this.offscreenCanvas.height = this.canvas.height;
-        this.offscreenCtx = this.offscreenCanvas.getContext('2d', { alpha: false });
-        
-        // Frame timing
-        this.lastFrameTime = 0;
-        this.targetFPS = 60;
-        this.frameInterval = 1000 / this.targetFPS;
-        this.accumulator = 0;
-        
-        // Color cache for optimization
-        this.colorCache = new Map();
-        
-        // Start game loop
-        this.running = true;
-        this.gameObjects = [];  // Ensure gameObjects is initialized as an array
-
         // Wait for DOM content to be fully loaded before initializing
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                this.init();
-                this.startGameLoop();
-            });
+            document.addEventListener('DOMContentLoaded', () => this.init());
         } else {
-            // DOM already loaded, initialize immediately
             this.init();
-            this.startGameLoop();
         }
+    }
+
+    init() {
+        console.log('Initializing game engine...');
+        
+        // Setup core engine components
+        this.setupCanvas();
+        this.setupBufferCanvas();
+        this.setupColorPalette();
+        this.setupEventListeners();
+        
+        // Initialize game state
+        this.keyboardEnabled = true;
+        this.isRendering = false;
+        this.lastFrameTime = 0;
+        this.playerPosition = { x: 400, y: 350 };
+        this.isWalking = false;
+        this.walkTarget = null;
+        this.collisionObjects = [];
+        
+        // Force initial canvas clear
+        this.clear();
+        
+        // Set as global instance
+        window.gameEngine = this;
+        
+        // Start background music if available
+        if (window.soundManager) {
+            setTimeout(() => {
+                this.startBackgroundMusic();
+            }, 500);
+        }
+        
+        // Load initial scene
+        console.log('Loading initial scene:', this.currentScene);
+        this.loadScene(this.currentScene);
+        
+        // Dispatch initialization event
+        const event = new Event('gameEngineInitialized');
+        document.dispatchEvent(event);
+        
+        console.log('Game engine initialized successfully');
+        
+        // Start the game loop
+        this.startGameLoop();
     }
 
     setupCanvas() {
@@ -212,41 +116,6 @@ class GameEngine {
             yellow: '#FFFF55',
             white: '#FFFFFF'
         };
-    }
-
-    init() {
-        console.log('Initializing game engine...');
-        this.canvas.style.cursor = 'default'; // Ensure cursor is visible
-        this.setupEventListeners();
-        
-        // Force initial canvas rendering
-        this.clear();
-        
-        // Load the initial scene - ensure it happens AFTER all setup is done
-        console.log('Loading initial scene:', this.currentScene);
-        
-        // Initialize game objects and state first
-        this.setupCanvas();
-        this.setupBufferCanvas();
-        
-        // Load initial scene
-        this.loadScene(this.currentScene);
-        
-        this.keyboardEnabled = true;
-        
-        // Start background music using Web Audio API
-        if (window.soundManager) {
-            this.startBackgroundMusic();
-        }
-        
-        // Set as global instance and dispatch initialization event
-        window.gameEngine = this;
-        const event = new Event('gameEngineInitialized');
-        document.dispatchEvent(event);
-        
-        console.log('Game engine initialized successfully');
-        // Start the game loop
-        this.startGameLoop();
     }
 
     clear() {
@@ -1536,61 +1405,60 @@ class GameEngine {
             
             console.log(`Loading scene: ${sceneId}`);
             // Update current scene
-            this.currentScene = sceneId || 'policeStation'; // Default to policeStation if no sceneId provided
+            this.currentScene = sceneId || 'policeStation';
             
             // Reset collision objects for new scene
             this.collisionObjects = [];
             
-            // Reset player position based on scene, ensuring they're on the floor
+            // Reset player position based on scene
+            const defaultY = this.floorLevel.min + 100;
             switch(this.currentScene) {
                 case 'policeStation':
-                    this.playerPosition = { x: 400, y: this.floorLevel.min + 100 };
+                    this.playerPosition = { x: 400, y: defaultY };
                     break;
                 case 'downtown':
-                    this.playerPosition = { x: 400, y: 350 };
+                    this.playerPosition = { x: 400, y: defaultY };
                     break;
                 case 'park':
-                    this.playerPosition = { x: 400, y: 350 };
+                    this.playerPosition = { x: 400, y: defaultY };
                     break;
                 case 'sheriffsOffice':
-                    this.playerPosition = { x: 200, y: this.floorLevel.min + 100 };
+                    this.playerPosition = { x: 200, y: defaultY };
                     break;
                 case 'briefingRoom':
-                    this.playerPosition = { x: 200, y: this.floorLevel.min + 100 };
+                    this.playerPosition = { x: 200, y: defaultY };
                     break;
                 case 'officeArea':
-                    this.playerPosition = { x: 400, y: this.floorLevel.min + 100 };
+                    this.playerPosition = { x: 400, y: defaultY };
                     break;
                 default:
                     console.log('Unknown scene, defaulting to policeStation:', this.currentScene);
                     this.currentScene = 'policeStation';
-                    this.playerPosition = { x: 400, y: this.floorLevel.min + 100 };
+                    this.playerPosition = { x: 400, y: defaultY };
             }
             
-            // Setup ambient animations for new scene
+            // Setup scene components
             this.setupAmbientAnimations(this.currentScene);
+            this.updateCollisionObjects();
+            this.updateNPCsForScene(this.currentScene);
             
-            // Reset walking state
+            // Reset movement state
             this.isWalking = false;
             this.walkTarget = null;
-            
-            // Update NPCs for the new scene
-            this.updateNPCsForScene(this.currentScene);
             
             // Draw the new scene
             this.drawCurrentScene();
             
-            console.log(`Scene loaded: ${this.currentScene}`);
+            // Start scene music
+            if (window.soundManager) {
+                this.startBackgroundMusic();
+            }
             
-            // Update collision objects for this scene
-            this.updateCollisionObjects();
+            console.log(`Scene loaded: ${this.currentScene}`);
         } catch (error) {
             console.error("Error loading scene:", error);
             console.error("Stack trace:", error.stack);
             this.showDialog("Error loading scene. Please try again.");
-            // Fallback to police station
-            this.currentScene = 'policeStation';
-            this.drawPoliceStation();
         }
     }
     
