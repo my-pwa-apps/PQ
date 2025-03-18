@@ -5,8 +5,10 @@ if (typeof Game === 'undefined') {
 
 class GameEngine {
     constructor() {
+        console.log("Initializing GameEngine");
+        
         this.canvas = document.getElementById('gameCanvas');
-        this.ctx = this.canvas.getContext('2d');
+        this.ctx = this.canvas.getContext('2d', { alpha: false }); // Optimize context
         this.inventory = new Set();
         this.activeCommand = null;
         this.currentScene = 'policeStation';
@@ -14,14 +16,13 @@ class GameEngine {
         this.caseInfoPanel = document.getElementById('case-info');
         this.inventoryPanel = document.getElementById('inventory-panel');
         this.keyboardEnabled = true;
-        this.setupCanvas();
+        
         this.isRendering = false;
         this.lastFrameTime = 0;
         this.colors = this.setupColorPalette();
         this.playerPosition = { x: 400, y: 350 }; // Default player position
         this.isWalking = false;
         this.walkTarget = null;
-        this.game = new Game(); // Create game instance in constructor
         this.collisionObjects = []; // Add collision objects array
         this.npcs = {
             policeStation: [
@@ -72,7 +73,7 @@ class GameEngine {
                     {x: 600, y: 100, width: 60, height: 120, target: 'briefingRoom'} // Briefing room door
                 ]
             },
-            // Add boundaries for other rooms here
+            // Add boundaries for other rooms later
         };
         this.playerWalkCycle = 0; // Separate player animation from NPCs
         this.ambientAnimations = {
@@ -81,6 +82,12 @@ class GameEngine {
             blinkingLights: { frame: 0 }
         };
         this.backgroundMusicPlayer = null;
+        
+        // Create game instance AFTER setting up all the engine properties
+        this.game = new Game(); 
+        
+        // Set up additional rendering capabilities
+        this.setupCanvas();
         this.setupBufferCanvas();
         this.spriteCache = new Map();
 
@@ -107,7 +114,7 @@ class GameEngine {
         this.backBuffer = document.createElement('canvas');
         this.backBuffer.width = this.canvas.width;
         this.backBuffer.height = this.canvas.height;
-        this.backContext = this.backBuffer.getContext('2d');
+        this.backContext = this.backBuffer.getContext('2d', { alpha: false });
         
         // Frame timing
         this.lastFrameTime = 0;
@@ -123,7 +130,7 @@ class GameEngine {
         this.offscreenCanvas = document.createElement('canvas');
         this.offscreenCanvas.width = this.canvas.width;
         this.offscreenCanvas.height = this.canvas.height;
-        this.offscreenCtx = this.offscreenCanvas.getContext('2d');
+        this.offscreenCtx = this.offscreenCanvas.getContext('2d', { alpha: false });
         
         // Frame timing
         this.lastFrameTime = 0;
@@ -148,6 +155,7 @@ class GameEngine {
     }
 
     setupCanvas() {
+        console.log("Setting up canvas");
         // Use device pixel ratio for better rendering on high DPI displays
         const dpr = window.devicePixelRatio || 1;
         this.canvas.width = 800 * dpr;
@@ -159,10 +167,11 @@ class GameEngine {
     }
 
     setupBufferCanvas() {
+        console.log("Setting up buffer canvas");
         this.bufferCanvas = document.createElement('canvas');
         this.bufferCanvas.width = this.canvas.width;
         this.bufferCanvas.height = this.canvas.height;
-        this.bufferCtx = this.bufferCanvas.getContext('2d');
+        this.bufferCtx = this.bufferCanvas.getContext('2d', { alpha: false });
     }
 
     setupColorPalette() {
@@ -189,31 +198,48 @@ class GameEngine {
 
     init() {
         console.log('Initializing game engine...');
-        // Remove game.init() call since initialization happens in constructor
         this.canvas.style.cursor = 'default'; // Ensure cursor is visible
         this.setupEventListeners();
         
-        // Explicitly load the current scene
+        // Force initial canvas rendering
+        this.clear();
+        
+        // Load the initial scene - ensure it happens AFTER all setup is done
         console.log('Loading initial scene:', this.currentScene);
-        this.loadScene(this.currentScene);
+        
+        // First draw immediately (don't wait for scene loaded)
+        this.drawCurrentScene();
+        
+        // Then properly load the scene with all setup
+        setTimeout(() => {
+            this.loadScene(this.currentScene);
+        }, 100);
         
         this.keyboardEnabled = true;
         
         // Start background music using Web Audio API
         if (window.soundManager) {
-            this.startBackgroundMusic();
+            setTimeout(() => {
+                this.startBackgroundMusic();
+            }, 500);
         }
-        
-        // Ensure scene is drawn immediately
-        this.drawCurrentScene();
         
         console.log('Game engine initialized successfully');
         
         // Start the game loop
-        requestAnimationFrame(this.gameLoop.bind(this));
+        this.startGameLoop();
+    }
+
+    clear() {
+        // Clear all canvas contexts
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.bufferCtx.clearRect(0, 0, this.bufferCanvas.width, this.bufferCanvas.height);
+        this.backContext.clearRect(0, 0, this.backBuffer.width, this.backBuffer.height);
+        this.offscreenCtx.clearRect(0, 0, this.offscreenCanvas.width, this.offscreenCanvas.height);
     }
 
     startGameLoop() {
+        console.log("Starting game loop");
         this.isRunning = true;
         this.lastFrameTime = performance.now();
         requestAnimationFrame(this.gameLoop.bind(this));
@@ -225,6 +251,9 @@ class GameEngine {
         // Calculate delta time and maintain consistent frame rate
         const deltaTime = timestamp - this.lastFrameTime;
         this.accumulator += deltaTime;
+        
+        // Update animation frame counter
+        this.animationFrame++;
 
         while (this.accumulator >= this.frameInterval) {
             // Update game state
@@ -234,7 +263,7 @@ class GameEngine {
 
         // Render to offscreen canvas
         this.offscreenCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.draw(this.offscreenCtx);
+        this.drawCurrentScene();
 
         // Swap buffers
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -327,67 +356,78 @@ class GameEngine {
     }
 
     drawCurrentScene() {
-        // Clear canvas
-        this.bufferCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // Draw scene based on current scene, not game state
-        switch(this.currentScene) {
-            case 'policeStation':
-                this.drawPoliceStation();
-                break;
-            case 'downtown':
-                this.drawDowntown();
-                break;
-            case 'park':
-                this.drawPark();
-                break;
-            case 'sheriffsOffice':
-                this.drawSheriffsOffice();
-                break;
-            case 'briefingRoom':
-                this.drawBriefingRoom();
-                break;
-            case 'officeArea':
-                this.drawOfficeArea();
-                break;
-            default:
+        try {
+            // Use the correct context
+            const ctx = this.offscreenCtx || this.ctx;
+            
+            // Clear canvas - always clear before drawing
+            ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // Draw scene based on current scene ID
+            if (this.currentScene === 'policeStation') {
+                this.drawPoliceStation(ctx);
+            }
+            else if (this.currentScene === 'downtown') {
+                this.drawDowntown(ctx);
+            }
+            else if (this.currentScene === 'park') {
+                this.drawPark(ctx);
+            }
+            else if (this.currentScene === 'sheriffsOffice') {
+                this.drawSheriffsOffice(ctx);
+            }
+            else if (this.currentScene === 'briefingRoom') {
+                this.drawBriefingRoom(ctx);
+            }
+            else if (this.currentScene === 'officeArea') {
+                this.drawOfficeArea(ctx);
+            }
+            else {
                 console.warn('Unknown scene:', this.currentScene);
-                this.drawPoliceStation();
-        }
-        
-        // Draw ambient animations
-        this.drawAmbientAnimations();
-        
-        // Draw NPCs for current scene
-        if (this.npcs[this.currentScene]) {
-            this.npcs[this.currentScene].forEach(npc => {
-                // Position NPCs properly on floor
-                const yPosition = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
-                
-                this.drawPixelCharacter(
-                    npc.x, yPosition, 
-                    npc.type === 'sergeant' ? this.colors.brightBlue : 
-                    npc.type === 'detective' ? this.colors.red : this.colors.blue,
-                    this.colors.yellow,
-                    npc.facing,
-                    true,
-                    true
-                );
-            });
-        }
+                this.drawPoliceStation(ctx);
+            }
+            
+            // Draw ambient animations
+            this.drawAmbientAnimations();
+            
+            // Draw NPCs for current scene
+            if (this.npcs[this.currentScene]) {
+                this.npcs[this.currentScene].forEach(npc => {
+                    // Position NPCs properly on floor
+                    const yPosition = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
+                    
+                    this.drawPixelCharacter(
+                        npc.x, yPosition, 
+                        npc.type === 'sergeant' ? this.colors.brightBlue : 
+                        npc.type === 'detective' ? this.colors.red : this.colors.blue,
+                        this.colors.yellow,
+                        npc.facing,
+                        true,
+                        true
+                    );
+                });
+            }
 
-        // Draw player at current position
-        this.drawPixelCharacter(
-            this.playerPosition.x, 
-            this.playerPosition.y, 
-            this.colors.blue, 
-            this.colors.yellow,
-            this.playerFacing,
-            this.isWalking,
-            false
-        );
-
-        this.updateCollisionObjects(); // Update collision objects when scene changes
+            // Draw player at current position
+            this.drawPixelCharacter(
+                this.playerPosition.x, 
+                this.playerPosition.y, 
+                this.colors.blue, 
+                this.colors.yellow,
+                this.playerFacing,
+                this.isWalking,
+                false
+            );
+            
+            // If we're in direct mode, copy from offscreen to main canvas
+            if (ctx !== this.ctx && this.offscreenCtx) {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.drawImage(this.offscreenCanvas, 0, 0);
+            }
+        }
+        catch (error) {
+            console.error("Error drawing scene:", error);
+        }
     }
 
     setupEventListeners() {
@@ -554,66 +594,67 @@ class GameEngine {
         }, 100);
     }
 
-    drawPoliceStation() {
+    drawPoliceStation(ctx) {
         const colors = this.colors;
+        ctx = ctx || this.ctx; // Use provided context or default to main context
         
         // Draw floor first (expand floor area)
-        this.ctx.fillStyle = '#8B4513'; // Brown wooden floor
-        this.ctx.fillRect(0, this.floorLevel.min, this.canvas.width, 
-                         this.canvas.height - this.floorLevel.min);
+        ctx.fillStyle = '#8B4513'; // Brown wooden floor
+        ctx.fillRect(0, this.floorLevel.min, this.canvas.width, 
+                     this.canvas.height - this.floorLevel.min);
         
         // Add floor texture
         for (let i = 0; i < 30; i++) {
-            this.ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, this.floorLevel.min + i * 10);
-            this.ctx.lineTo(this.canvas.width, this.floorLevel.min + i * 10);
-            this.ctx.stroke();
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath();
+            ctx.moveTo(0, this.floorLevel.min + i * 10);
+            ctx.lineTo(this.canvas.width, this.floorLevel.min + i * 10);
+            ctx.stroke();
         }
         
         // Draw wall (reduced height)
-        this.draw3DWall(0, 0, this.canvas.width, this.floorLevel.min, colors.blue);
+        this.draw3DWall(0, 0, this.canvas.width, this.floorLevel.min, colors.blue, ctx);
         
         // Wall trim at floor junction
-        this.ctx.fillStyle = '#4A4A4A';
-        this.ctx.fillRect(0, this.floorLevel.min - 10, this.canvas.width, 10);
+        ctx.fillStyle = '#4A4A4A';
+        ctx.fillRect(0, this.floorLevel.min - 10, this.canvas.width, 10);
         
         // Windows (repositioned for lower wall)
         for (let i = 0; i < 2; i++) {
             // Window frame
-            this.ctx.fillStyle = '#A0A0A0';
-            this.ctx.fillRect(100 + i * 350, 50, 120, 100);
+            ctx.fillStyle = '#A0A0A0';
+            ctx.fillRect(100 + i * 350, 50, 120, 100);
             
             // Window glass
-            this.ctx.fillStyle = '#B0E0FF';
-            this.ctx.fillRect(105 + i * 350, 55, 110, 90);
+            ctx.fillStyle = '#B0E0FF';
+            ctx.fillRect(105 + i * 350, 55, 110, 90);
             
             // Window frame dividers
-            this.ctx.strokeStyle = '#A0A0A0';
-            this.ctx.lineWidth = 2;
-            this.ctx.beginPath();
-            this.ctx.moveTo(160 + i * 350, 55);
-            this.ctx.lineTo(160 + i * 350, 145);
-            this.ctx.stroke();
+            ctx.strokeStyle = '#A0A0A0';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(160 + i * 350, 55);
+            ctx.lineTo(160 + i * 350, 145);
+            ctx.stroke();
             
             // Add animated view through window
-            this.drawWindowView(105 + i * 350, 55, 110, 90);
+            this.drawWindowView(105 + i * 350, 55, 110, 90, ctx);
         }
         
         // Bulletin board
-        this.ctx.fillStyle = '#8B4513';
-        this.ctx.fillRect(280, 50, 120, 80);
-        this.ctx.fillStyle = '#F5F5DC';
-        this.ctx.fillRect(285, 55, 110, 70);
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(280, 50, 120, 80);
+        ctx.fillStyle = '#F5F5DC';
+        ctx.fillRect(285, 55, 110, 70);
         
         // Add notices to bulletin board
-        this.drawBulletinNotices(285, 55, 110, 70);
+        this.drawBulletinNotices(285, 55, 110, 70, ctx);
         
         // Reception desk (aligned with floor)
-        this.draw3DDesk(400, this.floorLevel.min + 20, 150, 80);
+        this.draw3DDesk(400, this.floorLevel.min + 20, 150, 80, ctx);
         
         // Draw phones and computer on reception desk
-        this.drawDeskItems(400, this.floorLevel.min + 20, 150, 80);
+        this.drawDeskItems(400, this.floorLevel.min + 20, 150, 80, ctx);
         
         // Add female officer at desk
         this.drawPixelCharacter(
@@ -630,22 +671,22 @@ class GameEngine {
         // Add sitting animation
         if (this.animationFrame % 4 === 0) {
             // Typing animation
-            this.drawDeskItems(400, this.floorLevel.min + 15, 150, 80);
+            this.drawDeskItems(400, this.floorLevel.min + 15, 150, 80, ctx);
         }
         
         // Draw doors aligned with floor/wall
-        this.drawDoorWithFrame(50, this.floorLevel.min - 120, 'left', "Sheriff's Office");
-        this.drawDoorWithFrame(600, this.floorLevel.min - 120, 'right', "Briefing Room");
-        this.drawDoorWithFrame(200, this.floorLevel.min - 120, 'left', "Office Area");
+        this.drawDoorWithFrame(50, this.floorLevel.min - 120, 'left', "Sheriff's Office", ctx);
+        this.drawDoorWithFrame(600, this.floorLevel.min - 120, 'right', "Briefing Room", ctx);
+        this.drawDoorWithFrame(200, this.floorLevel.min - 120, 'left', "Office Area", ctx);
         
         // Add exit to downtown
-        this.drawExitDoor(400, this.canvas.height - 30, "Exit to Downtown");
+        this.drawExitDoor(400, this.canvas.height - 30, "Exit to Downtown", ctx);
         
         // Add exit sign
-        this.addExitSign(400, this.canvas.height - 60, "Downtown");
+        this.addExitSign(400, this.canvas.height - 60, "Downtown", ctx);
         
         // Add wall decorations
-        this.drawWallDecorations();
+        this.drawWallDecorations(ctx);
         
         // Set up ambient animations
         this.setupAmbientAnimations('policeStation');
@@ -655,111 +696,114 @@ class GameEngine {
     }
     
     // Add new room for desks
-    drawOfficeArea() {
+    drawOfficeArea(ctx) {
         const colors = this.colors;
+        ctx = ctx || this.ctx; // Use provided context or default to main context
         
         // Draw walls and floor
         this.drawFloorGrid(0, 300, this.canvas.width, 150);
-        this.draw3DWall(0, 0, this.canvas.width, 300, colors.blue);
+        this.draw3DWall(0, 0, this.canvas.width, 300, colors.blue, ctx);
         
         // Floor
-        this.ctx.fillStyle = '#8B4513';
-        this.ctx.fillRect(0, 300, this.canvas.width, 150);
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(0, 300, this.canvas.width, 150);
         
         // Wall details
-        this.ctx.fillStyle = '#4A4A4A';
-        this.ctx.fillRect(0, 290, this.canvas.width, 10);
+        ctx.fillStyle = '#4A4A4A';
+        ctx.fillRect(0, 290, this.canvas.width, 10);
         
         // Multiple desks for detectives
         for (let i = 0; i < 4; i++) {
-            this.draw3DDesk(100 + i * 150, 320, 120, 70);
+            this.draw3DDesk(100 + i * 150, 320, 120, 70, ctx);
             
             // Add computers, papers, etc on desks
-            this.ctx.fillStyle = colors.darkGray;
-            this.ctx.fillRect(120 + i * 150, 310, 40, 30);
-            this.ctx.fillStyle = colors.white;
-            this.ctx.fillRect(180 + i * 150, 315, 20, 25);
+            ctx.fillStyle = colors.darkGray;
+            ctx.fillRect(120 + i * 150, 310, 40, 30);
+            ctx.fillStyle = colors.white;
+            ctx.fillRect(180 + i * 150, 315, 20, 25);
         }
         
         // Filing cabinets along the wall
         for (let i = 0; i < 3; i++) {
-            this.ctx.fillStyle = colors.lightGray;
-            this.ctx.fillRect(50 + i * 100, 100, 80, 150);
+            ctx.fillStyle = colors.lightGray;
+            ctx.fillRect(50 + i * 100, 100, 80, 150);
             
             for (let j = 0; j < 3; j++) {
-                this.ctx.fillStyle = colors.darkGray;
-                this.ctx.fillRect(60 + i * 100, 110 + j * 45, 60, 5);
+                ctx.fillStyle = colors.darkGray;
+                ctx.fillRect(60 + i * 100, 110 + j * 45, 60, 5);
             }
         }
         
         // Exit door
-        this.drawDoorWithFrame(400, 200, 'right', "Main Lobby");
+        this.drawDoorWithFrame(400, 200, 'right', "Main Lobby", ctx);
         
         // Coffee machine in corner
-        this.ctx.fillStyle = colors.black;
-        this.ctx.fillRect(700, 230, 50, 70);
-        this.ctx.fillStyle = colors.red;
-        this.ctx.fillRect(715, 250, 20, 10);
-        this.ctx.fillStyle = colors.brightBlue;
-        this.ctx.fillRect(710, 270, 30, 10);
+        ctx.fillStyle = colors.black;
+        ctx.fillRect(700, 230, 50, 70);
+        ctx.fillStyle = colors.red;
+        ctx.fillRect(715, 250, 20, 10);
+        ctx.fillStyle = colors.brightBlue;
+        ctx.fillRect(710, 270, 30, 10);
         
         // Update collision objects
         this.updateCollisionObjects();
     }
 
-    drawDowntown() {
+    drawDowntown(ctx) {
+        ctx = ctx || this.ctx; // Use provided context or default to main context
+        
         // Use the stored color palette for consistency
         const colors = this.colors;
         
         // Sky
-        this.ctx.fillStyle = colors.blue;
-        this.ctx.fillRect(0, 0, this.canvas.width, 150);
+        ctx.fillStyle = colors.blue;
+        ctx.fillRect(0, 0, this.canvas.width, 150);
 
         // Street
-        this.ctx.fillStyle = colors.darkGray;
-        this.ctx.fillRect(0, 300, this.canvas.width, 150);
+        ctx.fillStyle = colors.darkGray;
+        ctx.fillRect(0, 300, this.canvas.width, 150);
 
         // Sidewalk
-        this.ctx.fillStyle = colors.lightGray;
-        this.ctx.fillRect(0, 280, this.canvas.width, 20);
+        ctx.fillStyle = colors.lightGray;
+        ctx.fillRect(0, 280, this.canvas.width, 20);
 
         // Buildings
         for (let i = 0; i < 3; i++) {
             // Building body
-            this.ctx.fillStyle = i % 2 === 0 ? colors.brown : colors.red;
-            this.ctx.fillRect(i * 250, 100, 200, 180);
+            ctx.fillStyle = i % 2 === 0 ? colors.brown : colors.red;
+            ctx.fillRect(i * 250, 100, 200, 180);
             
             // Windows
-            this.ctx.fillStyle = colors.brightCyan;
+            ctx.fillStyle = colors.brightCyan;
             for (let j = 0; j < 3; j++) {
                 for (let k = 0; k < 2; k++) {
-                    this.ctx.fillRect(i * 250 + 30 + j * 60, 120 + k * 60, 40, 40);
+                    ctx.fillRect(i * 250 + 30 + j * 60, 120 + k * 60, 40, 40);
                 }
             }
             
             // Door
-            this.ctx.fillStyle = colors.darkGray;
-            this.ctx.fillRect(i * 250 + 80, 220, 40, 60);
+            ctx.fillStyle = colors.darkGray;
+            ctx.fillRect(i * 250 + 80, 220, 40, 60);
         }
 
         // Alley
-        this.ctx.fillStyle = colors.black;
-        this.ctx.fillRect(200, 100, 50, 180);
+        ctx.fillStyle = colors.black;
+        ctx.fillRect(200, 100, 50, 180);
 
         // Police officer (pixel style)
         this.drawPixelCharacter(150, 350, colors.blue, colors.yellow);
 
         // Crime scene (for investigation)
-        this.ctx.fillStyle = colors.yellow;
+        ctx.fillStyle = colors.yellow;
         for (let i = 0; i < 5; i++) {
-            this.ctx.fillRect(400 + i * 20, 290, 10, 5);
+            ctx.fillRect(400 + i * 20, 290, 10, 5);
         }
         
         // Return to station sign
-        this.ctx.fillStyle = colors.red;
-        this.ctx.fillRect(350, 430, 100, 20);
-        this.ctx.fillStyle = colors.white;
-        this.ctx.fillText('TO PARK', 370, 445);
+        ctx.fillStyle = colors.red;
+        ctx.fillRect(350, 430, 100, 20);
+        ctx.fillStyle = colors.white;
+        ctx.fillText('TO PARK', 370, 445);
         
         // Arrow indicators for keyboard navigation
         this.drawArrowIndicator('up', 'Station');
@@ -768,57 +812,59 @@ class GameEngine {
         this.drawArrowIndicator('down', 'Park');
     }
 
-    drawPark() {
+    drawPark(ctx) {
+        ctx = ctx || this.ctx; // Use provided context or default to main context
+        
         // Use the stored color palette for consistency
         const colors = this.colors;
         
         // Sky
-        this.ctx.fillStyle = colors.brightBlue;
-        this.ctx.fillRect(0, 0, this.canvas.width, 300);
+        ctx.fillStyle = colors.brightBlue;
+        ctx.fillRect(0, 0, this.canvas.width, 300);
 
         // Grass
-        this.ctx.fillStyle = colors.green;
-        this.ctx.fillRect(0, 300, this.canvas.width, 150);
+        ctx.fillStyle = colors.green;
+        ctx.fillRect(0, 300, this.canvas.width, 150);
 
         // Pathway
-        this.ctx.fillStyle = colors.brown;
-        this.ctx.fillRect(100, 300, 600, 40);
+        ctx.fillStyle = colors.brown;
+        ctx.fillRect(100, 300, 600, 40);
 
         // Trees
         for (let i = 0; i < 3; i++) {
             // Tree trunk
-            this.ctx.fillStyle = colors.brown;
-            this.ctx.fillRect(50 + i * 250, 200, 30, 100);
+            ctx.fillStyle = colors.brown;
+            ctx.fillRect(50 + i * 250, 200, 30, 100);
             
             // Tree leaves
-            this.ctx.fillStyle = colors.brightGreen;
-            this.ctx.fillRect(20 + i * 250, 150, 90, 60);
+            ctx.fillStyle = colors.brightGreen;
+            ctx.fillRect(20 + i * 250, 150, 90, 60);
         }
 
         // Benches
-        this.ctx.fillStyle = colors.brown;
-        this.ctx.fillRect(150, 320, 80, 10);
-        this.ctx.fillRect(150, 330, 10, 20);
-        this.ctx.fillRect(220, 330, 10, 20);
+        ctx.fillStyle = colors.brown;
+        ctx.fillRect(150, 320, 80, 10);
+        ctx.fillRect(150, 330, 10, 20);
+        ctx.fillRect(220, 330, 10, 20);
         
-        this.ctx.fillRect(500, 320, 80, 10);
-        this.ctx.fillRect(500, 330, 10, 20);
-        this.ctx.fillRect(570, 330, 10, 20);
+        ctx.fillRect(500, 320, 80, 10);
+        ctx.fillRect(500, 330, 10, 20);
+        ctx.fillRect(570, 330, 10, 20);
 
         // Fountain
-        this.ctx.fillStyle = colors.darkGray;
-        this.ctx.fillRect(350, 200, 100, 100);
-        this.ctx.fillStyle = colors.brightCyan;
-        this.ctx.fillRect(360, 210, 80, 80);
+        ctx.fillStyle = colors.darkGray;
+        ctx.fillRect(350, 200, 100, 100);
+        ctx.fillStyle = colors.brightCyan;
+        ctx.fillRect(360, 210, 80, 80);
 
         // Police officer (pixel style)
         this.drawPixelCharacter(400, 350, colors.blue, colors.yellow);
         
         // Return sign
-        this.ctx.fillStyle = colors.red;
-        this.ctx.fillRect(350, 430, 100, 20);
-        this.ctx.fillStyle = colors.white;
-        this.ctx.fillText('TO STATION', 355, 445);
+        ctx.fillStyle = colors.red;
+        ctx.fillRect(350, 430, 100, 20);
+        ctx.fillStyle = colors.white;
+        ctx.fillText('TO STATION', 355, 445);
         
         // Arrow indicators for keyboard navigation
         this.drawArrowIndicator('up', 'Downtown');
@@ -1015,145 +1061,149 @@ class GameEngine {
         }
     }
 
-    drawSheriffsOffice() {
+    drawSheriffsOffice(ctx) {
+        ctx = ctx || this.ctx; // Use provided context or default to main context
+        
         const colors = this.colors;
         
         // Draw walls (dark wood paneling)
-        this.ctx.fillStyle = colors.brown;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.fillStyle = colors.brown;
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         // Floor
-        this.ctx.fillStyle = colors.darkGray;
-        this.ctx.fillRect(0, 300, this.canvas.width, 150);
+        ctx.fillStyle = colors.darkGray;
+        ctx.fillRect(0, 300, this.canvas.width, 150);
         
         // Sheriff's desk (bigger, more ornate)
-        this.ctx.fillStyle = '#663300'; // Darker wood
-        this.ctx.fillRect(350, 150, 250, 100);
+        ctx.fillStyle = '#663300'; // Darker wood
+        ctx.fillRect(350, 150, 250, 100);
         
         // Chair behind desk
-        this.ctx.fillStyle = colors.black;
-        this.ctx.fillRect(450, 260, 50, 60);
+        ctx.fillStyle = colors.black;
+        ctx.fillRect(450, 260, 50, 60);
         
         // Computer
-        this.ctx.fillStyle = colors.darkGray;
-        this.ctx.fillRect(400, 160, 60, 40);
-        this.ctx.fillStyle = colors.brightCyan;
-        this.ctx.fillRect(405, 165, 50, 30);
+        ctx.fillStyle = colors.darkGray;
+        ctx.fillRect(400, 160, 60, 40);
+        ctx.fillStyle = colors.brightCyan;
+        ctx.fillRect(405, 165, 50, 30);
         
         // Window
-        this.ctx.fillStyle = colors.brightBlue;
-        this.ctx.fillRect(600, 50, 150, 100);
-        this.ctx.strokeStyle = colors.black;
-        this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(600, 50, 150, 100);
-        this.ctx.beginPath();
-        this.ctx.moveTo(675, 50);
-        this.ctx.lineTo(675, 150);
-        this.ctx.stroke();
+        ctx.fillStyle = colors.brightBlue;
+        ctx.fillRect(600, 50, 150, 100);
+        ctx.strokeStyle = colors.black;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(600, 50, 150, 100);
+        ctx.beginPath();
+        ctx.moveTo(675, 50);
+        ctx.lineTo(675, 150);
+        ctx.stroke();
         
         // Filing cabinet
-        this.ctx.fillStyle = colors.lightGray;
-        this.ctx.fillRect(50, 150, 70, 120);
-        this.ctx.fillStyle = colors.black;
-        this.ctx.fillRect(85, 180, 20, 5);
-        this.ctx.fillRect(85, 210, 20, 5);
-        this.ctx.fillRect(85, 240, 20, 5);
+        ctx.fillStyle = colors.lightGray;
+        ctx.fillRect(50, 150, 70, 120);
+        ctx.fillStyle = colors.black;
+        ctx.fillRect(85, 180, 20, 5);
+        ctx.fillRect(85, 210, 20, 5);
+        ctx.fillRect(85, 240, 20, 5);
         
         // Sheriff's badge on wall
-        this.ctx.fillStyle = colors.yellow;
-        this.ctx.beginPath();
-        this.ctx.arc(200, 100, 30, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.fillStyle = colors.black;
-        this.ctx.beginPath();
-        this.ctx.arc(200, 100, 15, 0, Math.PI * 2);
-        this.ctx.fill();
+        ctx.fillStyle = colors.yellow;
+        ctx.beginPath();
+        ctx.arc(200, 100, 30, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = colors.black;
+        ctx.beginPath();
+        ctx.arc(200, 100, 15, 0, Math.PI * 2);
+        ctx.fill();
         
         // Door
-        this.ctx.fillStyle = colors.brown;
-        this.ctx.fillRect(100, 320, 60, 120);
-        this.ctx.fillStyle = colors.yellow;
-        this.ctx.fillRect(145, 380, 10, 10);
+        ctx.fillStyle = colors.brown;
+        ctx.fillRect(100, 320, 60, 120);
+        ctx.fillStyle = colors.yellow;
+        ctx.fillRect(145, 380, 10, 10);
         
         // Name plate
-        this.ctx.fillStyle = colors.black;
-        this.ctx.fillRect(420, 130, 100, 15);
-        this.ctx.fillStyle = colors.white;
-        this.ctx.font = '12px monospace';
-        this.ctx.fillText('SHERIFF', 445, 142);
+        ctx.fillStyle = colors.black;
+        ctx.fillRect(420, 130, 100, 15);
+        ctx.fillStyle = colors.white;
+        ctx.font = '12px monospace';
+        ctx.fillText('SHERIFF', 445, 142);
         
         // Sign
-        this.ctx.fillStyle = colors.brown;
-        this.ctx.fillRect(10, 50, 150, 40);
-        this.ctx.fillStyle = colors.yellow;
-        this.ctx.font = '16px monospace';
-        this.ctx.fillText('SHERIFF\'S OFFICE', 15, 75);
+        ctx.fillStyle = colors.brown;
+        ctx.fillRect(10, 50, 150, 40);
+        ctx.fillStyle = colors.yellow;
+        ctx.font = '16px monospace';
+        ctx.fillText('SHERIFF\'S OFFICE', 15, 75);
 
         // Navigation arrows
         this.drawArrowIndicator('down', 'Station');
         this.drawArrowIndicator('right', 'Briefing');
     }
 
-    drawBriefingRoom() {
+    drawBriefingRoom(ctx) {
+        ctx = ctx || this.ctx; // Use provided context or default to main context
+        
         const colors = this.colors;
         
         // Walls
-        this.ctx.fillStyle = colors.blue;
-        this.ctx.fillRect(0, 0, this.canvas.width, 300);
+        ctx.fillStyle = colors.blue;
+        ctx.fillRect(0, 0, this.canvas.width, 300);
         
         // Floor
-        this.ctx.fillStyle = colors.darkGray;
-        this.ctx.fillRect(0, 300, this.canvas.width, 150);
+        ctx.fillStyle = colors.darkGray;
+        ctx.fillRect(0, 300, this.canvas.width, 150);
         
         // Long table
-        this.ctx.fillStyle = colors.brown;
-        this.ctx.fillRect(150, 180, 500, 120);
+        ctx.fillStyle = colors.brown;
+        ctx.fillRect(150, 180, 500, 120);
         
         // Chairs around the table
         for (let i = 0; i < 6; i++) {
             // Chairs on one side
-            this.ctx.fillStyle = colors.darkGray;
-            this.ctx.fillRect(170 + i * 80, 140, 40, 40);
+            ctx.fillStyle = colors.darkGray;
+            ctx.fillRect(170 + i * 80, 140, 40, 40);
             
             // Chairs on the other side
-            this.ctx.fillStyle = colors.darkGray;
-            this.ctx.fillRect(170 + i * 80, 300, 40, 40);
+            ctx.fillStyle = colors.darkGray;
+            ctx.fillRect(170 + i * 80, 300, 40, 40);
         }
         
         // Projector screen
-        this.ctx.fillStyle = colors.white;
-        this.ctx.fillRect(350, 30, 200, 100);
-        this.ctx.strokeStyle = colors.black;
-        this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(350, 30, 200, 100);
+        ctx.fillStyle = colors.white;
+        ctx.fillRect(350, 30, 200, 100);
+        ctx.strokeStyle = colors.black;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(350, 30, 200, 100);
         
         // Case photos on the wall
         for (let i = 0; i < 4; i++) {
-            this.ctx.fillStyle = colors.white;
-            this.ctx.fillRect(50 + i * 120, 60, 80, 60);
-            this.ctx.strokeStyle = colors.black;
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeRect(50 + i * 120, 60, 80, 60);
+            ctx.fillStyle = colors.white;
+            ctx.fillRect(50 + i * 120, 60, 80, 60);
+            ctx.strokeStyle = colors.black;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(50 + i * 120, 60, 80, 60);
         }
         
         // Door
-        this.ctx.fillStyle = colors.brown;
-        this.ctx.fillRect(100, 320, 60, 120);
-        this.ctx.fillStyle = colors.yellow;
-        this.ctx.fillRect(145, 380, 10, 10);
+        ctx.fillStyle = colors.brown;
+        ctx.fillRect(100, 320, 60, 120);
+        ctx.fillStyle = colors.yellow;
+        ctx.fillRect(145, 380, 10, 10);
         
         // Coffee machine
-        this.ctx.fillStyle = colors.black;
-        this.ctx.fillRect(700, 200, 50, 80);
-        this.ctx.fillStyle = colors.red;
-        this.ctx.fillRect(715, 220, 20, 10);
+        ctx.fillStyle = colors.black;
+        ctx.fillRect(700, 200, 50, 80);
+        ctx.fillStyle = colors.red;
+        ctx.fillRect(715, 220, 20, 10);
         
         // Sign
-        this.ctx.fillStyle = colors.brown;
-        this.ctx.fillRect(10, 50, 180, 40);
-        this.ctx.fillStyle = colors.yellow;
-        this.ctx.font = '16px monospace';
-        this.ctx.fillText('BRIEFING ROOM', 25, 75);
+        ctx.fillStyle = colors.brown;
+        ctx.fillRect(10, 50, 180, 40);
+        ctx.fillStyle = colors.yellow;
+        ctx.font = '16px monospace';
+        ctx.fillText('BRIEFING ROOM', 25, 75);
         
         // Navigation arrows
         this.drawArrowIndicator('down', 'Station');
@@ -1552,8 +1602,8 @@ class GameEngine {
         }
     }
 
-    draw3DWall = (x, y, width, height, color) => {
-        const ctx = this.ctx;
+    draw3DWall = (x, y, width, height, color, ctx) => {
+        ctx = ctx || this.ctx;
         ctx.fillStyle = color;
         
         // Main wall
@@ -1568,8 +1618,8 @@ class GameEngine {
         ctx.fillRect(x, y, width, height);
     }
 
-    draw3DDesk = (x, y, width, height) => {
-        const ctx = this.ctx;
+    draw3DDesk = (x, y, width, height, ctx) => {
+        ctx = ctx || this.ctx;
         
         // Desk top
         ctx.fillStyle = this.colors.brown;
@@ -1609,8 +1659,8 @@ class GameEngine {
         ctx.fillText(label, x - 10, y - 5);
     }
 
-    drawDoorWithFrame = (x, y, direction, label) => {
-        const ctx = this.ctx;
+    drawDoorWithFrame = (x, y, direction, label, ctx) => {
+        ctx = ctx || this.ctx;
         
         // Door frame with proper wall connection
         ctx.fillStyle = '#4A4A4A';
@@ -1637,30 +1687,33 @@ class GameEngine {
         ctx.fillText(label.substring(0, 8), x + 12, y + 22);
     }
     
-    drawWindowView = (x, y, width, height) => {
+    drawWindowView = (x, y, width, height, ctx) => {
+        ctx = ctx || this.ctx;
+        
         // Animated view through window
-        this.ctx.fillStyle = '#87CEEB'; // Sky blue
-        this.ctx.fillRect(x, y, width, height * 0.6);
+        ctx.fillStyle = '#87CEEB'; // Sky blue
+        ctx.fillRect(x, y, width, height * 0.6);
         
         // Draw buildings in distance
-        this.ctx.fillStyle = '#555555';
+        ctx.fillStyle = '#555555';
         for (let i = 0; i < 5; i++) {
             const buildingHeight = 20 + Math.sin(i + this.animationFrame * 0.1) * 5;
-            this.ctx.fillRect(x + 5 + i * 22, y + height * 0.6 - buildingHeight, 15, buildingHeight);
+            ctx.fillRect(x + 5 + i * 22, y + height * 0.6 - buildingHeight, 15, buildingHeight);
         }
         
         // Animate clouds
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.beginPath();
-        this.ctx.arc(x + 20 + (this.animationFrame % 50), y + 30, 10, 0, Math.PI * 2);
-        this.ctx.arc(x + 35 + (this.animationFrame % 50), y + 25, 12, 0, Math.PI * 2);
-        this.ctx.arc(x + 50 + (this.animationFrame % 50), y + 30, 10, 0, Math.PI * 2);
-        this.ctx.fill();
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(x + 20 + (this.animationFrame % 50), y + 30, 10, 0, Math.PI * 2);
+        ctx.arc(x + 35 + (this.animationFrame % 50), y + 25, 12, 0, Math.PI * 2);
+        ctx.arc(x + 50 + (this.animationFrame % 50), y + 30, 10, 0, Math.PI * 2);
+        ctx.fill();
     }
     
-    drawBulletinNotices = (x, y, width, height) => {
+    drawBulletinNotices = (x, y, width, height, ctx) => {
+        ctx = ctx || this.ctx;
+        
         // Add notices to bulletin board
-        const ctx = this.ctx;
         const notices = [
             {color: '#FFFFFF', width: 30, height: 25},
             {color: '#FFFFCC', width: 40, height: 20},
@@ -1679,8 +1732,8 @@ class GameEngine {
         });
     }
     
-    drawDeskItems = (x, y, width, height) => {
-        const ctx = this.ctx;
+    drawDeskItems = (x, y, width, height, ctx) => {
+        ctx = ctx || this.ctx;
         
         // Computer monitor
         ctx.fillStyle = '#333333';
@@ -1704,8 +1757,8 @@ class GameEngine {
         ctx.fillRect(x + 105, y + 10, 30, 20);
     }
     
-    drawWallDecorations = () => {
-        const ctx = this.ctx;
+    drawWallDecorations = (ctx) => {
+        ctx = ctx || this.ctx;
         
         // Police badge emblem
         ctx.fillStyle = '#FFD700';
@@ -1885,8 +1938,8 @@ class GameEngine {
         });
     }
     
-    drawExitDoor = (x, y, label) => {
-        const ctx = this.ctx;
+    drawExitDoor = (x, y, label, ctx) => {
+        ctx = ctx || this.ctx;
         
         // Door frame with exit sign above
         ctx.fillStyle = '#4A4A4A';
@@ -1922,13 +1975,14 @@ class GameEngine {
         });
     }
     
-    addExitSign = (x, y, destination) => {
+    addExitSign = (x, y, destination, ctx) => {
+        ctx = ctx || this.ctx;
+        
         if (!destination || typeof x !== 'number' || typeof y !== 'number') {
             console.warn('Invalid parameters for exit sign');
             return;
         }
 
-        const ctx = this.ctx;
         const ARROW_SIZE = 15;
         const TEXT_OFFSET = 25;
         

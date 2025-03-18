@@ -30,6 +30,10 @@ class SoundManager {
         
         // Generate default procedural sounds
         this.generateSilentBuffer();
+
+        // Generate common UI sounds
+        this.generateUISound('click');
+        this.generateUISound('error');
     }
 
     // Generate a silent buffer for fallbacks
@@ -37,6 +41,34 @@ class SoundManager {
         const sampleRate = this.context.sampleRate;
         const buffer = this.context.createBuffer(2, sampleRate * 2, sampleRate);
         this.buffers.set('silent', buffer);
+    }
+
+    // Generate UI sound effects
+    generateUISound(id) {
+        const sampleRate = this.context.sampleRate;
+        const duration = id === 'click' ? 0.1 : 0.3; // Short duration for UI sounds
+        const buffer = this.context.createBuffer(2, sampleRate * duration, sampleRate);
+        
+        const leftChannel = buffer.getChannelData(0);
+        const rightChannel = buffer.getChannelData(1);
+        
+        for (let i = 0; i < buffer.length; i++) {
+            const time = i / sampleRate;
+            let sample = 0;
+            
+            if (id === 'click') {
+                // Create a click sound
+                sample = Math.sin(2 * Math.PI * 800 * time) * Math.exp(-15 * time);
+            } else if (id === 'error') {
+                // Create an error sound (lower tone)
+                sample = Math.sin(2 * Math.PI * 300 * time) * Math.exp(-8 * time);
+            }
+            
+            leftChannel[i] = sample;
+            rightChannel[i] = sample;
+        }
+        
+        this.buffers.set(id, buffer);
     }
 
     // Generate music procedurally based on the provided ID
@@ -138,6 +170,11 @@ class SoundManager {
             }
             this.buffers.set(id, this.buffers.get('silent'));
         }
+    }
+
+    // New function to match what engine.js is calling
+    playSound(id, volume = 1.0) {
+        return this.play(id, volume, false);
     }
 
     play(id, volume = 1.0, loop = false) {
