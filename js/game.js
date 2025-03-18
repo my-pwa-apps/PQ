@@ -483,7 +483,14 @@ class Game {
             dirty: true
         };
         
-        this.objectPool = new ObjectPool();
+        // Fix ObjectPool initialization by providing a creation function
+        this.objectPool = new ObjectPool(() => ({
+            x: 0,
+            y: 0,
+            type: 'default',
+            active: false
+        }));
+        
         this.init();
 
         // Object pooling
