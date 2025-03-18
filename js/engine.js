@@ -32,7 +32,9 @@ class GameEngine {
                     name: 'Officer Keith',
                     patrolPoints: [{x: 300, y: 350}, {x: 500, y: 350}, {x: 500, y: 400}],
                     currentPatrolPoint: 0,
-                    facing: 'right'
+                    facing: 'right',
+                    isWalking: false,
+                    waitTime: 0
                 },
                 { 
                     x: 500, y: 350, 
@@ -40,17 +42,29 @@ class GameEngine {
                     name: 'Sergeant Dooley',
                     patrolPoints: [{x: 500, y: 350}, {x: 200, y: 350}, {x: 350, y: 400}],
                     currentPatrolPoint: 0,
-                    facing: 'left'
+                    facing: 'left',
+                    isWalking: false,
+                    waitTime: 0
                 },
                 {
                     x: 450, y: 340,
                     type: 'officer',
                     name: 'Officer Sarah',
-                    patrolPoints: [{x: 450, y: 340}], // Stationary at desk
+                    // Add patrol points for the female officer
+                    patrolPoints: [
+                        {x: 450, y: 340}, // At desk (default position)
+                        {x: 300, y: 350}, // Talking to Officer Keith
+                        {x: 450, y: 340}, // Back to desk
+                        {x: 500, y: 350}, // Talking to Sergeant Dooley
+                        {x: 450, y: 340}  // Back to desk
+                    ],
                     currentPatrolPoint: 0,
                     facing: 'down',
                     isFemale: true,
-                    isReceptionist: true
+                    isReceptionist: true,
+                    isWalking: false,
+                    waitTime: 0,
+                    conversationTime: 0
                 }
             ]
         };
@@ -256,7 +270,7 @@ class GameEngine {
         this.animationFrame++;
 
         while (this.accumulator >= this.frameInterval) {
-            // Update game state
+            // Update game state with proper delta time
             this.update(this.frameInterval / 1000);
             this.accumulator -= this.frameInterval;
         }
@@ -270,7 +284,7 @@ class GameEngine {
         this.ctx.drawImage(this.offscreenCanvas, 0, 0);
 
         this.lastFrameTime = timestamp;
-        requestAnimationFrame(this.gameLoop.bind(this));
+        this.requestID = requestAnimationFrame(this.gameLoop.bind(this));
     }
 
     stopGameLoop() {
@@ -299,7 +313,7 @@ class GameEngine {
         }
     }
 
-    update() {
+    update(deltaTime = 1/60) {
         // Handle player walking animation and movement
         if (this.isWalking && this.walkTarget) {
             // Calculate direction and distance
@@ -324,12 +338,68 @@ class GameEngine {
                 this.playerPosition.x += moveX;
                 this.playerPosition.y += moveY;
                 
-                // Redraw the scene with updated player position
-                this.drawCurrentScene();
+                // Update player facing based on movement direction
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    this.playerFacing = dx > 0 ? 'right' : 'left';
+                } else {
+                    this.playerFacing = dy > 0 ? 'down' : 'up';
+                }
             }
         }
+        
+        // Update NPCs for the current scene
+        this.updateNPCs(deltaTime);
     }
     
+    updateNPCs(deltaTime = 1/60) {
+        const currentSceneNPCs = this.npcs[this.currentScene];
+        if (!currentSceneNPCs) return;
+
+        currentSceneNPCs.forEach(npc => {
+            if (npc.conversationTime > 0) {
+                npc.conversationTime -= deltaTime;
+                npc.isWalking = false;
+                return;
+            }
+
+            if (npc.waitTime > 0) {
+                npc.waitTime -= deltaTime;
+                npc.isWalking = false;
+                return;
+            }
+
+            const target = npc.patrolPoints[npc.currentPatrolPoint];
+            if (!target) return;
+            
+            const dx = target.x - npc.x;
+            const dy = target.y - npc.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 2) {
+                npc.currentPatrolPoint = (npc.currentPatrolPoint + 1) % npc.patrolPoints.length;
+                
+                if (npc.isReceptionist) {
+                    if (npc.currentPatrolPoint === 0) { // At desk
+                        npc.waitTime = 15 + Math.random() * 15; // Stay at desk longer
+                    } else if (npc.currentPatrolPoint % 2 === 1) { // At conversation points
+                        npc.waitTime = 0.5;
+                        npc.conversationTime = 3 + Math.random() * 2; // Talk for 3-5 seconds
+                    }
+                }
+                
+                npc.isWalking = false;
+            } else {
+                const speed = 1;
+                npc.x += (dx / distance) * speed;
+                npc.y += (dy / distance) * speed;
+                npc.facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+                npc.isWalking = true;
+            }
+
+            npc.y = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
+        });
+    }
+
     render(interpolation) {
         // Clear back buffer
         this.backContext.clearRect(0, 0, this.backBuffer.width, this.backBuffer.height);
@@ -357,75 +427,78 @@ class GameEngine {
 
     drawCurrentScene() {
         try {
-            // Use the correct context
             const ctx = this.offscreenCtx || this.ctx;
-            
-            // Clear canvas - always clear before drawing
             ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             
-            // Draw scene based on current scene ID
-            if (this.currentScene === 'policeStation') {
-                this.drawPoliceStation(ctx);
-            }
-            else if (this.currentScene === 'downtown') {
-                this.drawDowntown(ctx);
-            }
-            else if (this.currentScene === 'park') {
-                this.drawPark(ctx);
-            }
-            else if (this.currentScene === 'sheriffsOffice') {
-                this.drawSheriffsOffice(ctx);
-            }
-            else if (this.currentScene === 'briefingRoom') {
-                this.drawBriefingRoom(ctx);
-            }
-            else if (this.currentScene === 'officeArea') {
-                this.drawOfficeArea(ctx);
-            }
-            else {
-                console.warn('Unknown scene:', this.currentScene);
-                this.drawPoliceStation(ctx);
+            // Draw the current scene background
+            switch(this.currentScene) {
+                case 'policeStation':
+                    this.drawPoliceStation(ctx);
+                    break;
+                case 'downtown':
+                    this.drawDowntown(ctx);
+                    break;
+                case 'park':
+                    this.drawPark(ctx);
+                    break;
+                case 'sheriffsOffice':
+                    this.drawSheriffsOffice(ctx);
+                    break;
+                case 'briefingRoom':
+                    this.drawBriefingRoom(ctx);
+                    break;
+                case 'officeArea':
+                    this.drawOfficeArea(ctx);
+                    break;
+                default:
+                    console.warn('Unknown scene:', this.currentScene);
+                    return;
             }
             
             // Draw ambient animations
             this.drawAmbientAnimations();
             
-            // Draw NPCs for current scene - FIXED: ensure all NPCs are rendered
+            // Draw NPCs
             if (this.npcs && this.npcs[this.currentScene]) {
                 this.npcs[this.currentScene].forEach(npc => {
-                    // Position NPCs properly on floor
+                    if (!npc) return;
+                    
                     const yPosition = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
                     
                     this.drawPixelCharacter(
-                        npc.x, yPosition, 
+                        npc.x, 
+                        yPosition,
                         npc.type === 'sergeant' ? this.colors.brightBlue : this.colors.blue,
                         this.colors.yellow,
                         npc.facing || 'down',
-                        false, // Set to false to stop constant walking animation
-                        true,  // Indicate this is an NPC
-                        npc.isFemale // Pass the isFemale flag for the receptionist
+                        npc.isWalking,
+                        true,
+                        npc.isFemale || npc.isReceptionist
                     );
+
+                    // Draw conversation bubble
+                    if (npc.conversationTime > 0) {
+                        this.drawConversationBubble(npc.x, yPosition - 50);
+                    }
                 });
             }
 
-            // Draw player at current position
+            // Draw player last (on top)
             this.drawPixelCharacter(
                 this.playerPosition.x, 
                 this.playerPosition.y, 
                 this.colors.blue, 
                 this.colors.yellow,
                 this.playerFacing,
-                this.isWalking,
-                false
+                this.isWalking
             );
             
-            // If we're in direct mode, copy from offscreen to main canvas
+            // Flip buffers if needed
             if (ctx !== this.ctx && this.offscreenCtx) {
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 this.ctx.drawImage(this.offscreenCanvas, 0, 0);
             }
-        }
-        catch (error) {
+        } catch (error) {
             console.error("Error drawing scene:", error);
         }
     }
@@ -666,6 +739,12 @@ class GameEngine {
             true, // Is NPC
             true // Is female
         );
+        
+        // Door to sheriff's office
+        this.drawDoorWithFrame(630, this.floorLevel.min - 120, 'right', "Sheriff's Office", ctx);
+        
+        // Door to briefing room
+        this.drawDoorWithFrame(200, this.floorLevel.min - 120, 'left', "Office Area", ctx);
         
         // Door to sheriff's office
         this.drawDoorWithFrame(630, this.floorLevel.min - 120, 'right', "Sheriff's Office", ctx);
@@ -1052,6 +1131,98 @@ class GameEngine {
         } else if (facing === 'right') {
             drawPixel(xOffset + 4, yOffset + 3, '#000000'); // Right eye
             drawPixel(xOffset + 4, yOffset + 4, '#000000'); // Mouth
+        }
+    }
+
+    drawPixelCharacter(x, y, bodyColor, hairColor, facing = 'down', walking = false, isNPC = false, isFemale = false) {
+        const ctx = this.offscreenCtx || this.ctx;
+        const frame = Math.floor(this.animationFrame / 10) % 2;
+        const legOffset = walking ? (frame === 0 ? -3 : 3) : 0;
+        
+        // Set up shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 20, 12, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw legs
+        ctx.fillStyle = this.colors.darkBlue;
+        if (facing === 'left' || facing === 'right') {
+            ctx.fillRect(x - 5, y, 4, 20); // Left leg
+            ctx.fillRect(x + 5 - 4, y + legOffset, 4, 20 - legOffset); // Right leg with offset while walking
+        } else {
+            ctx.fillRect(x - 5, y + legOffset, 4, 20 - legOffset); // Left leg with offset while walking
+            ctx.fillRect(x + 1, y, 4, 20); // Right leg
+        }
+        
+        // Draw body
+        ctx.fillStyle = bodyColor;
+        ctx.fillRect(x - 8, y - 15, 16, 20);
+        
+        // Draw arms
+        if (facing === 'left') {
+            ctx.fillRect(x - 10, y - 15, 5, 15);  // Left arm on left side
+        } else if (facing === 'right') {
+            ctx.fillRect(x + 5, y - 15, 5, 15);   // Left arm on right side
+        } else {
+            ctx.fillRect(x - 12, y - 12, 5, 15);  // Left arm
+            ctx.fillRect(x + 7, y - 12, 5, 15);   // Right arm
+        }
+        
+        // Draw head
+        ctx.fillStyle = this.colors.skin;
+        ctx.beginPath();
+        ctx.arc(x, y - 25, 10, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw hair
+        ctx.fillStyle = hairColor;
+        if (isFemale) {
+            // Female hair style with longer hair
+            ctx.beginPath();
+            ctx.arc(x, y - 25, 12, Math.PI, Math.PI * 2);
+            ctx.fill();
+            
+            // Longer hair down the back
+            ctx.beginPath();
+            ctx.moveTo(x - 10, y - 25);
+            ctx.lineTo(x - 10, y - 10);
+            ctx.lineTo(x + 10, y - 10);
+            ctx.lineTo(x + 10, y - 25);
+            ctx.fill();
+        } else {
+            // Male hair style
+            ctx.beginPath();
+            ctx.arc(x, y - 30, 8, 0, Math.PI);
+            ctx.fill();
+        }
+        
+        // Draw face
+        ctx.fillStyle = this.colors.black;
+        
+        // Different face expressions based on facing direction
+        if (facing === 'down') {
+            // Eyes
+            ctx.fillRect(x - 4, y - 28, 2, 2);
+            ctx.fillRect(x + 2, y - 28, 2, 2);
+            // Mouth
+            ctx.fillRect(x - 2, y - 22, 4, 1);
+        } else if (facing === 'up') {
+            // Back of head, no face details
+        } else if (facing === 'left') {
+            // Profile facing left
+            ctx.fillRect(x - 4, y - 28, 2, 2); // One eye
+            ctx.fillRect(x - 6, y - 22, 3, 1); // Mouth
+        } else if (facing === 'right') {
+            // Profile facing right
+            ctx.fillRect(x + 2, y - 28, 2, 2); // One eye
+            ctx.fillRect(x + 3, y - 22, 3, 1); // Mouth
+        }
+        
+        // Draw badge for NPCs that are police officers
+        if (isNPC) {
+            ctx.fillStyle = this.colors.yellow;
+            ctx.fillRect(x - 3, y - 10, 6, 2);
         }
     }
 
@@ -2115,45 +2286,8 @@ class GameEngine {
         const wallItems = this.currentScene.wallItems;
         if (wallItems) {
             wallItems.sort((a, b) => a.zIndex - b.zIndex).forEach(item => {
-                const spacing = 20; // Minimum spacing between wall items
-                item.x = Math.max(item.x, item.lastX + spacing);
-                this.drawSprite(item.type, item.x, item.y);
-                item.lastX = item.x + item.width;
+                // ...existing code...
             });
         }
-
-        // Draw desk items in fixed positions
-        if (this.currentScene.id === 'policeStation') {
-            this.staticItems.desk.items.forEach(item => {
-                this.drawSprite(item.type, item.x, item.y);
-            });
-
-            // Draw female officer at desk
-            const officerSarah = this.npcs.policeStation.find(npc => npc.isReceptionist);
-            if (officerSarah) {
-                this.drawCharacter(
-                    officerSarah.x,
-                    officerSarah.y,
-                    'officer_female',
-                    officerSarah.facing
-                );
-            }
-        }
-
-        // Draw other NPCs and interactive elements
-        // ...existing code...
-    }
-
-    drawCharacter(x, y, type, facing) {
-        const sprite = this.sprites[type]?.[facing] || this.sprites.default;
-        this.ctx.drawImage(sprite, x, y);
     }
 }
-
-// Make sure to only initialize the engine after DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    // Check if engine instance already exists to avoid duplicate initialization
-    if (!window.engine) {
-        window.engine = new GameEngine();
-    }
-});
