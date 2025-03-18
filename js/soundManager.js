@@ -110,6 +110,27 @@ class SoundManager {
             this.context.resume();
         }
     }
+
+    initMobileAudio() {
+        // Create empty buffer and play it to unlock audio on mobile
+        const buffer = this.context.createBuffer(1, 1, 22050);
+        const source = this.context.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.context.destination);
+        source.start(0);
+        
+        // Resume audio context on user interaction
+        const resumeAudio = () => {
+            if (this.context.state === 'suspended') {
+                this.context.resume();
+            }
+            document.removeEventListener('touchstart', resumeAudio);
+            document.removeEventListener('click', resumeAudio);
+        };
+        
+        document.addEventListener('touchstart', resumeAudio);
+        document.addEventListener('click', resumeAudio);
+    }
 }
 
 // Initialize sound manager

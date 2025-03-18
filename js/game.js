@@ -438,6 +438,10 @@ class ObjectPool {
 
 class Game {
     constructor() {
+        // Define canvas dimensions first
+        this.width = 800;  // Default canvas width
+        this.height = 600; // Default canvas height
+        
         this.gameState = {
             inventory: new Set(),
             currentCase: null,
@@ -446,6 +450,13 @@ class Game {
             flags: new Map()
         };
         
+        // Initialize game data
+        this.initializeGameData();
+        
+        // Initialize spatial grid with proper dimensions
+        this.spatialGrid = new SpatialGrid(this.width, this.height, 64);
+        
+        // Rest of initialization
         // Use WeakMap for NPC state to allow garbage collection
         this.npcState = new WeakMap();
         
