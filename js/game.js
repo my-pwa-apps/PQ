@@ -1043,10 +1043,13 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Use window.engine instead of direct engine reference
-window.addEventListener('DOMContentLoaded', () => {
-    if (typeof window.engine === 'undefined') {
-        throw new Error('GameEngine must be initialized before game setup');
-    }
-    // Your game.js initialization code here
+// Move initialization check to after engine is ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait for a short delay to ensure engine is fully initialized
+    setTimeout(() => {
+        if (typeof window.engine === 'undefined') {
+            throw new Error('GameEngine must be initialized before game setup');
+        }
+        // Your game.js initialization code here
+    }, 100);
 });
