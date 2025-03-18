@@ -187,8 +187,10 @@ class GameEngine {
         // Remove game.init() call since initialization happens in constructor
         this.canvas.style.cursor = 'default'; // Ensure cursor is visible
         this.setupEventListeners();
-        this.drawCurrentScene();
-        this.startGameLoop();
+        
+        // Explicitly load the current scene
+        this.loadScene(this.currentScene);
+        
         this.keyboardEnabled = true;
         
         // Start background music using Web Audio API
