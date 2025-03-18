@@ -374,8 +374,8 @@ const GAME_DATA = {
 class SpatialGrid {
     constructor(width, height, cellSize) {
         this.cellSize = cellSize;
-        this.cols = Math.ceil(width / cellSize);
-        this.rows = Math.ceil(height / cellSize);
+        this.cols = Math.ceil(width / this.cellSize);
+        this.rows = Math.ceil(height / this.cellSize);
         this.grid = new Array(this.cols * this.rows).fill().map(() => new Set());
     }
 
@@ -453,37 +453,22 @@ class Game {
         // Initialize game data
         this.initializeGameData();
         
-        // Initialize spatial grid with proper dimensions
+        // Initialize spatial grid with proper dimensions - single initialization
         this.spatialGrid = new SpatialGrid(this.width, this.height, 64);
         
         // Rest of initialization
-        // Use WeakMap for NPC state to allow garbage collection
         this.npcState = new WeakMap();
-        
-        // Cache DOM elements
         this.domElements = new Map();
-        
-        // Performance optimization for frequent checks
         this.lastInteractionTime = 0;
-        this.interactionCooldown = 300; // ms
+        this.interactionCooldown = 300;
         
-        // Initialize game data
-        this.initializeGameData();
-
-        this.spatialGrid = new SpatialGrid(this.width, this.height, 64);
-        this.setupObjectPools();
-
         // Sprite cache
         this.spriteCache = new Map();
         
-        // Spatial partitioning grid
-        this.grid = {
-            cellSize: 32,
-            cells: new Map(),
-            dirty: true
-        };
+        // Grid configuration
+        this.gridSize = 64; // Size of each grid cell
         
-        // Fix ObjectPool initialization by providing a creation function
+        // Fix ObjectPool initialization
         this.objectPool = new ObjectPool(() => ({
             x: 0,
             y: 0,
@@ -491,20 +476,18 @@ class Game {
             active: false
         }));
         
-        this.init();
-
         // Object pooling
         this.objectPools = new Map();
         
-        // Spatial partitioning
-        this.gridSize = 64; // Size of each grid cell
-        this.spatialGrid = new Map();
-
         // Performance monitoring
         this.lastUpdateTime = performance.now();
         this.frameCount = 0;
         this.fpsUpdateInterval = 1000;
-
+        
+        // Initialize remaining components
+        this.setupObjectPools();
+        this.init();
+        
         // Define static item positions to prevent movement
         this.staticItems = {
             desk: {
@@ -778,14 +761,16 @@ class Game {
     }
 
     updateSpatialGrid() {
-        this.spatialGrid.clear();
+        // Clear existing grid cells
+        for (let i = 0; i < this.spatialGrid.grid.length; i++) {
+            this.spatialGrid.grid[i].clear();
+        }
         
-        for (const obj of this.gameObjects) {
-            const cell = this.getGridCell(obj.x, obj.y);
-            if (!this.spatialGrid.has(cell)) {
-                this.spatialGrid.set(cell, new Set());
+        // Re-add all game objects to the grid
+        if (this.gameObjects) {
+            for (const obj of this.gameObjects) {
+                this.spatialGrid.insert(obj);
             }
-            this.spatialGrid.get(cell).add(obj);
         }
     }
 
