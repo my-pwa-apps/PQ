@@ -1,30 +1,34 @@
 class GameEngine {
     constructor() {
-        // Basic initialization
-        this.inventory = new Set();
-        this.activeCommand = null;
+        // Initialize basic properties first
+        this.canvas = null;
+        this.ctx = null;
         this.currentScene = 'policeStation';
+        this.isRunning = false;
+        
+        // Initialize UI elements after DOM is ready
         this.dialogBox = document.getElementById('dialog-box');
         this.caseInfoPanel = document.getElementById('case-info');
         this.inventoryPanel = document.getElementById('inventory-panel');
         
-        // Initialize animations map
+        // Initialize game state
+        this.inventory = new Set();
+        this.activeCommand = null;
+        
+        // Initialize animation and rendering properties
         this.animations = new Map();
         this.ambientAnimations = {
             coffeeSteam: { active: false, x: 0, y: 0 },
             typingNPC: { active: false, x: 0, y: 0 }
         };
+        this.animationFrame = 0;
         
-        // Initialize NPCs
+        // Initialize game world properties
         this.npcs = {};
-        
-        // Initialize floor levels
         this.floorLevel = {
             min: 300,
             max: 400
         };
-
-        // Initialize collision objects and room boundaries
         this.collisionObjects = [];
         this.roomBoundaries = {
             policeStation: {
@@ -32,8 +36,8 @@ class GameEngine {
                 doors: []
             }
         };
-
-        // Color cache for performance
+        
+        // Initialize performance caches
         this.colorCache = new Map();
         this.spriteCache = new Map();
 
@@ -76,15 +80,17 @@ class GameEngine {
         this.isWalking = false;
         this.walkTarget = null;
         this.animationFrame = 0;
+        this.colors = this.setupColorPalette();
         
         // Clear all canvases
         this.clear();
         
-        // Load initial scene before starting game loop
+        // Initialize current scene
+        this.currentScene = this.currentScene || 'policeStation';
         console.log('Loading initial scene:', this.currentScene);
-        this.loadScene(this.currentScene);
         
-        // Start the game loop
+        // Load initial scene and start game loop
+        this.loadScene(this.currentScene);
         this.startGameLoop();
         
         // Set as global instance
@@ -102,11 +108,11 @@ class GameEngine {
         // Use device pixel ratio for better rendering on high DPI displays
         const dpr = window.devicePixelRatio || 1;
         this.canvas.width = 800 * dpr;
-        this.canvas.height = 450 * dpr;
+        this.canvas.height = 600 * dpr;  // Changed from 450 to 600 to match HTML
         this.ctx.scale(dpr, dpr);
         this.ctx.imageSmoothingEnabled = false;
         this.canvas.style.width = '800px';
-        this.canvas.style.height = '450px';
+        this.canvas.style.height = '600px';  // Changed from 450 to 600 to match HTML
     }
 
     setupBufferCanvas() {
@@ -164,11 +170,13 @@ class GameEngine {
         console.log("Starting game loop");
         this.isRunning = true;
         this.lastFrameTime = performance.now();
+        this.accumulator = 0;
+        this.frameInterval = 1000 / 60; // Target 60 FPS
         requestAnimationFrame(this.gameLoop.bind(this));
     }
 
     gameLoop(timestamp) {
-        if (!this.running) return;
+        if (!this.isRunning) return;
 
         // Calculate delta time and maintain consistent frame rate
         const deltaTime = timestamp - this.lastFrameTime;
@@ -192,26 +200,26 @@ class GameEngine {
         this.ctx.drawImage(this.offscreenCanvas, 0, 0);
 
         this.lastFrameTime = timestamp;
-        this.requestID = requestAnimationFrame(this.gameLoop.bind(this));
+        requestAnimationFrame(this.gameLoop.bind(this));
     }
 
     stopGameLoop() {
         if (this.requestID) {
             cancelAnimationFrame(this.requestID);
-            this.requestID = null;
         }
+        this.isRunning = false;
     }
 
-    addAnimation(id, frames, duration) {
+    addAnimation = (id, frames, duration) => {
         this.animations.set(id, {
             frames,
             duration,
             currentFrame: 0,
             elapsed: 0
         });
-    }
+    };
 
-    updateAnimations(deltaTime) {
+    updateAnimations = (deltaTime) => {
         for (const [id, anim] of this.animations) {
             anim.elapsed += deltaTime;
             if (anim.elapsed >= anim.duration) {
@@ -219,9 +227,9 @@ class GameEngine {
                 anim.elapsed = 0;
             }
         }
-    }
+    };
 
-    update(deltaTime = 1/60) {
+    update = (deltaTime = 1/60) => {
         // Handle player walking animation and movement
         if (this.isWalking && this.walkTarget) {
             // Calculate direction and distance
@@ -257,9 +265,9 @@ class GameEngine {
         
         // Update NPCs for the current scene
         this.updateNPCs(deltaTime);
-    }
+    };
     
-    updateNPCs(deltaTime = 1/60) {
+    updateNPCs = (deltaTime = 1/60) => {
         const currentSceneNPCs = this.npcs[this.currentScene];
         if (!currentSceneNPCs) return;
 
@@ -306,9 +314,9 @@ class GameEngine {
 
             npc.y = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
         });
-    }
+    };
 
-    render(interpolation) {
+    render = (interpolation) => {
         // Clear back buffer
         this.backContext.clearRect(0, 0, this.backBuffer.width, this.backBuffer.height);
         
@@ -323,17 +331,17 @@ class GameEngine {
         // Flip buffers
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.drawImage(this.backBuffer, 0, 0);
-    }
+    };
 
-    drawDebugInfo(ctx) {
+    drawDebugInfo = (ctx) => {
         ctx.fillStyle = '#fff';
         ctx.font = '12px monospace';
         ctx.fillText(`FPS: ${this.currentFPS}`, 10, 20);
         ctx.fillText(`Objects: ${this.game.gameObjects.length}`, 10, 40);
         ctx.fillText(`Draw calls: ${this.drawCallCount}`, 10, 60);
-    }
+    };
 
-    drawCurrentScene() {
+    drawCurrentScene = () => {
         try {
             const ctx = this.offscreenCtx || this.ctx;
             ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -409,9 +417,9 @@ class GameEngine {
         } catch (error) {
             console.error("Error drawing scene:", error);
         }
-    }
+    };
 
-    setupEventListeners() {
+    setupEventListeners = () => {
         // Command buttons
         document.querySelectorAll('.cmd-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -498,14 +506,14 @@ class GameEngine {
                 this.updateCursor(); // Use action-specific cursor
             }
         });
-    }
+    };
 
-    updateCursor() {
+    updateCursor = () => {
         const cursorStyle = this.activeCommand ? 'pointer' : 'default';
         this.canvas.style.cursor = cursorStyle;
-    }
+    };
 
-    handleInteraction(x, y) {
+    handleInteraction = (x, y) => {
         if (this.activeCommand === 'move') {
             // Move character to clicked location
             const rect = this.canvas.getBoundingClientRect();
@@ -525,9 +533,9 @@ class GameEngine {
         if (clickedObject) {
             this.processInteraction(clickedObject);
         }
-    }
+    };
 
-    handleMovement(direction) {
+    handleMovement = (direction) => {
         const moveSpeed = 5;
         const oldX = this.playerPosition.x;
         const oldY = this.playerPosition.y;
@@ -573,9 +581,9 @@ class GameEngine {
             this.isWalking = false;
             this.drawCurrentScene();
         }, 100);
-    }
+    };
 
-    drawPoliceStation(ctx) {
+    drawPoliceStation = (ctx) => {
         ctx = ctx || this.ctx; // Use provided context or default to main context
         
         // Use the stored color palette for consistency
@@ -674,10 +682,10 @@ class GameEngine {
         
         // Update collision objects for this scene
         this.updateCollisionObjects();
-    }
+    };
     
     // Add new room for desks
-    drawOfficeArea(ctx) {
+    drawOfficeArea = (ctx) => {
         const colors = this.colors;
         ctx = ctx || this.ctx; // Use provided context or default to main context
         
@@ -728,9 +736,9 @@ class GameEngine {
         
         // Update collision objects
         this.updateCollisionObjects();
-    }
+    };
 
-    drawDowntown(ctx) {
+    drawDowntown = (ctx) => {
         ctx = ctx || this.ctx; // Use provided context or default to main context
         
         // Use the stored color palette for consistency
@@ -791,9 +799,9 @@ class GameEngine {
         this.drawArrowIndicator('right', 'Park');
         this.drawArrowIndicator('left', 'Station');
         this.drawArrowIndicator('down', 'Park');
-    }
+    };
 
-    drawPark(ctx) {
+    drawPark = (ctx) => {
         ctx = ctx || this.ctx; // Use provided context or default to main context
         
         // Use the stored color palette for consistency
@@ -850,9 +858,9 @@ class GameEngine {
         // Arrow indicators for keyboard navigation
         this.drawArrowIndicator('up', 'Downtown');
         this.drawArrowIndicator('left', 'Downtown');
-    }
+    };
 
-    getCharacterSprite(uniformColor, badgeColor, facing, isWalking, isNPC, isFemale) {
+    getCharacterSprite = (uniformColor, badgeColor, facing, isWalking, isNPC, isFemale) => {
         const key = `${uniformColor}_${badgeColor}_${facing}_${isWalking}_${isNPC}_${isFemale}`;
         if (!this.spriteCache.has(key)) {
             const spriteCanvas = document.createElement('canvas');
@@ -863,14 +871,9 @@ class GameEngine {
             this.spriteCache.set(key, spriteCanvas);
         }
         return this.spriteCache.get(key);
-    }
+    };
 
-    drawPixelCharacter(x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false, isFemale = false) {
-        const sprite = this.getCharacterSprite(uniformColor, badgeColor, facing, isWalking, isNPC, isFemale);
-        this.bufferCtx.drawImage(sprite, Math.floor(x - 16), Math.floor(y - 48));
-    }
-
-    drawPixelCharacterToContext(ctx, x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false, isFemale = false) {
+    drawPixelCharacterToContext = (ctx, x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false, isFemale = false) => {
         const pixels = 4;
         const drawPixel = (px, py, color) => {
             ctx.fillStyle = color;
@@ -1040,9 +1043,9 @@ class GameEngine {
             drawPixel(xOffset + 4, yOffset + 3, '#000000'); // Right eye
             drawPixel(xOffset + 4, yOffset + 4, '#000000'); // Mouth
         }
-    }
+    };
 
-    drawPixelCharacter(x, y, bodyColor, hairColor, facing = 'down', walking = false, isNPC = false, isFemale = false) {
+    drawPixelCharacter = (x, y, bodyColor, hairColor, facing = 'down', walking = false, isNPC = false, isFemale = false) => {
         const ctx = this.offscreenCtx || this.ctx;
         const frame = Math.floor(this.animationFrame / 10) % 2;
         const legOffset = walking ? (frame === 0 ? -3 : 3) : 0;
@@ -1132,9 +1135,9 @@ class GameEngine {
             ctx.fillStyle = this.colors.yellow;
             ctx.fillRect(x - 3, y - 10, 6, 2);
         }
-    }
+    };
 
-    drawSheriffsOffice(ctx) {
+    drawSheriffsOffice = (ctx) => {
         ctx = ctx || this.ctx; // Use provided context or default to main context
         
         const colors = this.colors;
@@ -1213,9 +1216,9 @@ class GameEngine {
         // Navigation arrows
         this.drawArrowIndicator('down', 'Station');
         this.drawArrowIndicator('right', 'Briefing');
-    }
+    };
 
-    drawBriefingRoom(ctx) {
+    drawBriefingRoom = (ctx) => {
         ctx = ctx || this.ctx; // Use provided context or default to main context
         
         const colors = this.colors;
@@ -1281,9 +1284,9 @@ class GameEngine {
         // Navigation arrows
         this.drawArrowIndicator('down', 'Station');
         this.drawArrowIndicator('left', 'Sheriff');
-    }
+    };
 
-    checkCollision(x, y) {
+    checkCollision = (x, y) => {
         // Check desk collisions first
         const desks = this.collisionObjects.filter(obj => obj.type === 'desk');
         for (const desk of desks) {
@@ -1314,9 +1317,9 @@ class GameEngine {
         }
 
         return null;
-    }
+    };
 
-    processInteraction(hitObject) {
+    processInteraction = (hitObject) => {
         if (!this.activeCommand) {
             this.showDialog("Select an action first (Look, Talk, Use, Take, Move)");
             return;
@@ -1383,9 +1386,9 @@ class GameEngine {
             this.showDialog(`You can't ${this.activeCommand} that.`);
             soundManager.playSound('error');
         }
-    }
+    };
 
-    updateInventoryUI() {
+    updateInventoryUI = () => {
         try {
             // Clear existing inventory display
             this.inventoryPanel.innerHTML = '';
@@ -1405,9 +1408,9 @@ class GameEngine {
         } catch (error) {
             console.error("Error updating inventory UI:", error);
         }
-    }
+    };
 
-    updateCaseInfo() {
+    updateCaseInfo = () => {
         try {
             if (!game.currentCase) return;
             
@@ -1425,14 +1428,14 @@ class GameEngine {
         } catch (error) {
             console.error("Error updating case info:", error);
         }
-    }
+    };
 
-    showDialog(text) {
+    showDialog = (text) => {
         if (!text) return;
         this.dialogBox.innerText = text;
-    }
+    };
 
-    loadScene(sceneId) {
+    loadScene = (sceneId) => {
         try {
             // Stop current background music
             if (window.soundManager) {
@@ -1473,9 +1476,9 @@ class GameEngine {
             console.error("Stack trace:", error.stack);
             this.showDialog("Error loading scene. Please try again.");
         }
-    }
+    };
     
-    updateNPCsForScene(sceneId) {
+    updateNPCsForScene = (sceneId) => {
         if (!this.npcs[sceneId]) {
             // ...existing code...
             
@@ -1501,10 +1504,10 @@ class GameEngine {
                 ];
             }
         }
-    }
+    };
 
     // Add method to update collision objects based on current scene
-    updateCollisionObjects() {
+    updateCollisionObjects = () => {
         this.collisionObjects = [];
         
         switch(this.currentScene) {
@@ -1617,7 +1620,7 @@ class GameEngine {
                 
             // ...existing code for other scenes...
         }
-    }
+    };
 
     // Helper functions for 3D rendering
     drawFloorGrid = (x, y, width, height) => {
@@ -1651,7 +1654,7 @@ class GameEngine {
             );
             ctx.stroke();
         }
-    }
+    };
 
     draw3DWall = (x, y, width, height, color, ctx) => {
         ctx = ctx || this.ctx;
@@ -1667,7 +1670,7 @@ class GameEngine {
         gradient.addColorStop(1, 'rgba(0,0,0,0.2)');
         ctx.fillStyle = gradient;
         ctx.fillRect(x, y, width, height);
-    }
+    };
 
     draw3DDesk = (x, y, width, height, ctx) => {
         ctx = ctx || this.ctx;
@@ -1710,7 +1713,7 @@ class GameEngine {
         
         // Right back pole (with perspective)
         ctx.fillRect(x + width - 20, y + height, 10, this.floorLevel.max - (y + height));
-    }
+    };
 
     drawDoor = (x, y, direction, label) => {
         const ctx = this.ctx;
@@ -1723,7 +1726,7 @@ class GameEngine {
         ctx.fillStyle = this.colors.white;
         ctx.font = '12px monospace';
         ctx.fillText(label, x - 10, y - 5);
-    }
+    };
 
     drawDoorWithFrame = (x, y, direction, label, ctx) => {
         ctx = ctx || this.ctx;
@@ -1751,7 +1754,7 @@ class GameEngine {
         ctx.fillStyle = '#000000';
         ctx.font = '8px monospace';
         ctx.fillText(label.substring(0, 8), x + 12, y + 22);
-    }
+    };
     
     drawWindowView = (x, y, width, height, ctx) => {
         ctx = ctx || this.ctx;
@@ -1774,7 +1777,7 @@ class GameEngine {
         ctx.arc(x + 35 + (this.animationFrame % 50), y + 25, 12, 0, Math.PI * 2);
         ctx.arc(x + 50 + (this.animationFrame % 50), y + 30, 10, 0, Math.PI * 2);
         ctx.fill();
-    }
+    };
     
     drawBulletinNotices = (x, y, width, height, ctx) => {
         ctx = ctx || this.ctx;
@@ -1796,7 +1799,7 @@ class GameEngine {
                 ctx.fillRect(x + 8 + i * 35, y + 10 + (i % 2) * 30 + j * 5, notice.width - 6, 1);
             }
         });
-    }
+    };
     
     drawDeskItems = (x, y, width, height, ctx) => {
         ctx = ctx || this.ctx;
@@ -1827,7 +1830,7 @@ class GameEngine {
         ctx.fillRect(x + width/2 - 15, y - 25, 30, 5);
         ctx.fillRect(x + width/2 - 15, y - 18, 30, 3);
         ctx.fillRect(x + width/2 - 15, y - 13, 20, 3);
-    }
+    };
     
     drawWallDecorations = (ctx) => {
         ctx = ctx || this.ctx;
@@ -1880,7 +1883,7 @@ class GameEngine {
         ctx.lineTo(0, -18);
         ctx.stroke();
         ctx.restore();
-    }
+    };
     
     drawAmbientAnimations = () => {
         if (!this.ambientAnimations) return;
@@ -1920,7 +1923,7 @@ class GameEngine {
             ctx.arc(750, 50, 5, 0, Math.PI * 2);
             ctx.fill();
         }
-    }
+    };
     
     setupAmbientAnimations = (scene) => {
         // Reset all animations
@@ -1950,7 +1953,7 @@ class GameEngine {
                 };
                 break;
         }
-    }
+    };
 
     updateNPCs = () => {
         const currentSceneNPCs = this.npcs[this.currentScene];
@@ -1989,7 +1992,7 @@ class GameEngine {
             // Ensure NPCs stay on the floor
             npc.y = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
         });
-    }
+    };
 
     drawRoomBoundaries = () => {
         const boundaries = this.roomBoundaries[this.currentScene];
@@ -2008,7 +2011,7 @@ class GameEngine {
         boundaries.doors.forEach(door => {
             this.ctx.strokeRect(door.x, door.y, door.width, door.height);
         });
-    }
+    };
     
     drawExitDoor = (x, y, label, ctx) => {
         ctx = ctx || this.ctx;
@@ -2045,7 +2048,7 @@ class GameEngine {
                 talk: "It's a door. It doesn't talk back."
             }
         });
-    }
+    };
     
     addExitSign = (x, y, destination, ctx) => {
         ctx = ctx || this.ctx;
@@ -2073,7 +2076,7 @@ class GameEngine {
         ctx.textAlign = 'center';
         ctx.fillText(destination, x, y - TEXT_OFFSET);
         ctx.textAlign = 'left'; // Reset to default
-    }
+    };
 
     // Memoized color adjustment for better performance
     #colorCache = new Map();
@@ -2102,27 +2105,27 @@ class GameEngine {
             console.warn('Error adjusting color:', error);
             return color; // Return original color if adjustment fails
         }
-    }
+    };
 
-    startBackgroundMusic() {
+    startBackgroundMusic = () => {
         const sceneMusic = this.currentScene?.music || 'station_theme';
         window.soundManager.playBackgroundMusic(sceneMusic);
-    }
+    };
 
-    stopBackgroundMusic() {
+    stopBackgroundMusic = () => {
         window.soundManager.stopBackgroundMusic();
-    }
+    };
 
     // Optimized color handling
-    getCachedColor(r, g, b, a = 1) {
+    getCachedColor = (r, g, b, a = 1) => {
         const key = `${r},${g},${b},${a}`;
         if (!this.colorCache.has(key)) {
             this.colorCache.set(key, `rgba(${r},${g},${b},${a})`);
         }
         return this.colorCache.get(key);
-    }
+    };
 
-    draw(ctx) {
+    draw = (ctx) => {
         // Batch similar draw operations
         const drawBatch = new Map();
         
@@ -2143,28 +2146,28 @@ class GameEngine {
             }
             ctx.restore();
         }
-    }
+    };
 
     // Optimized pixel operations using TypedArrays
-    createPixelBuffer() {
+    createPixelBuffer = () => {
         const buffer = new ArrayBuffer(this.canvas.width * this.canvas.height * 4);
         return new Uint8ClampedArray(buffer);
-    }
+    };
 
-    setPixel(buffer, x, y, r, g, b, a = 255) {
+    setPixel = (buffer, x, y, r, g, b, a = 255) => {
         const index = (y * this.canvas.width + x) * 4;
         buffer[index] = r;
         buffer[index + 1] = g;
         buffer[index + 2] = b;
         buffer[index + 3] = a;
-    }
+    };
 
-    updateCanvas(buffer) {
+    updateCanvas = (buffer) => {
         const imageData = new ImageData(buffer, this.canvas.width, this.canvas.height);
         this.offscreenCtx.putImageData(imageData, 0, 0);
-    }
+    };
 
-    renderScene() {
+    renderScene = () => {
         // Draw background and base elements first
         // ...existing code...
 
@@ -2175,5 +2178,5 @@ class GameEngine {
                 // ...existing code...
             });
         }
-    }
+    };
 }

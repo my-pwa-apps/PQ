@@ -439,18 +439,23 @@ class ObjectPool {
 // First define the Game class
 class Game {
     constructor() {
-        this.engine = new GameEngine();
+        this.engine = null;
         this.soundManager = null;
-        this.initGame();
+        this.gameState = {
+            inventory: new Set(),
+            currentCase: null
+        };
     }
 
     initGame() {
+        console.log('Initializing game...');
         // Initialize sound first
         this.soundManager = new SoundManager();
         window.soundManager = this.soundManager;
 
         // Initialize game engine
         this.engine = new GameEngine();
+        window.gameEngine = this.engine;
         
         // Listen for engine initialization
         document.addEventListener('gameEngineInitialized', () => {
@@ -466,26 +471,17 @@ class Game {
         }
 
         console.log('Starting game...');
-        // Any additional game start logic here
+        // Load the initial scene
+        this.engine.loadScene('policeStation');
     }
 }
 
 // Then handle DOM content loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Create game instance which will initialize engine
+window.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM fully loaded");
     const game = new Game();
-    window.game = game; // Make it accessible globally if needed
-    // Initialize sound manager first
-    window.soundManager = new SoundManager();
-    
-    // Initialize game engine
-    window.gameEngine = new GameEngine();
-    
-    // Listen for engine initialization
-    document.addEventListener('gameEngineInitialized', () => {
-        console.log('Game engine initialized, starting game...');
-        // Any additional game startup logic can go here
-    });
+    game.initGame();
+    window.game = game; // Make game instance globally available
 });
 
 // Error handling
