@@ -5,11 +5,7 @@ if (typeof Game === 'undefined') {
 
 class GameEngine {
     constructor() {
-        console.log("Initializing GameEngine");
-        
         // Basic initialization
-        this.canvas = document.getElementById('gameCanvas');
-        this.ctx = this.canvas.getContext('2d', { alpha: false });
         this.inventory = new Set();
         this.activeCommand = null;
         this.currentScene = 'policeStation';
@@ -17,23 +13,48 @@ class GameEngine {
         this.caseInfoPanel = document.getElementById('case-info');
         this.inventoryPanel = document.getElementById('inventory-panel');
         
+        // Initialize canvas immediately if document is ready
+        if (document.readyState === 'complete') {
+            this.init();
+        } else {
+            // Otherwise wait for DOMContentLoaded
+            document.addEventListener('DOMContentLoaded', () => this.init());
+        }
+        
         // Initialize floor levels
         this.floorLevel = {
             min: 300,
             max: 400
         };
-        
-        // Wait for DOM content to be fully loaded before initializing
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.init());
-        } else {
-            this.init();
-        }
+
+        // Initialize collision objects
+        this.collisionObjects = [];
+        this.roomBoundaries = {
+            policeStation: {
+                walls: [
+                    { x: 0, y: 0, width: 800, height: 300 }
+                ]
+            }
+        };
     }
 
     init() {
         console.log('Initializing game engine...');
         
+        // Initialize canvas
+        this.canvas = document.getElementById('gameCanvas');
+        if (!this.canvas) {
+            console.error('Canvas element not found!');
+            return;
+        }
+        
+        // Get main context
+        this.ctx = this.canvas.getContext('2d', { alpha: false });
+        if (!this.ctx) {
+            console.error('Could not get canvas context!');
+            return;
+        }
+
         // Setup core engine components
         this.setupCanvas();
         this.setupBufferCanvas();
@@ -47,20 +68,12 @@ class GameEngine {
         this.playerPosition = { x: 400, y: 350 };
         this.isWalking = false;
         this.walkTarget = null;
-        this.collisionObjects = [];
         
-        // Force initial canvas clear
+        // Clear all canvases
         this.clear();
         
         // Set as global instance
         window.gameEngine = this;
-        
-        // Start background music if available
-        if (window.soundManager) {
-            setTimeout(() => {
-                this.startBackgroundMusic();
-            }, 500);
-        }
         
         // Load initial scene
         console.log('Loading initial scene:', this.currentScene);
@@ -90,10 +103,23 @@ class GameEngine {
 
     setupBufferCanvas() {
         console.log("Setting up buffer canvas");
+        // Setup buffer canvas
         this.bufferCanvas = document.createElement('canvas');
         this.bufferCanvas.width = this.canvas.width;
         this.bufferCanvas.height = this.canvas.height;
         this.bufferCtx = this.bufferCanvas.getContext('2d', { alpha: false });
+        
+        // Setup back buffer
+        this.backBuffer = document.createElement('canvas');
+        this.backBuffer.width = this.canvas.width;
+        this.backBuffer.height = this.canvas.height;
+        this.backContext = this.backBuffer.getContext('2d', { alpha: false });
+        
+        // Setup offscreen canvas
+        this.offscreenCanvas = document.createElement('canvas');
+        this.offscreenCanvas.width = this.canvas.width;
+        this.offscreenCanvas.height = this.canvas.height;
+        this.offscreenCtx = this.offscreenCanvas.getContext('2d', { alpha: false });
     }
 
     setupColorPalette() {
