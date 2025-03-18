@@ -436,10 +436,10 @@ class ObjectPool {
     }
 }
 
-// Main game logic and state management
+// First define the Game class
 class Game {
     constructor() {
-        this.engine = null;
+        this.engine = new GameEngine();
         this.soundManager = null;
         this.initGame();
     }
@@ -470,10 +470,11 @@ class Game {
     }
 }
 
-// Initialize game when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM Content loaded, initializing game...');
-    
+// Then handle DOM content loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Create game instance which will initialize engine
+    const game = new Game();
+    window.game = game; // Make it accessible globally if needed
     // Initialize sound manager first
     window.soundManager = new SoundManager();
     

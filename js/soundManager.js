@@ -1,30 +1,16 @@
 class SoundManager {
     constructor() {
+        this.audioContext = null;
         this.sounds = new Map();
         this.currentMusic = null;
         this.isMuted = false;
         this.initialized = false;
-        this.initPromise = this.initialize();
     }
 
-    async initialize() {
-        try {
-            // Wait for audio context to be created and ready
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            this.audioContext = new AudioContext();
-            await this.audioContext.resume();
-            
-            // Pre-load common sounds
-            await this.loadSound('click', 'audio/click.mp3');
-            await this.loadSound('station_theme', 'audio/station_theme.mp3');
-            await this.loadSound('downtown_theme', 'audio/downtown_theme.mp3');
-            
+    initialize() {
+        if (!this.initialized) {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             this.initialized = true;
-            console.log('Sound Manager initialized successfully');
-        } catch (error) {
-            console.error('Failed to initialize Sound Manager:', error);
-            // Don't block game loading on audio failure
-            this.initialized = false;
         }
     }
 
@@ -105,6 +91,15 @@ class SoundManager {
         }
         return this.isMuted;
     }
+
+    // Initialize on first user interaction
+    handleUserInteraction() {
+        if (this.audioContext?.state === 'suspended') {
+            this.audioContext.resume();
+        } else if (!this.initialized) {
+            this.initialize();
+        }
+    }
 }
 
 // Initialize sound manager
@@ -117,3 +112,16 @@ document.addEventListener('DOMContentLoaded', () => {
         manager.initMobileAudio();
     });
 });
+
+// Add event listeners for user interaction
+document.addEventListener('click', () => {
+    if (window.soundManager) {
+        window.soundManager.handleUserInteraction();
+    }
+}, { once: true });
+
+document.addEventListener('keydown', () => {
+    if (window.soundManager) {
+        window.soundManager.handleUserInteraction();
+    }
+}, { once: true });

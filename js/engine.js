@@ -1,8 +1,3 @@
-// Add dependency check at the top
-if (typeof Game === 'undefined') {
-    throw new Error('Game class must be loaded before GameEngine');
-}
-
 class GameEngine {
     constructor() {
         // Basic initialization
