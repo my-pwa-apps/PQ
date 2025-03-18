@@ -438,6 +438,24 @@ class ObjectPool {
 
 class Game {
     constructor() {
+        // Wait for game engine to be initialized
+        if (!window.gameEngine) {
+            document.addEventListener('gameEngineInitialized', () => {
+                this.setupGame();
+            });
+        } else {
+            this.setupGame();
+        }
+    }
+
+    setupGame() {
+        // Initialize game state and setup
+        this.engine = window.gameEngine;
+        this.gameState = {
+            inventory: new Set(),
+            stage: 'start',
+            completedStages: new Set()
+        };
         // Define canvas dimensions first
         this.width = 800;  // Default canvas width
         this.height = 600; // Default canvas height
@@ -1041,15 +1059,4 @@ document.addEventListener('keydown', (e) => {
             game.resetGame();
         }
     }
-});
-
-// Move initialization check to after engine is ready
-document.addEventListener('DOMContentLoaded', () => {
-    // Wait for a short delay to ensure engine is fully initialized
-    setTimeout(() => {
-        if (typeof window.engine === 'undefined') {
-            throw new Error('GameEngine must be initialized before game setup');
-        }
-        // Your game.js initialization code here
-    }, 100);
 });

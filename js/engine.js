@@ -238,6 +238,11 @@ class GameEngine {
             }, 500);
         }
         
+        // Set as global instance and dispatch initialization event
+        window.gameEngine = this;
+        const event = new Event('gameEngineInitialized');
+        document.dispatchEvent(event);
+        
         console.log('Game engine initialized successfully');
         
         // Start the game loop
