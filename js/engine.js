@@ -161,10 +161,14 @@ class GameEngine {
 
         // Wait for DOM content to be fully loaded before initializing
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.init());
+            document.addEventListener('DOMContentLoaded', () => {
+                this.init();
+                this.startGameLoop();
+            });
         } else {
             // DOM already loaded, initialize immediately
             this.init();
+            this.startGameLoop();
         }
     }
 
@@ -221,21 +225,18 @@ class GameEngine {
         // Load the initial scene - ensure it happens AFTER all setup is done
         console.log('Loading initial scene:', this.currentScene);
         
-        // First draw immediately (don't wait for scene loaded)
-        this.drawCurrentScene();
+        // Initialize game objects and state first
+        this.setupCanvas();
+        this.setupBufferCanvas();
         
-        // Then properly load the scene with all setup
-        setTimeout(() => {
-            this.loadScene(this.currentScene);
-        }, 100);
+        // Load initial scene
+        this.loadScene(this.currentScene);
         
         this.keyboardEnabled = true;
         
         // Start background music using Web Audio API
         if (window.soundManager) {
-            setTimeout(() => {
-                this.startBackgroundMusic();
-            }, 500);
+            this.startBackgroundMusic();
         }
         
         // Set as global instance and dispatch initialization event
@@ -244,7 +245,6 @@ class GameEngine {
         document.dispatchEvent(event);
         
         console.log('Game engine initialized successfully');
-        
         // Start the game loop
         this.startGameLoop();
     }
