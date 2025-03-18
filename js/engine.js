@@ -595,60 +595,59 @@ class GameEngine {
     }
 
     drawPoliceStation(ctx) {
-        const colors = this.colors;
         ctx = ctx || this.ctx; // Use provided context or default to main context
         
-        // Draw floor first (expand floor area)
-        ctx.fillStyle = '#8B4513'; // Brown wooden floor
-        ctx.fillRect(0, this.floorLevel.min, this.canvas.width, 
-                     this.canvas.height - this.floorLevel.min);
+        // Use the stored color palette for consistency
+        const colors = this.colors;
         
-        // Add floor texture
-        for (let i = 0; i < 30; i++) {
-            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-            ctx.beginPath();
-            ctx.moveTo(0, this.floorLevel.min + i * 10);
-            ctx.lineTo(this.canvas.width, this.floorLevel.min + i * 10);
-            ctx.stroke();
-        }
+        // Floor - set to standard height
+        ctx.fillStyle = colors.lightGray;
+        ctx.fillRect(0, this.floorLevel.min, this.canvas.width, this.floorLevel.max - this.floorLevel.min);
         
-        // Draw wall (reduced height)
-        this.draw3DWall(0, 0, this.canvas.width, this.floorLevel.min, colors.blue, ctx);
+        // Draw floor grid for perspective
+        this.drawFloorGrid(0, this.floorLevel.min, this.canvas.width, this.floorLevel.max - this.floorLevel.min);
         
-        // Wall trim at floor junction
+        // Draw walls (slight perspective)
+        ctx.fillStyle = colors.white;
+        this.draw3DWall(0, 0, this.canvas.width, this.floorLevel.min - 10, colors.white, ctx);
+        
+        // Wall skirting board
         ctx.fillStyle = '#4A4A4A';
         ctx.fillRect(0, this.floorLevel.min - 10, this.canvas.width, 10);
         
-        // Windows (repositioned for lower wall)
-        for (let i = 0; i < 2; i++) {
-            // Window frame
-            ctx.fillStyle = '#A0A0A0';
-            ctx.fillRect(100 + i * 350, 50, 120, 100);
+        // Single window (positioned more centrally)
+        // Window frame
+        ctx.fillStyle = '#A0A0A0';
+        ctx.fillRect(320, 50, 160, 100);
             
-            // Window glass
-            ctx.fillStyle = '#B0E0FF';
-            ctx.fillRect(105 + i * 350, 55, 110, 90);
+        // Window glass
+        ctx.fillStyle = '#B0E0FF';
+        ctx.fillRect(325, 55, 150, 90);
             
-            // Window frame dividers
-            ctx.strokeStyle = '#A0A0A0';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(160 + i * 350, 55);
-            ctx.lineTo(160 + i * 350, 145);
-            ctx.stroke();
+        // Window frame dividers
+        ctx.strokeStyle = '#A0A0A0';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(400, 55);
+        ctx.lineTo(400, 145);
+        ctx.stroke();
             
-            // Add animated view through window
-            this.drawWindowView(105 + i * 350, 55, 110, 90, ctx);
-        }
+        ctx.beginPath();
+        ctx.moveTo(325, 100);
+        ctx.lineTo(475, 100);
+        ctx.stroke();
+
+        // Add animated view through window
+        this.drawWindowView(325, 55, 150, 90, ctx);
         
         // Bulletin board
         ctx.fillStyle = '#8B4513';
-        ctx.fillRect(280, 50, 120, 80);
+        ctx.fillRect(150, 50, 120, 80);
         ctx.fillStyle = '#F5F5DC';
-        ctx.fillRect(285, 55, 110, 70);
+        ctx.fillRect(155, 55, 110, 70);
         
         // Add notices to bulletin board
-        this.drawBulletinNotices(285, 55, 110, 70, ctx);
+        this.drawBulletinNotices(155, 55, 110, 70, ctx);
         
         // Reception desk (aligned with floor)
         this.draw3DDesk(400, this.floorLevel.min + 20, 150, 80, ctx);
@@ -658,25 +657,20 @@ class GameEngine {
         
         // Add female officer at desk
         this.drawPixelCharacter(
-            450, // Centered at desk
-            this.floorLevel.min + 40, // Proper height for sitting
-            this.colors.blue, // Police uniform
-            this.colors.yellow, // Badge
-            'down', // Facing forward
+            475, // X position
+            this.floorLevel.min + 30, // Y position (aligned to floor)
+            colors.blue, // Uniform color
+            colors.yellow, // Badge color
+            'left', // Facing left (towards player/reception area)
             false, // Not walking
             true, // Is NPC
             true // Is female
         );
-
-        // Add sitting animation
-        if (this.animationFrame % 4 === 0) {
-            // Typing animation
-            this.drawDeskItems(400, this.floorLevel.min + 15, 150, 80, ctx);
-        }
         
-        // Draw doors aligned with floor/wall
-        this.drawDoorWithFrame(50, this.floorLevel.min - 120, 'left', "Sheriff's Office", ctx);
-        this.drawDoorWithFrame(600, this.floorLevel.min - 120, 'right', "Briefing Room", ctx);
+        // Door to sheriff's office
+        this.drawDoorWithFrame(630, this.floorLevel.min - 120, 'right', "Sheriff's Office", ctx);
+        
+        // Door to briefing room
         this.drawDoorWithFrame(200, this.floorLevel.min - 120, 'left', "Office Area", ctx);
         
         // Add exit to downtown

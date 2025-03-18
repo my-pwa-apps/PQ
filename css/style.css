@@ -240,6 +240,11 @@ body {
     to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes windowScene {
+    0% { background-position: 0 0; }
+    100% { background-position: 100px 0; } 
+}
+
 .fade-in {
     animation: fadeIn 0.3s ease forwards;
 }
@@ -269,42 +274,230 @@ body {
     perspective: 1000px;
 }
 
-/* Media queries for responsive design */
+/* Media queries for responsive design - enhanced for better scaling */
 @media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    #game-container {
+        height: calc(100vh - 20px);
+        border: 3px solid var(--color-accent);
+    }
+
+    #game-screen {
+        min-height: 350px;
+    }
+    
     #dialog-box {
-        width: 90%;
+        width: 95%;
         font-size: var(--font-size-sm);
+        padding: 8px;
     }
     
     #case-info {
         width: 150px;
-        font-size: 12px;
+        font-size: 11px;
+        top: 8px;
+        right: 8px;
     }
     
     .cmd-btn {
-        min-width: 60px;
+        min-width: 65px;
         font-size: 12px;
-        padding: 4px;
+        padding: 4px 6px;
     }
     
-    #dialog-box {
-        font-size: 12px;
-        padding: 5px;
+    #controls-guide {
+        font-size: 10px;
+        padding: 4px;
+        width: auto;
+        max-width: 90%;
+    }
+
+    #game-title {
+        font-size: 16px;
     }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 576px) {
+    body {
+        padding: 5px;
+    }
+
+    #game-container {
+        height: calc(100vh - 10px);
+        border: 2px solid var(--color-accent);
+    }
+
+    #game-screen {
+        min-height: 300px;
+    }
+
+    #ui-container {
+        min-height: 120px;
+        padding: 6px;
+        gap: 6px;
+    }
+
     #case-info {
-        width: 120px;
+        width: 110px;
         max-height: 30%;
+        padding: 6px;
+        font-size: 10px;
+        top: 5px;
+        right: 5px;
     }
     
     .cmd-btn {
         min-width: 50px;
+        max-width: 80px;
         font-size: 10px;
+        padding: 3px 4px;
     }
     
     #inventory-panel {
         grid-template-columns: repeat(auto-fill, minmax(30px, 1fr));
+        padding: 6px;
+        gap: 4px;
+        max-height: 80px;
+    }
+
+    .inventory-item {
+        width: 30px;
+        height: 30px;
+        font-size: 10px;
+    }
+
+    #game-title {
+        font-size: 14px;
+        top: 5px;
+        left: 5px;
+    }
+
+    #controls-guide {
+        font-size: 8px;
+        padding: 3px;
+        bottom: 5px;
+        left: 5px;
+    }
+}
+
+/* Handle very small screens and portrait orientation */
+@media (max-width: 400px), (max-height: 600px) {
+    #game-title {
+        font-size: 12px;
+    }
+
+    #case-info {
+        width: 100px;
+        font-size: 9px;
+    }
+
+    .cmd-btn {
+        min-width: 45px;
+        font-size: 9px;
+        padding: 2px;
+    }
+
+    #command-panel {
+        gap: 3px;
+        padding: 3px;
+    }
+
+    #controls-guide {
+        display: none; /* Hide on very small screens */
+    }
+}
+
+/* Handle high-density screens */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    #gameCanvas {
+        image-rendering: auto; /* Better for high DPI */
+    }
+}
+
+/* Handle orientation changes */
+@media (orientation: portrait) and (max-width: 768px) {
+    #game-container {
+        height: auto;
+        max-height: 100vh;
+    }
+    
+    #game-screen {
+        min-height: 56vw; /* 16:9 ratio based on width */
+        height: 60vh;
+    }
+
+    #ui-container {
+        min-height: 120px;
+        height: 40vh;
+    }
+    
+    /* Adjust element positions for portrait mode */
+    #case-info {
+        max-height: 25%;
+        opacity: 0.8;
+    }
+}
+
+/* Viewport height adaptations */
+@media (max-height: 700px) {
+    #game-container {
+        border-width: 2px;
+    }
+    
+    #game-screen {
+        min-height: auto;
+        flex: 4;
+    }
+    
+    #ui-container {
+        flex: 1;
+        min-height: 100px;
+    }
+}
+
+/* Extra small height */
+@media (max-height: 500px) {
+    body {
+        padding: 2px;
+    }
+    
+    #game-container {
+        height: calc(100vh - 4px);
+    }
+    
+    #ui-container {
+        min-height: 80px;
+        gap: 3px;
+        padding: 3px;
+    }
+    
+    #command-panel {
+        padding: 2px;
+    }
+    
+    .cmd-btn {
+        font-size: 9px;
+        padding: 2px;
+    }
+}
+
+/* Window animation class */
+.window-view {
+    position: absolute;
+    background-repeat: repeat-x;
+    animation: windowScene 20s linear infinite;
+}
+
+/* Ensure canvas resizes properly */
+@media (min-width: 1200px) {
+    #game-container {
+        max-width: 1000px;
+    }
+    
+    #gameCanvas {
+        max-height: 70vh;
     }
 }
