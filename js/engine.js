@@ -140,6 +140,7 @@ class GameEngine {
 
         // Initialize the engine
         this.init();
+        this.gameObjects = [];  // Ensure gameObjects is initialized as an array
     }
 
     setupCanvas() {
@@ -1956,18 +1957,13 @@ class GameEngine {
         }
     }
 
-    startBackgroundMusic = () => {
-        if (this.backgroundMusicPlayer) {
-            this.backgroundMusicPlayer.stop();
-        }
-        this.backgroundMusicPlayer = window.soundManager.playBackgroundMusic();
+    startBackgroundMusic() {
+        const sceneMusic = this.currentScene?.music || 'station_theme';
+        window.soundManager.playBackgroundMusic(sceneMusic);
     }
 
-    stopBackgroundMusic = () => {
-        if (this.backgroundMusicPlayer) {
-            this.backgroundMusicPlayer.stop();
-            this.backgroundMusicPlayer = null;
-        }
+    stopBackgroundMusic() {
+        window.soundManager.stopBackgroundMusic();
     }
 
     // Optimized color handling

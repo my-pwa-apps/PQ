@@ -5,6 +5,10 @@ class SoundManager {
         this.buffers = new Map();
         this.gainNodes = new Map();
         this.lastPlayTime = new Map();
+        this.backgroundMusic = null;
+        this.currentBackgroundMusic = null;
+        this.backgroundMusicVolume = 0.3; // Default background music volume
+        this.initialized = false;
         
         // Add rate limiting to prevent sound spam
         this.playbackThrottle = 50; // ms between same sound replay
@@ -12,6 +16,14 @@ class SoundManager {
         // Master volume control
         this.masterGain = this.context.createGain();
         this.masterGain.connect(this.context.destination);
+        
+        // Background music volume control
+        this.backgroundMusicGain = this.context.createGain();
+        this.backgroundMusicGain.connect(this.masterGain);
+        this.backgroundMusicGain.gain.value = 0.3; // Lower volume for background music
+
+        // Load default background music
+        this.loadSound('station_theme', 'audio/station_theme.mp3');
     }
 
     async loadSound(id, url) {
@@ -70,6 +82,31 @@ class SoundManager {
         return source;
     }
 
+    playBackgroundMusic(id = 'station_theme') {
+        if (!id || !this.sounds.has(id)) {
+            console.warn(`Background music '${id}' not found`);
+            return null;
+        }
+
+        if (this.currentBackgroundMusic) {
+            this.stopBackgroundMusic();
+        }
+
+        const sound = this.sounds.get(id);
+        sound.volume = this.backgroundMusicVolume;
+        sound.loop = true;
+        sound.play();
+        this.currentBackgroundMusic = sound;
+        return sound;
+    }
+
+    stopBackgroundMusic() {
+        if (this.currentBackgroundMusic) {
+            this.currentBackgroundMusic.stop();
+            this.currentBackgroundMusic = null;
+        }
+    }
+
     stop(source) {
         if (source && this.sounds.has(source)) {
             const { gainNode } = this.sounds.get(source);
@@ -89,6 +126,7 @@ class SoundManager {
     }
 
     stopAll() {
+        this.stopBackgroundMusic();
         for (const [source] of this.sounds) {
             this.stop(source);
         }
@@ -103,6 +141,10 @@ class SoundManager {
             const { gainNode } = this.sounds.get(source);
             gainNode.gain.value = Math.max(0, Math.min(1, volume));
         }
+    }
+
+    setBackgroundMusicVolume(volume) {
+        this.backgroundMusicGain.gain.value = Math.max(0, Math.min(1, volume));
     }
 
     resume() {
