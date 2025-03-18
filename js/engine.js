@@ -1,106 +1,82 @@
 class GameEngine {
     constructor() {
-        // Initialize basic properties first
-        this.canvas = null;
-        this.ctx = null;
+        // Initialize properties
+        this.canvas = document.getElementById('gameCanvas');
+        if (!this.canvas) {
+            throw new Error('Canvas element not found');
+        }
+        
+        this.ctx = this.canvas.getContext('2d');
+        if (!this.ctx) {
+            throw new Error('Could not get canvas context');
+        }
+
+        // Initialize core properties
         this.currentScene = 'policeStation';
         this.isRunning = false;
-        
-        // Initialize UI elements after DOM is ready
-        this.dialogBox = document.getElementById('dialog-box');
-        this.caseInfoPanel = document.getElementById('case-info');
-        this.inventoryPanel = document.getElementById('inventory-panel');
-        
-        // Initialize game state
-        this.inventory = new Set();
-        this.activeCommand = null;
-        
-        // Initialize animation and rendering properties
-        this.animations = new Map();
+        this.initialized = false;
+        this.spriteCache = new Map();
+        this.colorCache = new Map();
         this.ambientAnimations = {
             coffeeSteam: { active: false, x: 0, y: 0 },
             typingNPC: { active: false, x: 0, y: 0 }
         };
-        this.animationFrame = 0;
         
-        // Initialize game world properties
-        this.npcs = {};
+        // Set floor level constraints
         this.floorLevel = {
             min: 300,
-            max: 400
-        };
-        this.collisionObjects = [];
-        this.roomBoundaries = {
-            policeStation: {
-                walls: [{ x: 0, y: 0, width: 800, height: 300 }],
-                doors: []
-            }
+            max: 450
         };
         
-        // Initialize performance caches
-        this.colorCache = new Map();
-        this.spriteCache = new Map();
-
-        // Initialize if document is ready, otherwise wait
+        // Initialize game state
+        this.playerPosition = { x: 400, y: this.floorLevel.min + 50 };
+        this.playerFacing = 'down';
+        this.playerWalkCycle = 0;
+        this.isWalking = false;
+        this.walkTarget = null;
+        
+        // Animation frame counter
+        this.animationFrame = 0;
+        
+        // Initialize immediately if document is ready
         if (document.readyState === 'complete') {
             this.init();
         } else {
-            document.addEventListener('DOMContentLoaded', () => this.init());
+            window.addEventListener('DOMContentLoaded', () => this.init());
         }
     }
 
     init() {
-        console.log('Initializing game engine...');
-        
-        // Initialize canvas
-        this.canvas = document.getElementById('gameCanvas');
-        if (!this.canvas) {
-            console.error('Canvas element not found!');
-            return;
+        try {
+            if (this.initialized) return;
+            console.log('Initializing game engine...');
+            
+            // Setup core components
+            this.setupCanvas();
+            this.setupBufferCanvas();
+            this.colors = this.setupColorPalette();
+            this.setupEventListeners();
+            
+            // Set initial game state
+            this.keyboardEnabled = true;
+            this.isRunning = true;
+            this.lastFrameTime = performance.now();
+            this.accumulator = 0;
+            this.frameInterval = 1000 / 60;
+            
+            this.initialized = true;
+            console.log('Game engine initialized successfully');
+            
+            // Load initial scene and start game loop
+            this.loadScene(this.currentScene);
+            this.startGameLoop();
+            
+            // Dispatch initialization event
+            document.dispatchEvent(new Event('gameEngineInitialized'));
+        } catch (error) {
+            console.error('Failed to initialize game engine:', error);
+            throw error;
         }
-        
-        // Get main context
-        this.ctx = this.canvas.getContext('2d', { alpha: false });
-        if (!this.ctx) {
-            console.error('Could not get canvas context!');
-            return;
-        }
-
-        // Setup core engine components
-        this.setupCanvas();
-        this.setupBufferCanvas();
-        this.setupColorPalette();
-        this.setupEventListeners();
-        
-        // Initialize game state
-        this.keyboardEnabled = true;
-        this.isRendering = false;
-        this.lastFrameTime = 0;
-        this.playerPosition = { x: 400, y: 350 };
-        this.isWalking = false;
-        this.walkTarget = null;
-        this.animationFrame = 0;
-        this.colors = this.setupColorPalette();
-        
-        // Clear all canvases
-        this.clear();
-        
-        // Initialize current scene
-        this.currentScene = this.currentScene || 'policeStation';
-        console.log('Loading initial scene:', this.currentScene);
-        
-        // Load initial scene and start game loop
-        this.loadScene(this.currentScene);
-        this.startGameLoop();
-        
-        // Set as global instance
-        window.gameEngine = this;
-        
-        // Dispatch initialization event
-        const event = new Event('gameEngineInitialized');
-        document.dispatchEvent(event);
-        
-        console.log('Game engine initialized successfully');
     }
 
     setupCanvas() {
