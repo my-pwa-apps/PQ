@@ -1316,13 +1316,13 @@ class GameEngine {
             
             console.log(`Loading scene: ${sceneId}`);
             // Update current scene
-            this.currentScene = sceneId;
+            this.currentScene = sceneId || 'policeStation'; // Default to policeStation if no sceneId provided
             
             // Reset collision objects for new scene
             this.collisionObjects = [];
             
             // Reset player position based on scene, ensuring they're on the floor
-            switch(sceneId) {
+            switch(this.currentScene) {
                 case 'policeStation':
                     this.playerPosition = { x: 400, y: this.floorLevel.min + 100 };
                     break;
@@ -1342,33 +1342,35 @@ class GameEngine {
                     this.playerPosition = { x: 400, y: this.floorLevel.min + 100 };
                     break;
                 default:
-                    console.warn('Unknown scene:', sceneId);
+                    console.log('Unknown scene, defaulting to policeStation:', this.currentScene);
+                    this.currentScene = 'policeStation';
                     this.playerPosition = { x: 400, y: this.floorLevel.min + 100 };
             }
             
             // Setup ambient animations for new scene
-            this.setupAmbientAnimations(sceneId);
+            this.setupAmbientAnimations(this.currentScene);
             
             // Reset walking state
             this.isWalking = false;
             this.walkTarget = null;
             
             // Update NPCs for the new scene
-            this.updateNPCsForScene(sceneId);
+            this.updateNPCsForScene(this.currentScene);
             
             // Draw the new scene
             this.drawCurrentScene();
             
-            // Start new background music
-            this.startBackgroundMusic();
-            
-            console.log(`Scene loaded: ${sceneId}`);
+            console.log(`Scene loaded: ${this.currentScene}`);
             
             // Update collision objects for this scene
             this.updateCollisionObjects();
         } catch (error) {
             console.error("Error loading scene:", error);
+            console.error("Stack trace:", error.stack);
             this.showDialog("Error loading scene. Please try again.");
+            // Fallback to police station
+            this.currentScene = 'policeStation';
+            this.drawPoliceStation();
         }
     }
     
