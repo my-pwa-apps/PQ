@@ -465,8 +465,12 @@ class Game {
         // Sprite cache
         this.spriteCache = new Map();
         
-        // Grid configuration
-        this.gridSize = 64; // Size of each grid cell
+        // Grid configuration - properly initialize the grid object
+        this.grid = {
+            cellSize: 32,
+            cells: new Map(),
+            dirty: true
+        };
         
         // Fix ObjectPool initialization
         this.objectPool = new ObjectPool(() => ({
@@ -475,6 +479,9 @@ class Game {
             type: 'default',
             active: false
         }));
+
+        // Initialize game objects array
+        this.gameObjects = [];
         
         // Object pooling
         this.objectPools = new Map();
@@ -549,7 +556,19 @@ class Game {
     }
 
     initializeGrid() {
-        this.grid.cells.clear();
+        // Make sure grid and cells exist before trying to use them
+        if (!this.grid) {
+            this.grid = {
+                cellSize: 32,
+                cells: new Map(),
+                dirty: true
+            };
+        }
+        
+        if (this.grid.cells) {
+            this.grid.cells.clear();
+        }
+        
         this.updateSpatialGrid();
     }
 
