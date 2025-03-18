@@ -7,8 +7,8 @@
     
     <!-- Preload critical assets -->
     <link rel="preload" href="css/style.css" as="style">
-    <link rel="preload" href="js/game.js" as="script">
     <link rel="preload" href="js/engine.js" as="script">
+    <link rel="preload" href="js/game.js" as="script">
     <link rel="preload" href="js/soundManager.js" as="script">
     
     <!-- Styles -->
@@ -21,10 +21,10 @@
             <div id="game-title">Police Quest</div>
             
             <!-- Main game canvas with performance attributes -->
-            <canvas id="gameCanvas" width="800" height="450"></canvas>
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
             
             <!-- Case information panel -->
-            <div id="case-info" class="gpu-accelerated"></div>
+            <div id="case-info" class="hidden"></div>
             
             <!-- Controls guide -->
             <div id="controls-guide">
@@ -44,15 +44,15 @@
             
             <!-- Dialog and inventory container -->
             <div id="interaction-container">
-                <div id="dialog-box" class="gpu-accelerated"></div>
-                <div id="inventory-panel" class="gpu-accelerated"></div>
+                <div id="dialog-box" class="hidden"></div>
+                <div id="inventory-panel" class="hidden"></div>
             </div>
         </div>
     </div>
     
     <!-- Load scripts in correct dependency order -->
     <script src="js/soundManager.js" defer></script>
-    <script src="js/game.js" defer></script>
     <script src="js/engine.js" defer></script>
+    <script src="js/game.js" defer></script>
 </body>
 </html>

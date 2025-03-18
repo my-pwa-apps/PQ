@@ -13,13 +13,15 @@ class GameEngine {
         this.caseInfoPanel = document.getElementById('case-info');
         this.inventoryPanel = document.getElementById('inventory-panel');
         
-        // Initialize canvas immediately if document is ready
-        if (document.readyState === 'complete') {
-            this.init();
-        } else {
-            // Otherwise wait for DOMContentLoaded
-            document.addEventListener('DOMContentLoaded', () => this.init());
-        }
+        // Initialize animations map
+        this.animations = new Map();
+        this.ambientAnimations = {
+            coffeeSteam: { active: false, x: 0, y: 0 },
+            typingNPC: { active: false, x: 0, y: 0 }
+        };
+        
+        // Initialize NPCs
+        this.npcs = {};
         
         // Initialize floor levels
         this.floorLevel = {
@@ -27,15 +29,25 @@ class GameEngine {
             max: 400
         };
 
-        // Initialize collision objects
+        // Initialize collision objects and room boundaries
         this.collisionObjects = [];
         this.roomBoundaries = {
             policeStation: {
-                walls: [
-                    { x: 0, y: 0, width: 800, height: 300 }
-                ]
+                walls: [{ x: 0, y: 0, width: 800, height: 300 }],
+                doors: []
             }
         };
+
+        // Color cache for performance
+        this.colorCache = new Map();
+        this.spriteCache = new Map();
+
+        // Initialize if document is ready, otherwise wait
+        if (document.readyState === 'complete') {
+            this.init();
+        } else {
+            document.addEventListener('DOMContentLoaded', () => this.init());
+        }
     }
 
     init() {
@@ -68,25 +80,26 @@ class GameEngine {
         this.playerPosition = { x: 400, y: 350 };
         this.isWalking = false;
         this.walkTarget = null;
+        this.animationFrame = 0;
         
         // Clear all canvases
         this.clear();
         
-        // Set as global instance
-        window.gameEngine = this;
-        
-        // Load initial scene
+        // Load initial scene before starting game loop
         console.log('Loading initial scene:', this.currentScene);
         this.loadScene(this.currentScene);
+        
+        // Start the game loop
+        this.startGameLoop();
+        
+        // Set as global instance
+        window.gameEngine = this;
         
         // Dispatch initialization event
         const event = new Event('gameEngineInitialized');
         document.dispatchEvent(event);
         
         console.log('Game engine initialized successfully');
-        
-        // Start the game loop
-        this.startGameLoop();
     }
 
     setupCanvas() {
@@ -1427,7 +1440,9 @@ class GameEngine {
     loadScene(sceneId) {
         try {
             // Stop current background music
-            this.stopBackgroundMusic();
+            if (window.soundManager) {
+                this.stopBackgroundMusic();
+            }
             
             console.log(`Loading scene: ${sceneId}`);
             // Update current scene
@@ -1437,31 +1452,8 @@ class GameEngine {
             this.collisionObjects = [];
             
             // Reset player position based on scene
-            const defaultY = this.floorLevel.min + 100;
-            switch(this.currentScene) {
-                case 'policeStation':
-                    this.playerPosition = { x: 400, y: defaultY };
-                    break;
-                case 'downtown':
-                    this.playerPosition = { x: 400, y: defaultY };
-                    break;
-                case 'park':
-                    this.playerPosition = { x: 400, y: defaultY };
-                    break;
-                case 'sheriffsOffice':
-                    this.playerPosition = { x: 200, y: defaultY };
-                    break;
-                case 'briefingRoom':
-                    this.playerPosition = { x: 200, y: defaultY };
-                    break;
-                case 'officeArea':
-                    this.playerPosition = { x: 400, y: defaultY };
-                    break;
-                default:
-                    console.log('Unknown scene, defaulting to policeStation:', this.currentScene);
-                    this.currentScene = 'policeStation';
-                    this.playerPosition = { x: 400, y: defaultY };
-            }
+            const defaultY = this.floorLevel.min + 50;
+            this.playerPosition = { x: 400, y: defaultY };
             
             // Setup scene components
             this.setupAmbientAnimations(this.currentScene);
@@ -1472,7 +1464,7 @@ class GameEngine {
             this.isWalking = false;
             this.walkTarget = null;
             
-            // Draw the new scene
+            // Draw the new scene immediately
             this.drawCurrentScene();
             
             // Start scene music

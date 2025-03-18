@@ -470,7 +470,25 @@ class Game {
     }
 }
 
-// Start the game when the document is ready
+// Initialize game when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    window.game = new Game();
+    console.log('DOM Content loaded, initializing game...');
+    
+    // Initialize sound manager first
+    window.soundManager = new SoundManager();
+    
+    // Initialize game engine
+    window.gameEngine = new GameEngine();
+    
+    // Listen for engine initialization
+    document.addEventListener('gameEngineInitialized', () => {
+        console.log('Game engine initialized, starting game...');
+        // Any additional game startup logic can go here
+    });
 });
+
+// Error handling
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    console.error('Error: ' + msg + '\nURL: ' + url + '\nLine: ' + lineNo + '\nColumn: ' + columnNo + '\nError object: ' + JSON.stringify(error));
+    return false;
+};
