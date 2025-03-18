@@ -1,5 +1,12 @@
 class SoundManager {
     constructor() {
+        if (!window.AudioContext && !window.webkitAudioContext) {
+            console.warn('WebAudio API is not supported in this browser. Game will continue without sound.');
+            this.audioSupported = false;
+            return;
+        }
+        this.audioSupported = true;
+
         this.context = new (window.AudioContext || window.webkitAudioContext)();
         this.sounds = new Map();
         this.buffers = new Map();
@@ -22,15 +29,19 @@ class SoundManager {
         this.backgroundMusicGain.connect(this.masterGain);
         this.backgroundMusicGain.gain.value = 0.3; // Lower volume for background music
 
-        // Load default background music
-        this.loadSound('station_theme', 'audio/station_theme.mp3');
+        // Load default background music - use relative path
+        this.loadSound('station_theme', './audio/station_theme.mp3');
     }
 
     async loadSound(id, url) {
+        if (!this.audioSupported) return;
         if (this.buffers.has(id)) return;
 
         try {
             const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const arrayBuffer = await response.arrayBuffer();
             const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
             this.buffers.set(id, audioBuffer);
@@ -40,6 +51,7 @@ class SoundManager {
     }
 
     play(id, volume = 1.0, loop = false) {
+        if (!this.audioSupported) return null;
         const buffer = this.buffers.get(id);
         if (!buffer) return null;
 
@@ -82,25 +94,32 @@ class SoundManager {
         return source;
     }
 
-    playBackgroundMusic(id = 'station_theme') {
-        if (!id || !this.sounds.has(id)) {
-            console.warn(`Background music '${id}' not found`);
-            return null;
+    async playBackgroundMusic(id = 'station_theme') {
+        if (!this.audioSupported) return null;
+        // First ensure the sound is loaded
+        if (!this.buffers.has(id)) {
+            console.warn(`Background music '${id}' not found, attempting to load...`);
+            await this.loadSound(id, `./audio/${id}.mp3`);
+            if (!this.buffers.has(id)) {
+                console.error(`Failed to load background music '${id}'`);
+                return null;
+            }
         }
 
         if (this.currentBackgroundMusic) {
             this.stopBackgroundMusic();
         }
 
-        const sound = this.sounds.get(id);
-        sound.volume = this.backgroundMusicVolume;
-        sound.loop = true;
-        sound.play();
-        this.currentBackgroundMusic = sound;
-        return sound;
+        // Create and play the background music
+        const source = this.play(id, this.backgroundMusicVolume, true);
+        if (source) {
+            this.currentBackgroundMusic = source;
+        }
+        return source;
     }
 
     stopBackgroundMusic() {
+        if (!this.audioSupported) return;
         if (this.currentBackgroundMusic) {
             this.currentBackgroundMusic.stop();
             this.currentBackgroundMusic = null;
@@ -108,6 +127,7 @@ class SoundManager {
     }
 
     stop(source) {
+        if (!this.audioSupported) return;
         if (source && this.sounds.has(source)) {
             const { gainNode } = this.sounds.get(source);
             
@@ -126,6 +146,7 @@ class SoundManager {
     }
 
     stopAll() {
+        if (!this.audioSupported) return;
         this.stopBackgroundMusic();
         for (const [source] of this.sounds) {
             this.stop(source);
@@ -133,10 +154,12 @@ class SoundManager {
     }
 
     setMasterVolume(volume) {
+        if (!this.audioSupported) return;
         this.masterGain.gain.value = Math.max(0, Math.min(1, volume));
     }
 
     setVolume(source, volume) {
+        if (!this.audioSupported) return;
         if (source && this.sounds.has(source)) {
             const { gainNode } = this.sounds.get(source);
             gainNode.gain.value = Math.max(0, Math.min(1, volume));
@@ -144,16 +167,19 @@ class SoundManager {
     }
 
     setBackgroundMusicVolume(volume) {
+        if (!this.audioSupported) return;
         this.backgroundMusicGain.gain.value = Math.max(0, Math.min(1, volume));
     }
 
     resume() {
+        if (!this.audioSupported) return;
         if (this.context.state === 'suspended') {
             this.context.resume();
         }
     }
 
     initMobileAudio() {
+        if (!this.audioSupported) return;
         // Create empty buffer and play it to unlock audio on mobile
         const buffer = this.context.createBuffer(1, 1, 22050);
         const source = this.context.createBufferSource();
@@ -164,14 +190,18 @@ class SoundManager {
         // Resume audio context on user interaction
         const resumeAudio = () => {
             if (this.context.state === 'suspended') {
-                this.context.resume();
+                this.context.resume().then(() => {
+                    console.log('AudioContext resumed successfully');
+                });
             }
             document.removeEventListener('touchstart', resumeAudio);
             document.removeEventListener('click', resumeAudio);
+            document.removeEventListener('keydown', resumeAudio);
         };
         
         document.addEventListener('touchstart', resumeAudio);
         document.addEventListener('click', resumeAudio);
+        document.addEventListener('keydown', resumeAudio);
     }
 }
 
