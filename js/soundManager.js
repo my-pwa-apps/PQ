@@ -5,9 +5,11 @@ class SoundManager {
         this.currentMusic = null;
         this.isMuted = false;
         this.initialized = false;
+        // Create the initialization promise
+        this.initPromise = Promise.resolve();
     }
 
-    initialize() {
+    async initialize() {
         if (!this.initialized) {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             this.initialized = true;
@@ -100,17 +102,23 @@ class SoundManager {
             this.initialize();
         }
     }
+
+    // Initialize audio specifically for mobile
+    async initMobileAudio() {
+        if (this.audioContext?.state === 'suspended') {
+            await this.audioContext.resume();
+        }
+    }
 }
 
 // Initialize sound manager
 window.soundManager = new SoundManager();
 
 // Initialize when document is ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const manager = window.soundManager;
-    manager.initPromise.then(() => {
-        manager.initMobileAudio();
-    });
+    await manager.initialize();
+    await manager.initMobileAudio();
 });
 
 // Add event listeners for user interaction
