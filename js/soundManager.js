@@ -12,12 +12,11 @@ class SoundManager {
         this.buffers = new Map();
         this.gainNodes = new Map();
         this.lastPlayTime = new Map();
+        this.activeGenerators = new Map(); // For tracking active procedural sounds
         this.backgroundMusic = null;
         this.currentBackgroundMusic = null;
-        this.backgroundMusicVolume = 0.3; // Default background music volume
+        this.backgroundMusicVolume = 0.3;
         this.initialized = false;
-        
-        // Add rate limiting to prevent sound spam
         this.playbackThrottle = 50; // ms between same sound replay
         
         // Master volume control
@@ -27,31 +26,128 @@ class SoundManager {
         // Background music volume control
         this.backgroundMusicGain = this.context.createGain();
         this.backgroundMusicGain.connect(this.masterGain);
-        this.backgroundMusicGain.gain.value = 0.3; // Lower volume for background music
-
-        // Load default background music - use relative path
-        this.loadSound('station_theme', './audio/station_theme.mp3');
+        this.backgroundMusicGain.gain.value = 0.3;
+        
+        // Generate default procedural sounds
+        this.generateSilentBuffer();
     }
 
+    // Generate a silent buffer for fallbacks
+    generateSilentBuffer() {
+        const sampleRate = this.context.sampleRate;
+        const buffer = this.context.createBuffer(2, sampleRate * 2, sampleRate);
+        this.buffers.set('silent', buffer);
+    }
+
+    // Generate music procedurally based on the provided ID
+    generateMusic(id) {
+        const sampleRate = this.context.sampleRate;
+        const duration = 5; // 5 seconds of audio
+        const buffer = this.context.createBuffer(2, sampleRate * duration, sampleRate);
+        
+        // Generate audio data based on the id
+        switch(id) {
+            case 'station_theme':
+                this.generateStationTheme(buffer);
+                break;
+            default:
+                this.generateDefaultTheme(buffer, id);
+                break;
+        }
+        
+        return buffer;
+    }
+    
+    // Generate police station theme
+    generateStationTheme(buffer) {
+        const leftChannel = buffer.getChannelData(0);
+        const rightChannel = buffer.getChannelData(1);
+        const sampleRate = this.context.sampleRate;
+        
+        // Simple ambient police station sounds (low hum and occasional beeps)
+        const baseFreq = 120; // Base frequency for the hum
+        
+        for (let i = 0; i < buffer.length; i++) {
+            // Create a low ambient hum
+            const time = i / sampleRate;
+            const hum = Math.sin(2 * Math.PI * baseFreq * time) * 0.1;
+            
+            // Add some random beeps every second
+            const beep = (time % 1.0 > 0.95) ? 
+                Math.sin(2 * Math.PI * 880 * time) * 0.05 * ((time % 1.0 - 0.95) * 20) : 
+                0;
+                
+            // Add subtle white noise for ambience
+            const noise = (Math.random() * 2 - 1) * 0.02;
+            
+            leftChannel[i] = hum + beep + noise;
+            rightChannel[i] = hum + beep + noise;
+        }
+    }
+    
+    // Generate a default theme based on the ID string
+    generateDefaultTheme(buffer, id) {
+        const leftChannel = buffer.getChannelData(0);
+        const rightChannel = buffer.getChannelData(1);
+        const sampleRate = this.context.sampleRate;
+        
+        // Use the ID string to seed a pseudo-random melody
+        let seed = 0;
+        for (let i = 0; i < id.length; i++) {
+            seed += id.charCodeAt(i);
+        }
+        
+        // Generate base frequency from the seed
+        const baseFreq = 100 + (seed % 200);
+        
+        // Create a simple melody based on the seed
+        for (let i = 0; i < buffer.length; i++) {
+            const time = i / sampleRate;
+            const period = Math.floor(time * 2) % 8;
+            
+            // Change notes based on the period
+            const noteFreq = baseFreq * [1, 1.2, 1.5, 0.8, 1, 1.2, 1.8, 1.5][period];
+            
+            // Create a tone with gentle fade in/out
+            const envelope = 0.1 + 0.1 * Math.sin(Math.PI * (time % 0.5) / 0.5);
+            const tone = Math.sin(2 * Math.PI * noteFreq * time) * envelope;
+            
+            // Add subtle noise
+            const noise = (Math.random() * 2 - 1) * 0.02;
+            
+            leftChannel[i] = tone + noise;
+            rightChannel[i] = tone + noise;
+        }
+    }
+
+    // Load a pre-recorded sound (keeping for compatibility)
     async loadSound(id, url) {
         if (!this.audioSupported) return;
         if (this.buffers.has(id)) return;
 
         try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const arrayBuffer = await response.arrayBuffer();
-            const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
-            this.buffers.set(id, audioBuffer);
+            // Instead of loading from URL, generate procedurally
+            console.log(`Generating procedural sound for ${id}`);
+            const buffer = this.generateMusic(id);
+            this.buffers.set(id, buffer);
         } catch (error) {
-            console.error(`Error loading sound ${id}:`, error);
+            console.error(`Error generating sound ${id}:`, error);
+            // Fallback to silent buffer
+            if (!this.buffers.has('silent')) {
+                this.generateSilentBuffer();
+            }
+            this.buffers.set(id, this.buffers.get('silent'));
         }
     }
 
     play(id, volume = 1.0, loop = false) {
         if (!this.audioSupported) return null;
+        
+        // If the sound doesn't exist yet, generate it
+        if (!this.buffers.has(id)) {
+            this.loadSound(id);
+        }
+        
         const buffer = this.buffers.get(id);
         if (!buffer) return null;
 
@@ -87,8 +183,10 @@ class SoundManager {
         
         // Cleanup when finished
         source.onended = () => {
-            this.sounds.delete(source);
-            gainNode.disconnect();
+            if (!source.loop) { // Only remove if not looping
+                this.sounds.delete(source);
+                gainNode.disconnect();
+            }
         };
 
         return source;
@@ -96,16 +194,18 @@ class SoundManager {
 
     async playBackgroundMusic(id = 'station_theme') {
         if (!this.audioSupported) return null;
-        // First ensure the sound is loaded
+        
+        // Ensure the sound is generated
         if (!this.buffers.has(id)) {
-            console.warn(`Background music '${id}' not found, attempting to load...`);
-            await this.loadSound(id, `./audio/${id}.mp3`);
+            console.log(`Generating background music '${id}'...`);
+            this.loadSound(id);
             if (!this.buffers.has(id)) {
-                console.error(`Failed to load background music '${id}'`);
+                console.error(`Failed to generate background music '${id}'`);
                 return null;
             }
         }
 
+        // Stop any current background music
         if (this.currentBackgroundMusic) {
             this.stopBackgroundMusic();
         }
@@ -180,13 +280,6 @@ class SoundManager {
 
     initMobileAudio() {
         if (!this.audioSupported) return;
-        // Create empty buffer and play it to unlock audio on mobile
-        const buffer = this.context.createBuffer(1, 1, 22050);
-        const source = this.context.createBufferSource();
-        source.buffer = buffer;
-        source.connect(this.context.destination);
-        source.start(0);
-        
         // Resume audio context on user interaction
         const resumeAudio = () => {
             if (this.context.state === 'suspended') {
