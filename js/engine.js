@@ -390,20 +390,20 @@ class GameEngine {
             // Draw ambient animations
             this.drawAmbientAnimations();
             
-            // Draw NPCs for current scene
-            if (this.npcs[this.currentScene]) {
+            // Draw NPCs for current scene - FIXED: ensure all NPCs are rendered
+            if (this.npcs && this.npcs[this.currentScene]) {
                 this.npcs[this.currentScene].forEach(npc => {
                     // Position NPCs properly on floor
                     const yPosition = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
                     
                     this.drawPixelCharacter(
                         npc.x, yPosition, 
-                        npc.type === 'sergeant' ? this.colors.brightBlue : 
-                        npc.type === 'detective' ? this.colors.red : this.colors.blue,
+                        npc.type === 'sergeant' ? this.colors.brightBlue : this.colors.blue,
                         this.colors.yellow,
-                        npc.facing,
-                        true,
-                        true
+                        npc.facing || 'down',
+                        false, // Set to false to stop constant walking animation
+                        true,  // Indicate this is an NPC
+                        npc.isFemale // Pass the isFemale flag for the receptionist
                     );
                 });
             }
@@ -1644,6 +1644,21 @@ class GameEngine {
         ctx.lineTo(x + width, y + 20);
         ctx.closePath();
         ctx.fill();
+        
+        // Add desk poles at four corners
+        ctx.fillStyle = this.adjustColor(this.colors.brown, -50);
+        
+        // Left front pole
+        ctx.fillRect(x - 20, y + height + 20, 10, this.floorLevel.max - (y + height + 20));
+        
+        // Right front pole
+        ctx.fillRect(x + width - 30, y + height + 20, 10, this.floorLevel.max - (y + height + 20));
+        
+        // Left back pole (with perspective)
+        ctx.fillRect(x, y + height, 10, this.floorLevel.max - (y + height));
+        
+        // Right back pole (with perspective)
+        ctx.fillRect(x + width - 20, y + height, 10, this.floorLevel.max - (y + height));
     }
 
     drawDoor = (x, y, direction, label) => {
@@ -1735,26 +1750,32 @@ class GameEngine {
     drawDeskItems = (x, y, width, height, ctx) => {
         ctx = ctx || this.ctx;
         
-        // Computer monitor
+        // Computer monitor - fixed position
         ctx.fillStyle = '#333333';
         ctx.fillRect(x + width/2 - 20, y - 30, 40, 30);
         ctx.fillStyle = '#00AAAA';
         ctx.fillRect(x + width/2 - 17, y - 27, 34, 24);
         
-        // Keyboard
+        // Keyboard - fixed position
         ctx.fillStyle = '#666666';
         ctx.fillRect(x + width/2 - 25, y - 5, 50, 15);
         
-        // Phone
+        // Phone - fixed position
         ctx.fillStyle = '#222222';
         ctx.fillRect(x + 20, y + 20, 30, 15);
         ctx.fillStyle = '#333333';
         ctx.fillRect(x + 25, y + 5, 20, 15);
         
-        // Papers
+        // Papers - fixed position (no animation)
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(x + 100, y + 15, 30, 20);
         ctx.fillRect(x + 105, y + 10, 30, 20);
+        
+        // Computer screen content (static)
+        ctx.fillStyle = '#AAFFAA';
+        ctx.fillRect(x + width/2 - 15, y - 25, 30, 5);
+        ctx.fillRect(x + width/2 - 15, y - 18, 30, 3);
+        ctx.fillRect(x + width/2 - 15, y - 13, 20, 3);
     }
     
     drawWallDecorations = (ctx) => {
