@@ -136,11 +136,15 @@ class GameEngine {
         
         // Start game loop
         this.running = true;
-        requestAnimationFrame(this.gameLoop.bind(this));
-
-        // Initialize the engine
-        this.init();
         this.gameObjects = [];  // Ensure gameObjects is initialized as an array
+
+        // Wait for DOM content to be fully loaded before initializing
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.init());
+        } else {
+            // DOM already loaded, initialize immediately
+            this.init();
+        }
     }
 
     setupCanvas() {
@@ -184,11 +188,13 @@ class GameEngine {
     }
 
     init() {
+        console.log('Initializing game engine...');
         // Remove game.init() call since initialization happens in constructor
         this.canvas.style.cursor = 'default'; // Ensure cursor is visible
         this.setupEventListeners();
         
         // Explicitly load the current scene
+        console.log('Loading initial scene:', this.currentScene);
         this.loadScene(this.currentScene);
         
         this.keyboardEnabled = true;
@@ -197,6 +203,14 @@ class GameEngine {
         if (window.soundManager) {
             this.startBackgroundMusic();
         }
+        
+        // Ensure scene is drawn immediately
+        this.drawCurrentScene();
+        
+        console.log('Game engine initialized successfully');
+        
+        // Start the game loop
+        requestAnimationFrame(this.gameLoop.bind(this));
     }
 
     startGameLoop() {
@@ -1349,6 +1363,9 @@ class GameEngine {
             this.startBackgroundMusic();
             
             console.log(`Scene loaded: ${sceneId}`);
+            
+            // Update collision objects for this scene
+            this.updateCollisionObjects();
         } catch (error) {
             console.error("Error loading scene:", error);
             this.showDialog("Error loading scene. Please try again.");
@@ -2062,25 +2079,10 @@ class GameEngine {
     }
 }
 
-// Initialize engine after DOM is loaded and ensure global reference
-window.engine = new GameEngine();
-window.addEventListener('DOMContentLoaded', () => {
-    try {
-        // Initialize game engine
-        window.engine.init();
-
-        // Ensure sound manager is ready
-        if (window.soundManager) {
-            // Try to resume audio context (needed for some browsers)
-            if (window.soundManager.audioContext && 
-                window.soundManager.audioContext.state === 'suspended') {
-                window.soundManager.audioContext.resume();
-            }
-        }
-
-        // Start initial scene
-        window.engine.loadScene('policeStation');
-    } catch (error) {
-        console.error('Error during game initialization:', error);
+// Make sure to only initialize the engine after DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if engine instance already exists to avoid duplicate initialization
+    if (!window.engine) {
+        window.engine = new GameEngine();
     }
 });
