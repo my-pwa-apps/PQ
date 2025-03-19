@@ -2539,6 +2539,177 @@ class GameEngine {
         ctx.fillStyle = vGradient;
         ctx.fillRect(x, y, width, height);
     };
+
+    drawBulletinNotices = (x, y, width, height, ctx) => {
+        ctx = ctx || this.ctx;
+        const notices = [
+            { title: "WANTED", color: "#FF9999" },
+            { title: "MISSING", color: "#99FF99" },
+            { title: "NOTICE", color: "#FFFFFF" },
+            { title: "APB", color: "#FFFF99" }
+        ];
+
+        // Draw multiple notices on the bulletin board
+        notices.forEach((notice, i) => {
+            const noticeWidth = 45;
+            const noticeHeight = 30;
+            const margin = 5;
+            const xPos = x + (i % 2) * (noticeWidth + margin);
+            const yPos = y + Math.floor(i / 2) * (noticeHeight + margin);
+
+            // Notice paper background
+            ctx.fillStyle = notice.color;
+            ctx.fillRect(xPos, yPos, noticeWidth, noticeHeight);
+
+            // Notice text
+            ctx.fillStyle = '#000000';
+            ctx.font = '8px monospace';
+            ctx.fillText(notice.title, xPos + 5, yPos + 15);
+            
+            // Add some "text" lines
+            ctx.fillStyle = '#666666';
+            for (let j = 0; j < 2; j++) {
+                ctx.fillRect(xPos + 5, yPos + 20 + j * 4, 35, 1);
+            }
+        });
+    };
+
+    draw3DDesk = (x, y, width, height, ctx) => {
+        ctx = ctx || this.ctx;
+        
+        // Desk top
+        ctx.fillStyle = '#8B4513'; // Wood brown
+        ctx.fillRect(x, y, width, height);
+        
+        // Desk front panel with shadow
+        ctx.fillStyle = '#734A29'; // Darker brown
+        ctx.fillRect(x, y + height, width, 10);
+        
+        // Left leg
+        ctx.fillStyle = '#5C3A1F'; // Even darker brown
+        ctx.fillRect(x + 10, y + height + 10, 20, 30);
+        
+        // Right leg
+        ctx.fillRect(x + width - 30, y + height + 10, 20, 30);
+        
+        // Add wood grain texture
+        const gradient = ctx.createLinearGradient(x, y, x + width, y);
+        gradient.addColorStop(0, 'rgba(139, 69, 19, 0)');
+        gradient.addColorStop(0.5, 'rgba(139, 69, 19, 0.1)');
+        gradient.addColorStop(1, 'rgba(139, 69, 19, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, y, width, height);
+    };
+
+    drawDeskItems = (x, y, width, height, ctx) => {
+        ctx = ctx || this.ctx;
+        
+        // Computer monitor
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(x + width - 60, y - 30, 40, 30);
+        ctx.fillStyle = '#66CCFF';
+        ctx.fillRect(x + width - 55, y - 25, 30, 20);
+        
+        // Keyboard
+        ctx.fillStyle = '#111111';
+        ctx.fillRect(x + width - 50, y + 5, 25, 10);
+        
+        // Papers/files
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(x + 20, y + 10, 30, 25);
+        ctx.fillRect(x + 25, y + 5, 30, 25);
+        
+        // Coffee mug
+        ctx.fillStyle = '#CC6600';
+        ctx.fillRect(x + width - 90, y + 15, 10, 12);
+    };
+
+    drawDoorWithFrame = (x, y, facing, label, ctx) => {
+        ctx = ctx || this.ctx;
+        
+        // Door frame
+        ctx.fillStyle = '#4A4A4A';
+        ctx.fillRect(x - 5, y, 70, 120);
+        
+        // Door
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(x, y + 5, 60, 110);
+        
+        // Door handle
+        ctx.fillStyle = '#FFD700';
+        if (facing === 'left') {
+            ctx.fillRect(x + 45, y + 60, 10, 10);
+        } else {
+            ctx.fillRect(x + 5, y + 60, 10, 10);
+        }
+        
+        // Door label
+        if (label) {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '12px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, x + 30, y - 10);
+            ctx.textAlign = 'left'; // Reset to default
+        }
+    };
+
+    drawWallDecorations = (ctx) => {
+        ctx = ctx || this.ctx;
+        const colors = this.colors;
+        
+        // Police department seal
+        ctx.fillStyle = colors.darkBlue;
+        ctx.beginPath();
+        ctx.arc(200, 100, 40, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = colors.yellow;
+        ctx.beginPath();
+        ctx.arc(200, 100, 30, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Wall clock
+        ctx.fillStyle = colors.white;
+        ctx.beginPath();
+        ctx.arc(600, 50, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = colors.black;
+        ctx.lineWidth = 2;
+        
+        // Clock hands
+        const time = new Date();
+        const hours = time.getHours() % 12;
+        const minutes = time.getMinutes();
+        
+        // Hour hand
+        ctx.save();
+        ctx.translate(600, 50);
+        ctx.rotate(hours * (Math.PI/6) + minutes * (Math.PI/360));
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -10);
+        ctx.stroke();
+        ctx.restore();
+        
+        // Minute hand
+        ctx.save();
+        ctx.translate(600, 50);
+        ctx.rotate(minutes * (Math.PI/30));
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -15);
+        ctx.stroke();
+        ctx.restore();
+        
+        // Motivational poster
+        ctx.fillStyle = colors.black;
+        ctx.fillRect(300, 50, 100, 80);
+        ctx.fillStyle = colors.white;
+        ctx.fillRect(305, 55, 90, 70);
+        ctx.font = '10px monospace';
+        ctx.fillStyle = colors.black;
+        ctx.fillText("JUSTICE", 325, 90);
+        ctx.fillText("SERVES ALL", 320, 105);
+    };
 }
 
 // Make GameEngine available in the global scope
