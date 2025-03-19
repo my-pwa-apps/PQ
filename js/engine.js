@@ -22,6 +22,11 @@ class GameEngine {
             typingNPC: { active: false, x: 0, y: 0 }
         };
         
+        // Initialize npcs with an empty object to prevent undefined errors
+        this.npcs = {};
+        this.roomBoundaries = {};
+        this.collisionObjects = [];
+        
         // Set floor level constraints
         this.floorLevel = {
             min: 300,
@@ -1408,7 +1413,19 @@ class GameEngine {
 
     showDialog = (text) => {
         if (!text) return;
-        this.dialogBox.innerText = text;
+        
+        // Find dialog box if not already cached
+        if (!this.dialogBox) {
+            this.dialogBox = document.getElementById('dialogBox');
+        }
+        
+        // If dialog box is found, set the text
+        if (this.dialogBox) {
+            this.dialogBox.innerText = text;
+        } else {
+            // Fallback to console if no dialog box element exists
+            console.log(`Dialog: ${text}`);
+        }
     };
 
     loadScene = (sceneId) => {
