@@ -1034,7 +1034,7 @@ class GameEngine {
         }
     };
 
-    drawPixelCharacter = (x, y, bodyColor, hairColor, facing = 'down', walking = false, isNPC = false, isFemale = false) => {
+    drawPixelCharacter = (x, y, bodyColor, badgeColor = '#FFD700', facing = 'down', walking = false, isNPC = false, isFemale = false) => {
         const ctx = this.offscreenCtx || this.ctx;
         const frame = Math.floor(this.animationFrame / 10) % 2;
         const legOffset = walking ? (frame === 0 ? -3 : 3) : 0;
@@ -1077,8 +1077,11 @@ class GameEngine {
         ctx.fillStyle = '#3A5C98';
         ctx.fillRect(x - 6 * scale, y - 15 * scale, 12 * scale, 3 * scale);
         
-        // Draw police badge
-        ctx.fillStyle = badgeColor || '#FFD700'; // Use badgeColor or default to gold if not provided
+        // Draw police badge - ensure we have a valid badge color
+        // Using the passed badgeColor parameter or default to gold if not provided
+        const badgeColorToUse = badgeColor || '#FFD700';
+        ctx.fillStyle = badgeColorToUse;
+        
         if (facing === 'left') {
             ctx.fillRect(x - 5 * scale, y - 10 * scale, 5 * scale, 5 * scale);
         } else if (facing === 'right') {
@@ -1125,7 +1128,8 @@ class GameEngine {
         ctx.fillRect(x - 3 * scale, y - 34 * scale, 6 * scale, 3 * scale);
         
         // Draw hair (different styles based on gender)
-        ctx.fillStyle = badgeColor || '#663300'; // Use provided hair color or default to brown
+        // Using a dark brown for hair color as default instead of badge color for hair
+        ctx.fillStyle = '#663300';
         if (isFemale) {
             // Female hair style
             if (facing === 'left' || facing === 'right') {
