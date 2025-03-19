@@ -213,29 +213,35 @@ body {
     position: absolute;
     top: 10px;
     left: 10px;
-    width: 200px;
-    background: rgba(0, 0, 0, 0.9);
+    width: 180px;
+    background: rgba(0, 0, 0, 0.85);
     border: 1px solid var(--color-accent);
-    padding: 10px;
-    z-index: 100;
-    font-size: 12px;
+    padding: 8px;
+    z-index: 2;
+    font-size: 11px;
     color: white;
-    display: block; /* Always show */
-    min-height: 100px;
+    display: block;
+    max-height: 120px;
+    overflow-y: auto;
+    backdrop-filter: blur(2px);
 }
 
 #case-info h3 {
     color: var(--color-accent);
-    margin-bottom: var(--spacing-md);
+    margin-bottom: 4px;
+    font-size: 12px;
 }
 
 #case-info ul {
     list-style: none;
-    padding-left: var(--spacing-md);
+    padding-left: 8px;
+    margin: 0;
 }
 
 #case-info li {
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 3px;
+    line-height: 1.2;
+    opacity: 0.9;
 }
 
 #game-title {
@@ -279,9 +285,13 @@ body {
     
     #case-info {
         width: 150px;
+        font-size: 10px;
+        max-height: 100px;
+        padding: 6px;
+    }
+    
+    #case-info h3 {
         font-size: 11px;
-        top: 8px;
-        right: 8px;
     }
     
     .cmd-btn {

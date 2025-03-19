@@ -1360,16 +1360,6 @@ class GameEngine {
         ctx.fillRect(85, 210, 20, 5);
         ctx.fillRect(85, 240, 20, 5);
         
-        // Sheriff's badge on wall
-        ctx.fillStyle = colors.yellow;
-        ctx.beginPath();
-        ctx.arc(200, 100, 30, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = colors.black;
-        ctx.beginPath();
-        ctx.arc(200, 100, 15, 0, Math.PI * 2);
-        ctx.fill();
-        
         // Door
         ctx.fillStyle = colors.brown;
         ctx.fillRect(100, 320, 60, 120);
@@ -2657,17 +2647,17 @@ class GameEngine {
         ctx = ctx || this.ctx;
         const colors = this.colors;
         
-        // Police department seal
+        // Police department seal moved to a better position
         ctx.fillStyle = colors.darkBlue;
         ctx.beginPath();
-        ctx.arc(200, 100, 40, 0, Math.PI * 2);
+        ctx.arc(300, 100, 40, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = colors.yellow;
         ctx.beginPath();
-        ctx.arc(200, 100, 30, 0, Math.PI * 2);
+        ctx.arc(300, 100, 30, 0, Math.PI * 2);
         ctx.fill();
         
-        // Wall clock
+        // Wall clock remains at its position
         ctx.fillStyle = colors.white;
         ctx.beginPath();
         ctx.arc(600, 50, 20, 0, Math.PI * 2);
@@ -2702,13 +2692,13 @@ class GameEngine {
         
         // Motivational poster
         ctx.fillStyle = colors.black;
-        ctx.fillRect(300, 50, 100, 80);
+        ctx.fillRect(100, 50, 100, 80);
         ctx.fillStyle = colors.white;
-        ctx.fillRect(305, 55, 90, 70);
+        ctx.fillRect(105, 55, 90, 70);
         ctx.font = '10px monospace';
         ctx.fillStyle = colors.black;
-        ctx.fillText("JUSTICE", 325, 90);
-        ctx.fillText("SERVES ALL", 320, 105);
+        ctx.fillText("JUSTICE", 125, 90);
+        ctx.fillText("SERVES ALL", 120, 105);
     };
 
     drawAmbientAnimations = () => {
