@@ -1738,7 +1738,6 @@ class GameEngine {
                     this.collisionObjects.push({
                         x: 100 + i * 150, y: 320, width: 120, height: 70,
                         type: 'desk',
-                        id: `detectiveDesk${i+1}`,
                         interactions: {
                             look: `Detective desk ${i+1}. Files and paperwork are scattered across it.`,
                             use: "You sit down and review some case files.",
@@ -2233,7 +2232,7 @@ class GameEngine {
             const hex = color.replace('#', '');
             const adjust = (value) => {
                 const adjusted = Math.max(0, Math.min(255, parseInt(value, 16) + amount));
-                return adjusted toString(16).padStart(2, '0');
+                return adjusted.toString(16).padStart(2, '0');
             };
 
             const r = adjust(hex.substring(0, 2));
@@ -2362,3 +2361,6 @@ class GameEngine {
         }
     };
 }
+
+// Make GameEngine available in the global scope
+window.GameEngine = GameEngine;
