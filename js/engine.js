@@ -2306,6 +2306,201 @@ class GameEngine {
                 break;
         }
     };
+
+    updateCollisionObjects = () => {
+        this.collisionObjects = [];
+        
+        switch(this.currentScene) {
+            case 'policeStation':
+                // Reception desk
+                this.collisionObjects.push({
+                    x: 400, y: 320, width: 150, height: 80,
+                    type: 'desk',
+                    id: 'receptionDesk',
+                    interactions: {
+                        look: "The reception desk. Officer Jenny usually sits here.",
+                        use: "You check the sign-in sheet.",
+                        take: "You can't take the desk with you, detective."
+                    }
+                });
+
+                // Add desk collision for the chair area
+                this.collisionObjects.push({
+                    x: 500, y: 320, width: 60, height: 80,
+                    type: 'desk',
+                    id: 'receptionChairArea',
+                    interactions: {
+                        look: "Officer Jenny's chair and workspace.",
+                        use: "That's Officer Jenny's workspace.",
+                        take: "You can't take Officer Jenny's chair."
+                    }
+                });
+                
+                // Sheriff's office door
+                this.collisionObjects.push({
+                    x: 700, y: 180, width: 60, height: 120,
+                    type: 'door',
+                    id: 'sheriffsOfficeDoor',
+                    target: 'sheriffsOffice',
+                    interactions: {
+                        look: "The Sheriff's office. The door is slightly ajar.",
+                        use: "You enter the Sheriff's office.",
+                        talk: "There's no one at the door to talk to."
+                    }
+                });
+                
+                // Briefing room door
+                this.collisionObjects.push({
+                    x: 100, y: 180, width: 60, height: 120,
+                    type: 'door',
+                    id: 'briefingRoomDoor',
+                    target: 'briefingRoom',
+                    interactions: {
+                        look: "The door to the briefing room.",
+                        use: "You enter the briefing room.",
+                        talk: "There's no one at the door to talk to."
+                    }
+                });
+                
+                // Exit to downtown
+                this.collisionObjects.push({
+                    x: 365, y: 520, width: 70, height: 30,
+                    type: 'door',
+                    id: 'exitDoor',
+                    target: 'downtown',
+                    interactions: {
+                        look: "The exit door leading downtown.",
+                        use: "You head downtown to investigate.",
+                        talk: "It's a door. It doesn't talk back."
+                    }
+                });
+
+                // Bulletin board
+                this.collisionObjects.push({
+                    x: 500, y: 100, width: 120, height: 80,
+                    type: 'object',
+                    id: 'bulletinBoard',
+                    interactions: {
+                        look: "A bulletin board with various notices and wanted posters.",
+                        use: "You scan the bulletins for any relevant information.",
+                        take: "The bulletin board is mounted to the wall."
+                    }
+                });
+                break;
+
+            case 'sheriffsOffice':
+                // Sheriff's desk
+                this.collisionObjects.push({
+                    x: 350, y: 150, width: 250, height: 100,
+                    type: 'desk',
+                    id: 'sheriffsDesk',
+                    interactions: {
+                        look: "The Sheriff's desk. Much larger and tidier than yours.",
+                        use: "Best not to disturb the Sheriff's desk.",
+                        take: "That would be a career-limiting move."
+                    }
+                });
+
+                // Exit door
+                this.collisionObjects.push({
+                    x: 100, y: 320, width: 60, height: 120,
+                    type: 'door',
+                    id: 'exitDoor',
+                    target: 'policeStation',
+                    interactions: {
+                        look: "Door leading back to the main station.",
+                        use: "You head back to the main station area.",
+                        take: "You can't take the door."
+                    }
+                });
+                break;
+
+            case 'briefingRoom':
+                // Conference table
+                this.collisionObjects.push({
+                    x: 150, y: 180, width: 500, height: 120,
+                    type: 'desk',
+                    id: 'conferenceTable',
+                    interactions: {
+                        look: "The briefing room's conference table.",
+                        use: "You review some notes on the table.",
+                        take: "It's bolted to the floor."
+                    }
+                });
+
+                // Exit door
+                this.collisionObjects.push({
+                    x: 100, y: 320, width: 60, height: 120,
+                    type: 'door',
+                    id: 'exitDoor',
+                    target: 'policeStation',
+                    interactions: {
+                        look: "Door leading back to the main station.",
+                        use: "You head back to the main station area.",
+                        take: "You can't take the door."
+                    }
+                });
+                break;
+                
+            case 'downtown':
+                // Shop entrance
+                this.collisionObjects.push({
+                    x: 400, y: 220, width: 40, height: 60,
+                    type: 'door',
+                    id: 'shopDoor',
+                    interactions: {
+                        look: "The electronics shop entrance. Signs of forced entry are visible.",
+                        use: "You examine the break-in point carefully.",
+                        take: "You can't take the door."
+                    }
+                });
+
+                // Return to station
+                this.collisionObjects.push({
+                    x: 350, y: 520, width: 100, height: 30,
+                    type: 'door',
+                    id: 'stationDoor',
+                    target: 'policeStation',
+                    interactions: {
+                        look: "The way back to the police station.",
+                        use: "You head back to the station.",
+                        take: "You can't take the door."
+                    }
+                });
+                break;
+        }
+    };
+
+    drawFloorGrid = (x, y, width, height) => {
+        const ctx = this.ctx;
+        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+        ctx.lineWidth = 1;
+
+        // Draw horizontal lines with perspective
+        for (let i = 0; i <= height; i += 20) {
+            ctx.beginPath();
+            // Calculate perspective vanishing point
+            const vanishX = this.canvas.width / 2;
+            const vanishY = y - 100;
+            const perspectiveX1 = x + (x - vanishX) * (i / height);
+            const perspectiveX2 = (x + width) + ((x + width) - vanishX) * (i / height);
+            ctx.moveTo(perspectiveX1, y + i);
+            ctx.lineTo(perspectiveX2, y + i);
+            ctx.stroke();
+        }
+
+        // Draw vertical lines with perspective
+        for (let i = 0; i <= width; i += 40) {
+            ctx.beginPath();
+            const vanishY = y - 100;
+            const startX = x + i;
+            const endX = x + i + (this.canvas.width / 2 - (x + i)) * 0.8;
+            const endY = y + height;
+            ctx.moveTo(startX, y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+        }
+    };
 }
 
 // Make GameEngine available in the global scope
