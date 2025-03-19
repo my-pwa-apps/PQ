@@ -642,14 +642,14 @@ class GameEngine {
         // Add notices to bulletin board
         this.drawBulletinNotices(155, 145, 110, 70, ctx);
         
-        // Reception desk (aligned with floor)
-        this.draw3DDesk(400, this.floorLevel.min + 20, 150, 80, ctx);
+        // Reception desk (aligned with floor) - SMALLER SIZE
+        this.draw3DDesk(400, this.floorLevel.min + 20, 120, 60, ctx);
         
         // Draw phones and computer on reception desk
-        this.drawDeskItems(400, this.floorLevel.min + 20, 150, 80, ctx);
+        this.drawDeskItems(400, this.floorLevel.min + 20, 120, 60, ctx);
         
-        // Draw an office chair at the desk for the receptionist
-        this.drawOfficeChair(475, this.floorLevel.min + 60, 'left', ctx);
+        // Draw chair BEHIND desk for the receptionist
+        this.drawOfficeChair(430, this.floorLevel.min + 80, 'left', ctx);
         
         // Door to sheriff's office
         this.drawDoorWithFrame(630, this.floorLevel.min - 120, 'right', "Sheriff's Office", ctx);
@@ -1077,17 +1077,16 @@ class GameEngine {
         ctx.fillStyle = '#3A5C98';
         ctx.fillRect(x - 6 * scale, y - 15 * scale, 12 * scale, 3 * scale);
         
-        // Draw police badge - ensure we have a valid badge color
-        // Using the passed badgeColor parameter or default to gold if not provided
+        // Draw police badge ON THE UNIFORM CHEST (fixed position relative to body)
         const badgeColorToUse = badgeColor || '#FFD700';
         ctx.fillStyle = badgeColorToUse;
         
         if (facing === 'left') {
-            ctx.fillRect(x - 5 * scale, y - 10 * scale, 5 * scale, 5 * scale);
+            ctx.fillRect(x - 5 * scale, y - 10 * scale, 4 * scale, 4 * scale); // Badge on left side of chest
         } else if (facing === 'right') {
-            ctx.fillRect(x * scale, y - 10 * scale, 5 * scale, 5 * scale);
+            ctx.fillRect(x + 1 * scale, y - 10 * scale, 4 * scale, 4 * scale); // Badge on right side of chest
         } else {
-            ctx.fillRect(x - 5 * scale, y - 10 * scale, 5 * scale, 5 * scale);
+            ctx.fillRect(x - 5 * scale, y - 10 * scale, 4 * scale, 4 * scale); // Badge on chest
         }
         
         // Draw arms with uniform color
