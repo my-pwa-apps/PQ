@@ -2501,6 +2501,44 @@ class GameEngine {
             ctx.stroke();
         }
     };
+
+    draw3DWall = (x, y, width, height, color, ctx) => {
+        ctx = ctx || this.ctx;
+        
+        // Calculate perspective points
+        const vanishX = this.canvas.width / 2;
+        const vanishY = y - 100;
+        const perspectiveDepth = 0.2; // Controls how much perspective effect to apply
+        
+        // Base wall color
+        ctx.fillStyle = color;
+        
+        // Draw main wall face
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + width, y);
+        ctx.lineTo(x + width, y + height);
+        ctx.lineTo(x, y + height);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Add shading to create depth
+        const gradient = ctx.createLinearGradient(x, y, x + width, y);
+        gradient.addColorStop(0, 'rgba(0,0,0,0.2)');
+        gradient.addColorStop(0.5, 'rgba(0,0,0,0)');
+        gradient.addColorStop(1, 'rgba(0,0,0,0.2)');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, y, width, height);
+        
+        // Add subtle vertical gradient for more depth
+        const vGradient = ctx.createLinearGradient(x, y, x, y + height);
+        vGradient.addColorStop(0, 'rgba(255,255,255,0.1)');
+        vGradient.addColorStop(1, 'rgba(0,0,0,0.1)');
+        
+        ctx.fillStyle = vGradient;
+        ctx.fillRect(x, y, width, height);
+    };
 }
 
 // Make GameEngine available in the global scope
