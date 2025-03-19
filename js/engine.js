@@ -652,14 +652,15 @@ class GameEngine {
         // Add notices to bulletin board
         this.drawBulletinNotices(155, 145, 110, 70, ctx);
         
-        // Reception desk positioned further back for better view of receptionist
-        this.draw3DDesk(400, this.floorLevel.min + 40, 120, 60, ctx);
+        // Reception desk positioned with more depth for better view of officer behind it
+        // Position desk so it's clearly in front of where the receptionist sits
+        this.draw3DDesk(400, this.floorLevel.min + 35, 120, 50, ctx);
         
         // Draw phones and computer on reception desk
-        this.drawDeskItems(400, this.floorLevel.min + 40, 120, 60, ctx);
+        this.drawDeskItems(400, this.floorLevel.min + 35, 120, 50, ctx);
         
-        // Draw chair BEHIND desk for the receptionist - positioned to be visible
-        this.drawOfficeChair(430, this.floorLevel.min + 90, 'left', ctx);
+        // Draw chair BEHIND desk for the receptionist - positioned clearly behind the desk
+        this.drawOfficeChair(435, this.floorLevel.min + 95, 'left', ctx);
         
         // Door to sheriff's office
         this.drawDoorWithFrame(630, this.floorLevel.min - 120, 'right', "Sheriff's Office", ctx);
@@ -1552,25 +1553,29 @@ class GameEngine {
             
             // Add NPCs for each scene
             if (sceneId === 'policeStation') {
-                // Receptionist at the desk - positioned BEHIND the desk, not on top of it
+                // Receptionist at the desk - positioned properly behind the desk with correct coordinates
+                // to make it look like she's sitting at the chair working at the computer
                 this.npcs[sceneId].push({
-                    x: 430,
-                    y: this.floorLevel.min + 100, // Position behind the desk, not on it
+                    x: 435,  // Aligned with the chair position
+                    y: this.floorLevel.min + 85, // Properly positioned to appear sitting in the chair
                     type: 'officer',
                     name: 'Officer Jenny',
                     isReceptionist: true,
                     isFemale: true,
+                    isWorking: true, // Flag to indicate she's actively working
                     // Mostly stay at the desk, occasionally get up to get coffee or talk to someone
                     patrolPoints: [
-                        {x: 430, y: this.floorLevel.min + 100}, // Behind desk
-                        {x: 450, y: this.floorLevel.min + 100}, // Still behind desk (higher weight)
-                        {x: 460, y: this.floorLevel.min + 100}, // Still behind desk (higher weight)
-                        {x: 550, y: this.floorLevel.min + 120}, // Getting a file
-                        {x: 300, y: this.floorLevel.min + 120}  // Visiting a colleague
+                        {x: 435, y: this.floorLevel.min + 85}, // At desk working position
+                        {x: 440, y: this.floorLevel.min + 85}, // Slight movement at desk
+                        {x: 430, y: this.floorLevel.min + 85}, // Slight movement at desk
+                        {x: 550, y: this.floorLevel.min + 120}, // Getting up to get a file (occasionally)
+                        {x: 300, y: this.floorLevel.min + 120},  // Rarely leaves desk to talk to colleague
+                        {x: 435, y: this.floorLevel.min + 85}, // Return to desk
                     ],
+                    patrolWeights: [10, 10, 10, 1, 1, 10], // Higher weights for desk positions
                     currentPatrolPoint: 0,
                     facing: 'left',
-                    waitTime: 15
+                    waitTime: 20 // Longer wait time at desk
                 });
                 
                 // Patrolling officer - away from the desk
@@ -1606,7 +1611,7 @@ class GameEngine {
                 });
             }
             
-            // Add NPCs for the office area
+            // Add NPCs for other scenes (unchanged code)
             else if (sceneId === 'officeArea') {
                 this.npcs[sceneId] = [
                     {
@@ -1854,20 +1859,22 @@ class GameEngine {
         ctx.closePath();
         ctx.fill();
         
-        // Add desk poles at four corners
+        // Add desk poles at four corners - FIXED POSITIONS
         ctx.fillStyle = this.adjustColor(this.colors.brown, -50);
         
-        // Left front pole
+        // Front legs - These should extend from the front of the desk to the floor
+        // Left front leg
         ctx.fillRect(x - 20, y + height + 20, 10, this.floorLevel.max - (y + height + 20));
         
-        // Right front pole
+        // Right front leg
         ctx.fillRect(x + width - 30, y + height + 20, 10, this.floorLevel.max - (y + height + 20));
         
-        // Left back pole (with perspective)
-        ctx.fillRect(x, y + height, 10, this.floorLevel.max - (y + height));
+        // Back legs - These should extend from the back of the desk to the floor
+        // Left back leg
+        ctx.fillRect(x, y + 10, 8, this.floorLevel.max - y - 10);
         
-        // Right back pole (with perspective)
-        ctx.fillRect(x + width - 20, y + height, 10, this.floorLevel.max - (y + height));
+        // Right back leg
+        ctx.fillRect(x + width - 8, y + 10, 8, this.floorLevel.max - y - 10);
     };
 
     drawDoor = (x, y, direction, label) => {
