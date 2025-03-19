@@ -470,24 +470,29 @@ class Game {
         this.currentScene = 'policeStation';
     }
 
-    initGame() {
+    async initGame() {
         console.log('Initializing game...');
-        // Initialize sound first
-        this.soundManager = new SoundManager();
-        window.soundManager = this.soundManager;
+        
+        try {
+            // Initialize sound first and wait for it
+            this.soundManager = new SoundManager();
+            await this.soundManager.initialize();
+            window.soundManager = this.soundManager;
 
-        // Initialize game engine
-        this.engine = new GameEngine();
-        window.gameEngine = this.engine;
-        
-        // Setup UI elements
-        this.setupUI();
-        
-        // Listen for engine initialization
-        document.addEventListener('gameEngineInitialized', () => {
+            // Initialize game engine
+            this.engine = new GameEngine();
+            window.gameEngine = this.engine;
+            
+            // Setup UI elements
+            this.setupUI();
+            
             console.log('Game engine ready, starting game...');
             this.startGame();
-        });
+            
+        } catch (error) {
+            console.error('Failed to initialize game:', error);
+            throw error;
+        }
     }
 
     setupUI() {
@@ -505,8 +510,8 @@ class Game {
 
         console.log('Starting game...');
         
-        // Load the initial scene
-        this.engine.loadScene('policeStation');
+        // Initialize engine and load initial scene
+        this.engine.init();
         
         // Set up initial case
         this.updateCaseInfo();

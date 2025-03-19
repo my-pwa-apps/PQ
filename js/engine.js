@@ -1626,40 +1626,56 @@ class GameEngine {
 
     loadScene = (sceneId) => {
         try {
-            // Stop current background music
+            // Validate scene ID
+            if (!sceneId) {
+                console.error('No scene ID provided');
+                sceneId = 'policeStation';
+            }
+
+            console.log(`Loading scene: ${sceneId}`);
+
+            // Stop current background music and animations
             if (window.soundManager) {
                 this.stopBackgroundMusic();
             }
-            
-            console.log(`Loading scene: ${sceneId}`);
-            // Update current scene
-            this.currentScene = sceneId || 'policeStation';
-            
-            // Reset collision objects for new scene
+
+            // Reset all state
+            this.clear();
             this.collisionObjects = [];
+            this.npcs[sceneId] = this.npcs[sceneId] || [];
             
-            // Reset player position based on scene
+            // Reset ambient animations
+            Object.keys(this.ambientAnimations).forEach(key => {
+                this.ambientAnimations[key].active = false;
+            });
+
+            // Update current scene
+            this.currentScene = sceneId;
+            
+            // Set default player position for new scene
             const defaultY = this.floorLevel.min + 50;
             this.playerPosition = { x: 400, y: defaultY };
-            
-            // Setup scene components
-            this.setupAmbientAnimations(this.currentScene);
-            this.updateCollisionObjects();
-            this.updateNPCsForScene(this.currentScene);
             
             // Reset movement state
             this.isWalking = false;
             this.walkTarget = null;
             
-            // Draw the new scene immediately
-            this.drawCurrentScene();
+            // Setup scene components in order
+            this.setupAmbientAnimations(this.currentScene);
+            this.updateCollisionObjects();
+            this.updateNPCsForScene(this.currentScene);
             
-            // Start scene music
-            if (window.soundManager) {
-                this.startBackgroundMusic();
-            }
+            // Draw the new scene
+            requestAnimationFrame(() => {
+                this.drawCurrentScene();
+                
+                // Start scene music after scene is drawn
+                if (window.soundManager) {
+                    this.startBackgroundMusic();
+                }
+            });
             
-            console.log(`Scene loaded: ${this.currentScene}`);
+            console.log(`Scene loaded successfully: ${this.currentScene}`);
         } catch (error) {
             console.error("Error loading scene:", error);
             console.error("Stack trace:", error.stack);
