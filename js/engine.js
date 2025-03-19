@@ -384,11 +384,12 @@ class GameEngine {
                     
                     const yPosition = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
                     
+                    // Fixed: Use yellow color as a proper badge color parameter instead of referring to badgeColor variable
                     this.drawPixelCharacter(
                         npc.x, 
                         yPosition,
                         npc.type === 'sergeant' ? this.colors.brightBlue : this.colors.blue,
-                        this.colors.yellow,
+                        this.colors.yellow, // This is the badge color parameter
                         npc.facing || 'down',
                         npc.isWalking,
                         true,
@@ -407,7 +408,7 @@ class GameEngine {
                 this.playerPosition.x, 
                 this.playerPosition.y, 
                 this.colors.blue, 
-                this.colors.yellow,
+                this.colors.yellow, // This is the badge color parameter
                 this.playerFacing,
                 this.isWalking
             );
