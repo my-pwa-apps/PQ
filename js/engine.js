@@ -2758,6 +2758,158 @@ class GameEngine {
             }
         }
     };
+
+    // Draw a star shape with the specified number of points
+    drawStar = (x, y, points, outerRadius, innerRadius) => {
+        const ctx = this.offscreenCtx || this.ctx;
+        let step = Math.PI / points;
+        
+        ctx.beginPath();
+        
+        // Draw the star points
+        for (let i = 0; i < points * 2; i++) {
+            let radius = i % 2 === 0 ? outerRadius : innerRadius;
+            let angle = i * step;
+            
+            let xPos = x + radius * Math.cos(angle - Math.PI / 2);
+            let yPos = y + radius * Math.sin(angle - Math.PI / 2);
+            
+            if (i === 0) {
+                ctx.moveTo(xPos, yPos);
+            } else {
+                ctx.lineTo(xPos, yPos);
+            }
+        }
+        
+        ctx.closePath();
+    };
+
+    drawWallDecorations = (ctx) => {
+        ctx = ctx || this.ctx;
+        const colors = this.colors;
+        
+        // Police department seal moved to right side
+        ctx.fillStyle = colors.darkBlue;
+        ctx.beginPath();
+        ctx.arc(650, 100, 40, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Decorative border ring
+        ctx.strokeStyle = colors.yellow;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(650, 100, 42, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Inner seal
+        ctx.fillStyle = colors.yellow;
+        ctx.beginPath();
+        ctx.arc(650, 100, 30, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add text "POLICE" curving along the top of seal
+        ctx.fillStyle = colors.white;
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add star in center
+        ctx.fillStyle = colors.darkBlue;
+        ctx.beginPath();
+        this.drawStar(650, 100, 5, 15, 7);
+        ctx.fill();
+        
+        // Wall clock remains at original position
+        // ...existing code...
+
+        // Wall clock
+        ctx.fillStyle = colors.white;
+        ctx.beginPath();
+        ctx.arc(600, 50, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = colors.black;
+        ctx.lineWidth = 2;
+        
+        // Clock hands
+        const time = new Date();
+        const hours = time.getHours() % 12;
+        const minutes = time.getMinutes();
+        
+        // Hour hand
+        ctx.save();
+        ctx.translate(600, 50);
+        ctx.rotate(hours * (Math.PI/6) + minutes * (Math.PI/360));
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -10);
+        ctx.stroke();
+        ctx.restore();
+        
+        // Minute hand
+        ctx.save();
+        ctx.translate(600, 50);
+        ctx.rotate(minutes * (Math.PI/30));
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -15);
+        ctx.stroke();
+        ctx.restore();
+        
+        // Motivational poster
+        ctx.fillStyle = colors.black;
+        ctx.fillRect(100, 50, 100, 80);
+        ctx.fillStyle = colors.white;
+        ctx.fillRect(105, 55, 90, 70);
+        ctx.font = '10px monospace';
+        ctx.fillStyle = colors.black;
+        ctx.fillText("JUSTICE", 125, 90);
+        ctx.fillText("SERVES ALL", 120, 105);
+    };
+
+    drawAmbientAnimations = () => {
+        const ctx = this.offscreenCtx || this.ctx;
+        
+        // Draw typing animation
+        if (this.ambientAnimations.typingNPC.active) {
+            const { x, y } = this.ambientAnimations.typingNPC;
+            
+            // Animate hands typing
+            const frame = Math.floor(this.animationFrame / 5) % 2;
+            ctx.fillStyle = '#FFD8B1'; // Skin tone
+            
+            if (frame === 0) {
+                // Hands up
+                ctx.fillRect(x + 45, y + 5, 4, 4);
+                ctx.fillRect(x + 55, y + 5, 4, 4);
+            } else {
+                // Hands down
+                ctx.fillRect(x + 45, y + 8, 4, 4);
+                ctx.fillRect(x + 55, y + 8, 4, 4);
+            }
+        }
+
+        // Draw coffee steam animation
+        if (this.ambientAnimations.coffeeSteam.active) {
+            const { x, y } = this.ambientAnimations.coffeeSteam;
+            
+            // Create steam particles
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            for (let i = 0; i < 3; i++) {
+                const offset = Math.sin((this.animationFrame + i * 10) * 0.1) * 3;
+                const yOffset = ((this.animationFrame + i * 20) % 30);
+                
+                ctx.beginPath();
+                ctx.arc(
+                    x + offset,
+                    y - yOffset,
+                    2,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+        }
+    };
 }
 
 // Make GameEngine available in the global scope
