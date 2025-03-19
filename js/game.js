@@ -5,6 +5,18 @@ const GAME_DATA = {
             music: 'station_theme',
             hotspots: [
                 {
+                    id: 'receptionDesk',
+                    x: 400,  // Aligned with visual desk position
+                    y: 320,  // Matches floor level
+                    width: 150, // Matches desk width
+                    height: 70, // Matches desk depth
+                    interactions: {
+                        look: "The reception desk. Officer Jenny is working diligently.",
+                        use: "You check in at the reception desk.",
+                        take: "You can't take the desk with you, detective."
+                    }
+                },
+                {
                     id: 'desk',
                     x: 100,
                     y: 200,
@@ -54,28 +66,38 @@ const GAME_DATA = {
                 },
                 {
                     id: 'sheriffsOfficeDoor',
-                    x: 50,
-                    y: 100,
+                    x: 700,  // Updated to match new door position
+                    y: 180,  // Updated to match wall height
                     width: 60,
                     height: 120,
                     interactions: {
                         look: "The Sheriff's office. The door is slightly ajar.",
                         use: "You enter the Sheriff's office.",
-                        talk: "There's no one at the door to talk to.",
-                        take: "You can't take a door."
+                        talk: "There's no one at the door to talk to."
                     }
                 },
                 {
                     id: 'briefingRoomDoor',
-                    x: 600,
-                    y: 100, 
+                    x: 100,  // Updated to match new door position
+                    y: 180,  // Updated to match wall height
                     width: 60,
                     height: 120,
                     interactions: {
-                        look: "The door to the briefing room. Daily meetings are held here.",
+                        look: "The door to the briefing room.",
                         use: "You enter the briefing room.",
-                        talk: "There's no one at the door to talk to.",
-                        take: "You can't take a door."
+                        talk: "There's no one at the door to talk to."
+                    }
+                },
+                {
+                    id: 'exitDoor',
+                    x: 365,
+                    y: 520,  // Moved down to match new floor level
+                    width: 70,
+                    height: 30,
+                    interactions: {
+                        look: "The exit door leading downtown.",
+                        use: "You head downtown to investigate.",
+                        talk: "It's a door. It doesn't talk back."
                     }
                 }
             ]
@@ -443,8 +465,9 @@ class Game {
         this.soundManager = null;
         this.gameState = {
             inventory: new Set(),
-            currentCase: null
+            currentCase: GAME_DATA.cases.case1 // Start with first case
         };
+        this.currentScene = 'policeStation';
     }
 
     initGame() {
@@ -457,11 +480,21 @@ class Game {
         this.engine = new GameEngine();
         window.gameEngine = this.engine;
         
+        // Setup UI elements
+        this.setupUI();
+        
         // Listen for engine initialization
         document.addEventListener('gameEngineInitialized', () => {
             console.log('Game engine ready, starting game...');
             this.startGame();
         });
+    }
+
+    setupUI() {
+        // Initialize UI panels
+        this.updateCaseInfo();
+        this.updateInventoryUI();
+        this.showDialog("Welcome to Police Quest. You're a detective investigating a series of burglaries.");
     }
 
     startGame() {
@@ -471,9 +504,60 @@ class Game {
         }
 
         console.log('Starting game...');
+        
         // Load the initial scene
         this.engine.loadScene('policeStation');
+        
+        // Set up initial case
+        this.updateCaseInfo();
     }
+
+    updateCaseInfo() {
+        const caseInfoPanel = document.getElementById('case-info');
+        if (!caseInfoPanel || !this.gameState.currentCase) return;
+
+        let caseHTML = `<h3>${this.gameState.currentCase.title}</h3>`;
+        caseHTML += '<p>Case stages:</p>';
+        caseHTML += '<ul>';
+        
+        this.gameState.currentCase.stages.forEach(stage => {
+            caseHTML += `<li>${stage.description} ${stage.completed ? '✓' : ''}</li>`;
+        });
+        
+        caseHTML += '</ul>';
+        caseInfoPanel.innerHTML = caseHTML;
+    }
+
+    updateInventoryUI() {
+        const inventoryPanel = document.getElementById('inventory-panel');
+        if (!inventoryPanel) return;
+        
+        // Clear existing inventory display
+        inventoryPanel.innerHTML = '';
+        
+        // Add each inventory item
+        this.gameState.inventory.forEach(item => {
+            const itemElement = document.createElement('div');
+            itemElement.className = 'inventory-item';
+            itemElement.innerText = item.substring(0, 2).toUpperCase();
+            itemElement.title = item;
+            itemElement.addEventListener('click', () => {
+                this.showDialog(`Selected item: ${item}`);
+                this.soundManager?.playSound('click');
+            });
+            inventoryPanel.appendChild(itemElement);
+        });
+    }
+
+    showDialog(text) {
+        const dialogBox = document.getElementById('dialog-box');
+        if (!dialogBox || !text) return;
+        
+        dialogBox.innerText = text;
+        dialogBox.classList.add('visible');
+    }
+
+    // ... rest of the Game class remains unchanged ...
 }
 
 // Then handle DOM content loaded

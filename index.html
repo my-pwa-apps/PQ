@@ -24,7 +24,7 @@
             <canvas id="gameCanvas" width="800" height="600"></canvas>
             
             <!-- Case information panel -->
-            <div id="case-info" class="hidden"></div>
+            <div id="case-info"></div>
             
             <!-- Controls guide -->
             <div id="controls-guide">
@@ -44,8 +44,8 @@
             
             <!-- Dialog and inventory container -->
             <div id="interaction-container">
-                <div id="dialog-box" class="hidden"></div>
-                <div id="inventory-panel" class="hidden"></div>
+                <div id="dialog-box"></div>
+                <div id="inventory-panel"></div>
             </div>
         </div>
     </div>
@@ -54,28 +54,5 @@
     <script src="js/soundManager.js"></script>
     <script src="js/engine.js"></script>
     <script src="js/game.js"></script>
-    
-    <!-- Initialize game -->
-    <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                // Initialize sound manager first
-                await window.soundManager.initialize();
-                
-                // Create and initialize game engine
-                window.gameEngine = new GameEngine();
-                
-                // Create game instance
-                window.game = new Game(window.gameEngine);
-                
-                // Load initial scene
-                window.gameEngine.loadScene('policeStation');
-                
-                console.log('Game initialized successfully');
-            } catch (error) {
-                console.error('Failed to initialize game:', error);
-            }
-        });
-    </script>
 </body>
 </html>

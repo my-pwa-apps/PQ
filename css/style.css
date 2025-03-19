@@ -97,6 +97,10 @@ body {
     flex: 1;
     min-height: 150px;
     background: var(--color-ui-background);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+}
 
 #command-panel {
     position: absolute;
@@ -148,16 +152,6 @@ body {
 
 #dialog-box {
     position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.8);
-    color: #fff;
-    padding: 10px;
-    border-radius: 5px;
-    z-index: 3;
-    max-width: 80%;
-    position: absolute;
     bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
@@ -168,12 +162,12 @@ body {
     padding: 10px;
     z-index: 100;
     font-size: var(--font-size-md);
-    opacity: 0;
-    transition: opacity 0.3s ease;
     color: #FFFFFF;
     margin-top: 5px;
     font-family: 'Courier New', monospace;
     overflow-y: auto;
+    display: block; /* Always show */
+    min-height: 50px;
 }
 
 #dialog-box.visible {
@@ -184,20 +178,16 @@ body {
     position: absolute;
     top: 10px;
     right: 10px;
-    background: rgba(0, 0, 0, 0.8);
-    color: #fff;
-    padding: 10px;
-    border-radius: 5px;
-    z-index: 3;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 5px;
     padding: 10px;
     background: rgba(0, 0, 0, 0.9);
     border: 2px solid var(--color-accent);
-    margin-top: 5px;
-    max-height: 100px;
-    overflow-y: auto;
+    z-index: 3;
+    width: 200px;
+    min-height: 50px;
+    display: block; /* Always show */
 }
 
 .inventory-item {
@@ -223,23 +213,15 @@ body {
     position: absolute;
     top: 10px;
     left: 10px;
-    background: rgba(0, 0, 0, 0.8);
-    color: #fff;
-    padding: 10px;
-    border-radius: 5px;
-    z-index: 3;
-    position: absolute;
-    top: 10px;
-    right: 10px;
     width: 200px;
-    max-height: 40%;
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid var(--color-accent);
     padding: 10px;
-    overflow-y: auto;
     z-index: 100;
     font-size: 12px;
     color: white;
+    display: block; /* Always show */
+    min-height: 100px;
 }
 
 #case-info h3 {
