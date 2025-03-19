@@ -2710,6 +2710,51 @@ class GameEngine {
         ctx.fillText("JUSTICE", 325, 90);
         ctx.fillText("SERVES ALL", 320, 105);
     };
+
+    drawAmbientAnimations = () => {
+        const ctx = this.offscreenCtx || this.ctx;
+        
+        // Draw typing animation
+        if (this.ambientAnimations.typingNPC.active) {
+            const { x, y } = this.ambientAnimations.typingNPC;
+            
+            // Animate hands typing
+            const frame = Math.floor(this.animationFrame / 5) % 2;
+            ctx.fillStyle = '#FFD8B1'; // Skin tone
+            
+            if (frame === 0) {
+                // Hands up
+                ctx.fillRect(x + 45, y + 5, 4, 4);
+                ctx.fillRect(x + 55, y + 5, 4, 4);
+            } else {
+                // Hands down
+                ctx.fillRect(x + 45, y + 8, 4, 4);
+                ctx.fillRect(x + 55, y + 8, 4, 4);
+            }
+        }
+
+        // Draw coffee steam animation
+        if (this.ambientAnimations.coffeeSteam.active) {
+            const { x, y } = this.ambientAnimations.coffeeSteam;
+            
+            // Create steam particles
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            for (let i = 0; i < 3; i++) {
+                const offset = Math.sin((this.animationFrame + i * 10) * 0.1) * 3;
+                const yOffset = ((this.animationFrame + i * 20) % 30);
+                
+                ctx.beginPath();
+                ctx.arc(
+                    x + offset,
+                    y - yOffset,
+                    2,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+        }
+    };
 }
 
 // Make GameEngine available in the global scope
