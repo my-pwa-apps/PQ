@@ -387,19 +387,35 @@ class GameEngine {
             // Draw ambient animations
             this.drawAmbientAnimations();
             
-            // Draw NPCs
+            // Get sitting officer (if any)
+            let sittingOfficer = null;
             if (this.npcs && this.npcs[this.currentScene]) {
-                this.npcs[this.currentScene].forEach(npc => {
-                    if (!npc) return;
+                sittingOfficer = this.npcs[this.currentScene].find(npc => 
+                    npc.isReceptionist && npc.isWorking && 
+                    npc.currentPatrolPoint <= 2 && !npc.isWalking);
+            }
+            
+            // Draw chair for receptionist desk (behind desk and before other NPCs)
+            if (this.currentScene === 'policeStation') {
+                this.drawOfficeChair(435, this.floorLevel.min + 80, 'left', ctx);
+            }
+            
+            // Draw NPCs in the correct Z-order
+            if (this.npcs && this.npcs[this.currentScene]) {
+                // Sort NPCs by Y position for proper depth
+                const sortedNPCs = [...this.npcs[this.currentScene]].sort((a, b) => a.y - b.y);
+                
+                sortedNPCs.forEach(npc => {
+                    if (!npc || npc === sittingOfficer) return; // Skip sitting officer for now
                     
                     const yPosition = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
                     
-                    // Fixed: Use yellow color as a proper badge color parameter instead of referring to badgeColor variable
+                    // Draw NPC
                     this.drawPixelCharacter(
                         npc.x, 
                         yPosition,
                         npc.type === 'sergeant' ? this.colors.brightBlue : this.colors.blue,
-                        this.colors.yellow, // This is the badge color parameter
+                        this.colors.yellow,
                         npc.facing || 'down',
                         npc.isWalking,
                         true,
@@ -407,10 +423,42 @@ class GameEngine {
                     );
 
                     // Draw conversation bubble
-                    if (npc.conversationTime > 0) {
-                        this.drawConversationBubble(npc.x, yPosition - 50, npc.dialogue);
+                    if (npc.conversationTime > 0 && npc.dialogue) {
+                        this.drawConversationBubble(npc.x, yPosition - 50, npc.dialogue, ctx);
                     }
                 });
+            }
+            
+            // Now draw the desk for the police station (after chair, before sitting officer)
+            if (this.currentScene === 'policeStation') {
+                // Draw the desk
+                this.draw3DDesk(400, this.floorLevel.min + 40, 120, 50, ctx);
+                
+                // Draw desk items
+                this.drawDeskItems(400, this.floorLevel.min + 40, 120, 50, ctx);
+                
+                // Now draw the sitting receptionist if present
+                if (sittingOfficer) {
+                    // Make sure officer appears to be sitting at the desk
+                    const sittingY = this.floorLevel.min + 75; // Positioned to look like sitting in chair
+                    
+                    // Draw the sitting officer
+                    this.drawPixelCharacter(
+                        sittingOfficer.x,
+                        sittingY,
+                        this.colors.blue,
+                        this.colors.yellow,
+                        'left', // Always facing left when at desk
+                        false, // Not walking when at desk
+                        true,
+                        true // Female
+                    );
+                    
+                    // Draw typing animation or dialogue bubble
+                    if (sittingOfficer.conversationTime > 0 && sittingOfficer.dialogue) {
+                        this.drawConversationBubble(sittingOfficer.x, sittingY - 50, sittingOfficer.dialogue, ctx);
+                    }
+                }
             }
 
             // Draw player last (on top)
@@ -418,7 +466,7 @@ class GameEngine {
                 this.playerPosition.x, 
                 this.playerPosition.y, 
                 this.colors.blue, 
-                this.colors.yellow, // This is the badge color parameter
+                this.colors.yellow, 
                 this.playerFacing,
                 this.isWalking
             );
@@ -652,17 +700,7 @@ class GameEngine {
         // Add notices to bulletin board
         this.drawBulletinNotices(155, 145, 110, 70, ctx);
         
-        // Reception desk positioned with more depth for better view of officer behind it
-        // Position desk so it's clearly in front of where the receptionist sits
-        this.draw3DDesk(400, this.floorLevel.min + 35, 120, 50, ctx);
-        
-        // Draw phones and computer on reception desk
-        this.drawDeskItems(400, this.floorLevel.min + 35, 120, 50, ctx);
-        
-        // Draw chair BEHIND desk for the receptionist - positioned clearly behind the desk
-        this.drawOfficeChair(435, this.floorLevel.min + 95, 'left', ctx);
-        
-        // Door to sheriff's office
+        // Draw door to sheriff's office
         this.drawDoorWithFrame(630, this.floorLevel.min - 120, 'right', "Sheriff's Office", ctx);
         
         // Door to briefing room
@@ -677,13 +715,16 @@ class GameEngine {
         // Add wall decorations
         this.drawWallDecorations(ctx);
         
-        // Set up ambient animations
+        // Set up ambient animations for the scene
         this.setupAmbientAnimations('policeStation');
+        
+        // IMPORTANT: We need to draw the NPCs in the correct z-order based on their y-positions,
+        // and the receptionist needs special handling to appear at the desk correctly
         
         // Update collision objects for this scene
         this.updateCollisionObjects();
     };
-    
+
     // Add new room for desks
     drawOfficeArea = (ctx) => {
         const colors = this.colors;
