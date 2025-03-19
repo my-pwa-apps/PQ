@@ -75,6 +75,11 @@ class SoundManager {
         }
     }
 
+    // Add playBackgroundMusic method to be compatible with engine.js
+    playBackgroundMusic(id) {
+        return this.playMusic(id);
+    }
+
     stopMusic() {
         if (this.currentMusic) {
             try {
