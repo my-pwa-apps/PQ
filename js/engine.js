@@ -2276,6 +2276,36 @@ class GameEngine {
         ];
         return workingDialogues[Math.floor(Math.random() * workingDialogues.length)];
     };
+
+    setupAmbientAnimations = (scene) => {
+        // Reset all animations
+        Object.keys(this.ambientAnimations).forEach(key => {
+            this.ambientAnimations[key].active = false;
+        });
+        
+        switch(scene) {
+            case 'policeStation':
+                // Typing animation for receptionist
+                this.ambientAnimations.typingNPC.x = 400;
+                this.ambientAnimations.typingNPC.y = this.floorLevel.min - 8;
+                this.ambientAnimations.typingNPC.active = true;
+                break;
+                
+            case 'officeArea':
+                // Coffee machine steam
+                this.ambientAnimations.coffeeSteam.x = 725;
+                this.ambientAnimations.coffeeSteam.y = 230;
+                this.ambientAnimations.coffeeSteam.active = true;
+                break;
+                
+            case 'briefingRoom':
+                // Coffee machine steam
+                this.ambientAnimations.coffeeSteam.x = 715;
+                this.ambientAnimations.coffeeSteam.y = 210;
+                this.ambientAnimations.coffeeSteam.active = true;
+                break;
+        }
+    };
 }
 
 // Make GameEngine available in the global scope
