@@ -277,29 +277,18 @@ class GameEngine {
         currentSceneNPCs.forEach(npc => {
             // Special handling for receptionist - COMPLETE REWRITE TO KEEP HER AT DESK
             if (npc.isReceptionist && npc.stayAtDesk) {
-                // Only show typing animation and keep at desk
+                // Keep Jenny at the chair position
                 npc.x = 515; // Force position to match chair position at the desk side
-                npc.y = this.floorLevel.min + 75; // Force height to appear seated in chair
+                npc.y = this.floorLevel.min + 75; // Force height to appear seated
                 npc.facing = 'left'; // Always face the computer
-                npc.isWalking = false; // Never appear to be walking
+                npc.isWalking = false;
                 
-                // Occasionally show a speech bubble while working
-                if (!npc.conversationTime || npc.conversationTime <= 0) {
-                    // Small chance to show work-related speech bubble
-                    if (Math.random() < 0.005) { // Lower frequency for less distraction
-                        npc.conversationTime = 3;
-                        npc.dialogue = this.getRandomWorkingDialogue();
-                    }
-                } else {
-                    npc.conversationTime -= deltaTime;
-                }
-                
-                // Enable typing animation - UPDATE POSITION to match computer
-                this.ambientAnimations.typingNPC.x = npc.x - 30; // Position hands closer to keyboard
+                // Typing animation position adjustment
+                this.ambientAnimations.typingNPC.x = npc.x - 30;
                 this.ambientAnimations.typingNPC.y = npc.y - 15;
                 this.ambientAnimations.typingNPC.active = true;
                 
-                return; // Skip all other NPC processing
+                return;
             }
 
             // Normal NPC behavior for everyone else
@@ -2647,14 +2636,14 @@ class GameEngine {
         ctx = ctx || this.ctx;
         const colors = this.colors;
         
-        // Police department seal moved to a better position
+        // Police department seal moved to wall space between window and bulletin board
         ctx.fillStyle = colors.darkBlue;
         ctx.beginPath();
-        ctx.arc(300, 100, 40, 0, Math.PI * 2);
+        ctx.arc(500, 100, 40, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = colors.yellow;
         ctx.beginPath();
-        ctx.arc(300, 100, 30, 0, Math.PI * 2);
+        ctx.arc(500, 100, 30, 0, Math.PI * 2);
         ctx.fill();
         
         // Wall clock remains at its position

@@ -212,24 +212,51 @@ body {
 #case-info {
     position: absolute;
     top: 10px;
-    left: 10px;
+    right: 10px; /* Changed from left to right */
     width: 180px;
     background: rgba(0, 0, 0, 0.85);
     border: 1px solid var(--color-accent);
     padding: 8px;
-    z-index: 2;
+    z-index: 1000; /* Increased to ensure it's above game elements */
     font-size: 11px;
     color: white;
     display: block;
     max-height: 120px;
     overflow-y: auto;
     backdrop-filter: blur(2px);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    cursor: pointer;
+}
+
+#case-info.hidden {
+    transform: translateX(95%);
+    opacity: 0.3;
+}
+
+#case-info:hover {
+    transform: translateX(0);
+    opacity: 1;
 }
 
 #case-info h3 {
     color: var(--color-accent);
     margin-bottom: 4px;
     font-size: 12px;
+    padding-right: 20px; /* Space for toggle indicator */
+    position: relative;
+}
+
+#case-info h3::after {
+    content: '«';
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: transform 0.3s ease;
+}
+
+#case-info.hidden h3::after {
+    transform: translateY(-50%) rotate(180deg);
 }
 
 #case-info ul {
