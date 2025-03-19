@@ -250,8 +250,8 @@ class GameEngine {
                     this.processInteraction(hitObject);
                 }
             } else {
-                // Move player towards target
-                const speed = 3; // pixels per frame
+                // Move player towards target - INCREASED SPEED from 3 to 5
+                const speed = 5; // pixels per frame - faster player movement
                 const moveX = (dx / distance) * speed;
                 const moveY = (dy / distance) * speed;
                 this.playerPosition.x += moveX;
@@ -307,8 +307,15 @@ class GameEngine {
                 }
                 
                 npc.isWalking = false;
+                
+                // Check if we should start a random conversation
+                if (Math.random() > 0.7) {
+                    npc.conversationTime = 2 + Math.random() * 3; // 2-5 seconds conversation
+                    npc.dialogue = this.getRandomDialogue(npc.type);
+                }
             } else {
-                const speed = 1;
+                // REDUCED NPC SPEED from 1 to 0.7
+                const speed = 0.7; // pixels per frame - slower NPC movement
                 npc.x += (dx / distance) * speed;
                 npc.y += (dy / distance) * speed;
                 npc.facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
@@ -316,6 +323,9 @@ class GameEngine {
             }
 
             npc.y = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
+            
+            // Check for NPC conversations - if NPCs are close to each other, they might start talking
+            this.checkNPCConversations(npc, currentSceneNPCs);
         });
     };
 
@@ -398,7 +408,7 @@ class GameEngine {
 
                     // Draw conversation bubble
                     if (npc.conversationTime > 0) {
-                        this.drawConversationBubble(npc.x, yPosition - 50);
+                        this.drawConversationBubble(npc.x, yPosition - 50, npc.dialogue);
                     }
                 });
             }
@@ -642,14 +652,14 @@ class GameEngine {
         // Add notices to bulletin board
         this.drawBulletinNotices(155, 145, 110, 70, ctx);
         
-        // Reception desk (aligned with floor) - SMALLER SIZE
-        this.draw3DDesk(400, this.floorLevel.min + 20, 120, 60, ctx);
+        // Reception desk positioned further back for better view of receptionist
+        this.draw3DDesk(400, this.floorLevel.min + 40, 120, 60, ctx);
         
         // Draw phones and computer on reception desk
-        this.drawDeskItems(400, this.floorLevel.min + 20, 120, 60, ctx);
+        this.drawDeskItems(400, this.floorLevel.min + 40, 120, 60, ctx);
         
-        // Draw chair BEHIND desk for the receptionist
-        this.drawOfficeChair(430, this.floorLevel.min + 80, 'left', ctx);
+        // Draw chair BEHIND desk for the receptionist - positioned to be visible
+        this.drawOfficeChair(430, this.floorLevel.min + 90, 'left', ctx);
         
         // Door to sheriff's office
         this.drawDoorWithFrame(630, this.floorLevel.min - 120, 'right', "Sheriff's Office", ctx);
@@ -2363,6 +2373,159 @@ class GameEngine {
         } else {
             ctx.fillRect(x + 12, y - 25, 3, 10);
         }
+    };
+
+    // Method to check for NPC conversations
+    checkNPCConversations = (npc, allNpcs) => {
+        // Don't start conversations if already talking
+        if (npc.conversationTime > 0 || npc.waitTime > 0) return;
+        
+        // Find nearby NPCs to talk to
+        const nearbyNpcs = allNpcs.filter(otherNpc => {
+            if (otherNpc === npc) return false;
+            if (otherNpc.conversationTime > 0) return false;
+            
+            // Check if they're close enough
+            const dx = otherNpc.x - npc.x;
+            const dy = otherNpc.y - npc.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            return distance < 60; // Close enough to talk
+        });
+        
+        // If we found a nearby NPC and it's relatively random (10% chance)
+        if (nearbyNpcs.length > 0 && Math.random() < 0.1) {
+            const talkingPartner = nearbyNpcs[0];
+            
+            // Start conversation for both NPCs
+            npc.conversationTime = 3 + Math.random() * 2;
+            npc.dialogue = this.getRandomDialogue(npc.type);
+            npc.isWalking = false;
+            
+            // Setup the other NPC to respond
+            talkingPartner.conversationTime = 3 + Math.random() * 2;
+            talkingPartner.dialogue = this.getRandomResponse(talkingPartner.type);
+            talkingPartner.isWalking = false;
+            
+            // Turn to face each other
+            if (npc.x < talkingPartner.x) {
+                npc.facing = 'right';
+                talkingPartner.facing = 'left';
+            } else {
+                npc.facing = 'left';
+                talkingPartner.facing = 'right';
+            }
+        }
+    };
+    
+    // Random dialogue based on NPC type
+    getRandomDialogue = (npcType) => {
+        const dialogues = {
+            officer: [
+                "Any leads on that case?",
+                "Quiet day today.",
+                "Did you see the game?",
+                "Coffee's fresh.",
+                "Your shift ending soon?"
+            ],
+            detective: [
+                "This case doesn't add up.",
+                "I've got a hunch about this.",
+                "Witness statements are inconsistent.",
+                "Need to check the evidence again.",
+                "Been working this case all night."
+            ],
+            sergeant: [
+                "I need those reports ASAP.",
+                "What's the status update?",
+                "Keep me informed.",
+                "Good work on that case.",
+                "Meeting in 10 minutes."
+            ],
+            civilian: [
+                "I saw everything!",
+                "It happened so fast...",
+                "Can I go home now?",
+                "I'm just waiting for someone.",
+                "Is the detective available?"
+            ]
+        };
+        
+        // Default to officer dialogue if type not found
+        const typeDialogues = dialogues[npcType] || dialogues.officer;
+        return typeDialogues[Math.floor(Math.random() * typeDialogues.length)];
+    };
+    
+    // Random responses
+    getRandomResponse = (npcType) => {
+        const responses = [
+            "I hear you.",
+            "Good point.",
+            "That's interesting.",
+            "Really?",
+            "I'll look into that.",
+            "That's what I thought.",
+            "Let me check on that.",
+            "Keep me posted."
+        ];
+        
+        return responses[Math.floor(Math.random() * responses.length)];
+    };
+    
+    // Draw conversation bubble with text
+    drawConversationBubble = (x, y, text, ctx) => {
+        ctx = ctx || this.offscreenCtx || this.ctx;
+        
+        // Set up text properties
+        const padding = 5;
+        ctx.font = '10px Arial';
+        
+        // Get text dimensions
+        const displayText = text || "...";
+        const textWidth = ctx.measureText(displayText).width;
+        const bubbleWidth = textWidth + padding * 2;
+        const bubbleHeight = 20;
+        
+        // Draw bubble background
+        ctx.fillStyle = '#FFFFFF';
+        this.drawRoundedRect(
+            ctx,
+            x - bubbleWidth / 2, 
+            y - bubbleHeight,
+            bubbleWidth,
+            bubbleHeight,
+            5
+        );
+        
+        // Draw bubble pointer
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 5, y - 5);
+        ctx.lineTo(x + 5, y - 5);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Draw text
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'center';
+        ctx.fillText(displayText, x, y - 8);
+        ctx.textAlign = 'left'; // Reset to default
+    };
+    
+    // Helper method for drawing rounded rectangles
+    drawRoundedRect = (ctx, x, y, width, height, radius) => {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        ctx.fill();
     };
 }
 
