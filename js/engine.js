@@ -275,6 +275,63 @@ class GameEngine {
         if (!currentSceneNPCs) return;
 
         currentSceneNPCs.forEach(npc => {
+            // Special handling for receptionist to make her stay at desk
+            if (npc.isReceptionist && npc.isWorking) {
+                // If not already talking, randomly start talking sometimes
+                if (!npc.conversationTime || npc.conversationTime <= 0) {
+                    // 2% chance per frame to say something while working
+                    if (Math.random() < 0.02) {
+                        npc.conversationTime = 3;
+                        npc.dialogue = this.getRandomWorkingDialogue();
+                    }
+                } else {
+                    // Count down conversation time
+                    npc.conversationTime -= deltaTime;
+                }
+                
+                // Enable typing animation for receptionist
+                this.ambientAnimations.typingNPC.x = npc.x - 10;
+                this.ambientAnimations.typingNPC.y = npc.y - 15;
+                this.ambientAnimations.typingNPC.active = true;
+                
+                // Almost never leave the desk (99.5% chance to stay put)
+                if (Math.random() > 0.995 && npc.currentPatrolPoint === 0) {
+                    // Very rarely move to the next point
+                    npc.currentPatrolPoint = (npc.currentPatrolPoint + 1) % npc.patrolPoints.length;
+                }
+                
+                // Update position with tiny movements at desk to simulate working
+                if (npc.currentPatrolPoint <= 2) { // First 3 points are at desk
+                    // Tiny random movements while sitting
+                    if (Math.random() < 0.1) {
+                        npc.x += (Math.random() - 0.5) * 2; // Very small x movement
+                        npc.y += (Math.random() - 0.5) * 1; // Even smaller y movement
+                    }
+                } else {
+                    // When not at desk (very rare), move normally to next waypoint
+                    const target = npc.patrolPoints[npc.currentPatrolPoint];
+                    const dx = target.x - npc.x;
+                    const dy = target.y - npc.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 2) {
+                        // Return to desk quickly
+                        npc.currentPatrolPoint = 0;
+                        npc.waitTime = 2;
+                    } else {
+                        // Move toward target
+                        const speed = 0.7;
+                        npc.x += (dx / distance) * speed;
+                        npc.y += (dy / distance) * speed;
+                        npc.facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+                        npc.isWalking = true;
+                    }
+                }
+                
+                return; // Skip regular NPC behavior for receptionist
+            }
+
+            // Normal NPC behavior for everyone else
             if (npc.conversationTime > 0) {
                 npc.conversationTime -= deltaTime;
                 npc.isWalking = false;
@@ -297,24 +354,17 @@ class GameEngine {
             if (distance < 2) {
                 npc.currentPatrolPoint = (npc.currentPatrolPoint + 1) % npc.patrolPoints.length;
                 
-                if (npc.isReceptionist) {
-                    if (npc.currentPatrolPoint === 0) { // At desk
-                        npc.waitTime = 15 + Math.random() * 15; // Stay at desk longer
-                    } else if (npc.currentPatrolPoint % 2 === 1) { // At conversation points
-                        npc.waitTime = 0.5;
-                        npc.conversationTime = 3 + Math.random() * 2; // Talk for 3-5 seconds
-                    }
-                }
-                
+                // Add a wait time when reaching patrol point
+                npc.waitTime = 1 + Math.random() * 3;
                 npc.isWalking = false;
                 
-                // Check if we should start a random conversation
+                // Check if we should start a random conversation (30% chance)
                 if (Math.random() > 0.7) {
                     npc.conversationTime = 2 + Math.random() * 3; // 2-5 seconds conversation
                     npc.dialogue = this.getRandomDialogue(npc.type);
                 }
             } else {
-                // REDUCED NPC SPEED from 1 to 0.7
+                // Move towards target
                 const speed = 0.7; // pixels per frame - slower NPC movement
                 npc.x += (dx / distance) * speed;
                 npc.y += (dy / distance) * speed;
@@ -2007,32 +2057,32 @@ class GameEngine {
     drawDeskItems = (x, y, width, height, ctx) => {
         ctx = ctx || this.ctx;
         
-        // Computer monitor - fixed position
+        // Computer monitor - positioned on left side of desk to face the receptionist
         ctx.fillStyle = '#333333';
-        ctx.fillRect(x + width/2 - 20, y - 30, 40, 30);
+        ctx.fillRect(x + 30, y - 30, 40, 30); // Moved to left side
         ctx.fillStyle = '#00AAAA';
-        ctx.fillRect(x + width/2 - 17, y - 27, 34, 24);
+        ctx.fillRect(x + 33, y - 27, 34, 24); // Screen
         
-        // Keyboard - fixed position
+        // Keyboard - positioned in front of monitor
         ctx.fillStyle = '#666666';
-        ctx.fillRect(x + width/2 - 25, y - 5, 50, 15);
+        ctx.fillRect(x + 25, y - 5, 50, 15); // Moved to align with monitor
         
-        // Phone - fixed position
+        // Phone - on right side of desk
         ctx.fillStyle = '#222222';
-        ctx.fillRect(x + 20, y + 20, 30, 15);
+        ctx.fillRect(x + width - 40, y + 20, 30, 15);
         ctx.fillStyle = '#333333';
-        ctx.fillRect(x + 25, y + 5, 20, 15);
+        ctx.fillRect(x + width - 35, y + 5, 20, 15);
         
-        // Papers - fixed position (no animation)
+        // Papers - on right side of desk
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(x + 100, y + 15, 30, 20);
-        ctx.fillRect(x + 105, y + 10, 30, 20);
+        ctx.fillRect(x + width - 60, y + 15, 30, 20);
+        ctx.fillRect(x + width - 55, y + 10, 30, 20);
         
-        // Computer screen content (static)
+        // Computer screen content - facing right toward receptionist
         ctx.fillStyle = '#AAFFAA';
-        ctx.fillRect(x + width/2 - 15, y - 25, 30, 5);
-        ctx.fillRect(x + width/2 - 15, y - 18, 30, 3);
-        ctx.fillRect(x + width/2 - 15, y - 13, 20, 3);
+        ctx.fillRect(x + 35, y - 25, 30, 5);
+        ctx.fillRect(x + 35, y - 18, 30, 3);
+        ctx.fillRect(x + 35, y - 13, 20, 3);
     };
     
     drawWallDecorations = (ctx) => {
@@ -2522,42 +2572,71 @@ class GameEngine {
     
     // Draw conversation bubble with text
     drawConversationBubble = (x, y, text, ctx) => {
+        if (!text) return; // Skip if no text to show
+        
         ctx = ctx || this.offscreenCtx || this.ctx;
         
         // Set up text properties
-        const padding = 5;
-        ctx.font = '10px Arial';
+        const padding = 10;
+        const pointerHeight = 10;
+        ctx.font = '12px Arial';
         
         // Get text dimensions
-        const displayText = text || "...";
-        const textWidth = ctx.measureText(displayText).width;
-        const bubbleWidth = textWidth + padding * 2;
-        const bubbleHeight = 20;
+        const textWidth = ctx.measureText(text).width;
+        const bubbleWidth = Math.max(textWidth + padding * 2, 60);
+        const bubbleHeight = 25;
         
         // Draw bubble background
-        ctx.fillStyle = '#FFFFFF';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        
+        // Main bubble
         this.drawRoundedRect(
             ctx,
             x - bubbleWidth / 2, 
-            y - bubbleHeight,
+            y - bubbleHeight - pointerHeight,
             bubbleWidth,
             bubbleHeight,
-            5
+            6
         );
         
-        // Draw bubble pointer
+        // Bubble pointer
         ctx.beginPath();
         ctx.moveTo(x, y);
-        ctx.lineTo(x - 5, y - 5);
-        ctx.lineTo(x + 5, y - 5);
+        ctx.lineTo(x - 8, y - pointerHeight);
+        ctx.lineTo(x + 8, y - pointerHeight);
         ctx.closePath();
         ctx.fill();
+        
+        // Draw a border
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.lineWidth = 1;
+        
+        // Border for main bubble
+        ctx.beginPath();
+        ctx.roundRect(
+            x - bubbleWidth / 2, 
+            y - bubbleHeight - pointerHeight,
+            bubbleWidth,
+            bubbleHeight,
+            6
+        );
+        ctx.stroke();
+        
+        // Border for pointer
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 8, y - pointerHeight);
+        ctx.lineTo(x + 8, y - pointerHeight);
+        ctx.closePath();
+        ctx.stroke();
         
         // Draw text
         ctx.fillStyle = '#000000';
         ctx.textAlign = 'center';
-        ctx.fillText(displayText, x, y - 8);
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, x, y - bubbleHeight/2 - pointerHeight);
         ctx.textAlign = 'left'; // Reset to default
+        ctx.textBaseline = 'alphabetic'; // Reset to default
     };
     
     // Helper method for drawing rounded rectangles
@@ -2574,6 +2653,21 @@ class GameEngine {
         ctx.quadraticCurveTo(x, y, x + radius, y);
         ctx.closePath();
         ctx.fill();
+    };
+
+    // Random dialogue for receptionist working at desk
+    getRandomWorkingDialogue = () => {
+        const workingDialogues = [
+            "Filing these reports...",
+            "Updating the system...",
+            "Processing this paperwork.",
+            "Checking these records.",
+            "Scheduling interviews.",
+            "Updating the duty roster.",
+            "Entering case data.",
+            "Need to finish this form."
+        ];
+        return workingDialogues[Math.floor(Math.random() * workingDialogues.length)];
     };
 }
 
