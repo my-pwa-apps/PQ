@@ -2636,17 +2636,41 @@ class GameEngine {
         ctx = ctx || this.ctx;
         const colors = this.colors;
         
-        // Police department seal moved to wall space between window and bulletin board
+        // Police department seal moved to right side
         ctx.fillStyle = colors.darkBlue;
         ctx.beginPath();
-        ctx.arc(500, 100, 40, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = colors.yellow;
-        ctx.beginPath();
-        ctx.arc(500, 100, 30, 0, Math.PI * 2);
+        ctx.arc(650, 100, 40, 0, Math.PI * 2);
         ctx.fill();
         
-        // Wall clock remains at its position
+        // Decorative border ring
+        ctx.strokeStyle = colors.yellow;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(650, 100, 42, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Inner seal
+        ctx.fillStyle = colors.yellow;
+        ctx.beginPath();
+        ctx.arc(650, 100, 30, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add text "POLICE" curving along the top of seal
+        ctx.fillStyle = colors.white;
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add star in center
+        ctx.fillStyle = colors.darkBlue;
+        ctx.beginPath();
+        this.drawStar(650, 100, 5, 15, 7);
+        ctx.fill();
+        
+        // Wall clock remains at original position
+        // ...existing code...
+
+        // Wall clock
         ctx.fillStyle = colors.white;
         ctx.beginPath();
         ctx.arc(600, 50, 20, 0, Math.PI * 2);
