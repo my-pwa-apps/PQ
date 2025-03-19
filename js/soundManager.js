@@ -85,6 +85,11 @@ class SoundManager {
             this.currentMusic = null;
         }
     }
+    
+    // Add alias method for compatibility with engine.js
+    stopBackgroundMusic() {
+        return this.stopMusic();
+    }
 
     toggleMute() {
         this.isMuted = !this.isMuted;
