@@ -2304,4 +2304,44 @@ class GameEngine {
             });
         }
     };
+
+    drawOfficeChair = (x, y, facing = 'left', ctx) => {
+        ctx = ctx || this.ctx;
+        
+        // Chair base (darker gray)
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(x - 10, y, 20, 5);
+        
+        // Chair wheels
+        ctx.fillStyle = '#222222';
+        ctx.beginPath();
+        ctx.arc(x - 10, y + 5, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + 10, y + 5, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Chair post
+        ctx.fillStyle = '#444444';
+        ctx.fillRect(x - 2, y - 15, 4, 15);
+        
+        // Chair seat
+        ctx.fillStyle = '#1E3F7A'; // Dark blue for police department chairs
+        ctx.fillRect(x - 10, y - 25, 20, 10);
+        
+        // Chair back
+        if (facing === 'left') {
+            ctx.fillRect(x - 15, y - 45, 5, 25);
+        } else {
+            ctx.fillRect(x + 10, y - 45, 5, 25);
+        }
+        
+        // Chair arms
+        ctx.fillStyle = '#333333';
+        if (facing === 'left') {
+            ctx.fillRect(x - 15, y - 25, 3, 10);
+        } else {
+            ctx.fillRect(x + 12, y - 25, 3, 10);
+        }
+    };
 }
