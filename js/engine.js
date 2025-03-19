@@ -275,60 +275,31 @@ class GameEngine {
         if (!currentSceneNPCs) return;
 
         currentSceneNPCs.forEach(npc => {
-            // Special handling for receptionist to make her stay at desk
-            if (npc.isReceptionist && npc.isWorking) {
-                // If not already talking, randomly start talking sometimes
+            // Special handling for receptionist - COMPLETE REWRITE TO KEEP HER AT DESK
+            if (npc.isReceptionist && npc.stayAtDesk) {
+                // Only show typing animation and keep at desk
+                npc.x = 435; // Force position to stay at desk
+                npc.y = this.floorLevel.min + 75; // Force height to appear seated in chair
+                npc.facing = 'left'; // Always face the computer
+                npc.isWalking = false; // Never appear to be walking
+                
+                // Occasionally show a speech bubble while working
                 if (!npc.conversationTime || npc.conversationTime <= 0) {
-                    // 2% chance per frame to say something while working
-                    if (Math.random() < 0.02) {
+                    // Small chance to show work-related speech bubble
+                    if (Math.random() < 0.005) { // Lower frequency for less distraction
                         npc.conversationTime = 3;
                         npc.dialogue = this.getRandomWorkingDialogue();
                     }
                 } else {
-                    // Count down conversation time
                     npc.conversationTime -= deltaTime;
                 }
                 
-                // Enable typing animation for receptionist
+                // Enable typing animation
                 this.ambientAnimations.typingNPC.x = npc.x - 10;
                 this.ambientAnimations.typingNPC.y = npc.y - 15;
                 this.ambientAnimations.typingNPC.active = true;
                 
-                // Almost never leave the desk (99.5% chance to stay put)
-                if (Math.random() > 0.995 && npc.currentPatrolPoint === 0) {
-                    // Very rarely move to the next point
-                    npc.currentPatrolPoint = (npc.currentPatrolPoint + 1) % npc.patrolPoints.length;
-                }
-                
-                // Update position with tiny movements at desk to simulate working
-                if (npc.currentPatrolPoint <= 2) { // First 3 points are at desk
-                    // Tiny random movements while sitting
-                    if (Math.random() < 0.1) {
-                        npc.x += (Math.random() - 0.5) * 2; // Very small x movement
-                        npc.y += (Math.random() - 0.5) * 1; // Even smaller y movement
-                    }
-                } else {
-                    // When not at desk (very rare), move normally to next waypoint
-                    const target = npc.patrolPoints[npc.currentPatrolPoint];
-                    const dx = target.x - npc.x;
-                    const dy = target.y - npc.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-
-                    if (distance < 2) {
-                        // Return to desk quickly
-                        npc.currentPatrolPoint = 0;
-                        npc.waitTime = 2;
-                    } else {
-                        // Move toward target
-                        const speed = 0.7;
-                        npc.x += (dx / distance) * speed;
-                        npc.y += (dy / distance) * speed;
-                        npc.facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
-                        npc.isWalking = true;
-                    }
-                }
-                
-                return; // Skip regular NPC behavior for receptionist
+                return; // Skip all other NPC processing
             }
 
             // Normal NPC behavior for everyone else
@@ -352,10 +323,14 @@ class GameEngine {
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance < 2) {
-                npc.currentPatrolPoint = (npc.currentPatrolPoint + 1) % npc.patrolPoints.length;
+                // Use custom wait times if available, otherwise use random
+                if (npc.waitTimes && npc.waitTimes[npc.currentPatrolPoint]) {
+                    npc.waitTime = npc.waitTimes[npc.currentPatrolPoint];
+                } else {
+                    npc.waitTime = 1 + Math.random() * 3;
+                }
                 
-                // Add a wait time when reaching patrol point
-                npc.waitTime = 1 + Math.random() * 3;
+                npc.currentPatrolPoint = (npc.currentPatrolPoint + 1) % npc.patrolPoints.length;
                 npc.isWalking = false;
                 
                 // Check if we should start a random conversation (30% chance)
@@ -1644,29 +1619,29 @@ class GameEngine {
             
             // Add NPCs for each scene
             if (sceneId === 'policeStation') {
-                // Receptionist at the desk - positioned properly behind the desk with correct coordinates
-                // to make it look like she's sitting at the chair working at the computer
+                // Receptionist at the desk - permanently stationed at the desk
                 this.npcs[sceneId].push({
                     x: 435,  // Aligned with the chair position
-                    y: this.floorLevel.min + 85, // Properly positioned to appear sitting in the chair
+                    y: this.floorLevel.min + 75, // Properly positioned to appear sitting in the chair
                     type: 'officer',
                     name: 'Officer Jenny',
                     isReceptionist: true,
                     isFemale: true,
                     isWorking: true, // Flag to indicate she's actively working
-                    // Mostly stay at the desk, occasionally get up to get coffee or talk to someone
+                    // IMPORTANT: Always stay at the desk - only very small movements to simulate typing
                     patrolPoints: [
-                        {x: 435, y: this.floorLevel.min + 85}, // At desk working position
-                        {x: 440, y: this.floorLevel.min + 85}, // Slight movement at desk
-                        {x: 430, y: this.floorLevel.min + 85}, // Slight movement at desk
-                        {x: 550, y: this.floorLevel.min + 120}, // Getting up to get a file (occasionally)
-                        {x: 300, y: this.floorLevel.min + 120},  // Rarely leaves desk to talk to colleague
-                        {x: 435, y: this.floorLevel.min + 85}, // Return to desk
+                        {x: 435, y: this.floorLevel.min + 75}, // Fixed desk position
+                        {x: 436, y: this.floorLevel.min + 75}, // Tiny movement for animation
+                        {x: 434, y: this.floorLevel.min + 75}, // Tiny movement for animation
+                        {x: 435, y: this.floorLevel.min + 75}  // Back to center position
                     ],
-                    patrolWeights: [10, 10, 10, 1, 1, 10], // Higher weights for desk positions
                     currentPatrolPoint: 0,
-                    facing: 'left',
-                    waitTime: 20 // Longer wait time at desk
+                    facing: 'left',  // Always face the computer
+                    waitTime: 60,    // Stay seated for a long time
+                    conversationChance: 0.02, // Occasional speech bubble while working
+                    dialogue: this.getRandomWorkingDialogue(), // Initial dialogue
+                    conversationTime: 2, // Show dialogue when scene loads
+                    stayAtDesk: true // Special flag to prevent movement
                 });
                 
                 // Patrolling officer - away from the desk
@@ -1678,11 +1653,13 @@ class GameEngine {
                     patrolPoints: [
                         {x: 200, y: this.floorLevel.min + 120}, 
                         {x: 600, y: this.floorLevel.min + 120},
-                        {x: 400, y: this.floorLevel.min + 150},
+                        {x: 400, y: this.floorLevel.min + 110}, // Near reception desk to talk
+                        {x: 400, y: this.floorLevel.min + 110}, // Stay at desk for a moment
                         {x: 300, y: this.floorLevel.min + 120}
                     ],
                     currentPatrolPoint: 0,
-                    facing: 'right'
+                    facing: 'right',
+                    waitTimes: [2, 2, 15, 0, 2] // Wait longer at reception desk
                 });
                 
                 // Detective in a hurry
@@ -1694,11 +1671,14 @@ class GameEngine {
                     patrolPoints: [
                         {x: 100, y: this.floorLevel.min + 120},
                         {x: 300, y: this.floorLevel.min + 120},
-                        {x: 380, y: this.floorLevel.min + 120}, // Talk to receptionist
-                        {x: 630, y: this.floorLevel.min + 20}  // To sheriff's office
+                        {x: 380, y: this.floorLevel.min + 110}, // Talk to receptionist
+                        {x: 380, y: this.floorLevel.min + 110}, // Stay at desk for a moment
+                        {x: 630, y: this.floorLevel.min + 20}   // To sheriff's office
                     ],
                     currentPatrolPoint: 0,
-                    facing: 'right'
+                    facing: 'right',
+                    waitTimes: [2, 2, 15, 0, 2], // Wait longer at reception desk
+                    dialogue: "Can I get those files I requested?"
                 });
             }
             
