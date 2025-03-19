@@ -1070,8 +1070,8 @@ class GameEngine {
         ctx.fillStyle = '#3A5C98';
         ctx.fillRect(x - 6, y - 15, 12, 3);
         
-        // Draw police badge
-        ctx.fillStyle = badgeColor;
+        // Draw police badge - Use hairColor param as badge color
+        ctx.fillStyle = hairColor || '#FFD700'; // Use hairColor or default to gold if not provided
         if (facing === 'left') {
             ctx.fillRect(x - 5, y - 10, 5, 5);
         } else if (facing === 'right') {
