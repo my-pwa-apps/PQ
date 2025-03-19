@@ -608,39 +608,39 @@ class GameEngine {
         ctx.fillStyle = '#4A4A4A';
         ctx.fillRect(0, this.floorLevel.min - 10, this.canvas.width, 10);
         
-        // Single window (positioned more centrally)
+        // Single window (positioned at a more realistic height - lower on wall)
         // Window frame
         ctx.fillStyle = '#A0A0A0';
-        ctx.fillRect(320, 50, 160, 100);
+        ctx.fillRect(320, 120, 160, 100);
             
         // Window glass
         ctx.fillStyle = '#B0E0FF';
-        ctx.fillRect(325, 55, 150, 90);
+        ctx.fillRect(325, 125, 150, 90);
             
         // Window frame dividers
         ctx.strokeStyle = '#A0A0A0';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(400, 55);
-        ctx.lineTo(400, 145);
+        ctx.moveTo(400, 125);
+        ctx.lineTo(400, 215);
         ctx.stroke();
             
         ctx.beginPath();
-        ctx.moveTo(325, 100);
-        ctx.lineTo(475, 100);
+        ctx.moveTo(325, 170);
+        ctx.lineTo(475, 170);
         ctx.stroke();
 
-        // Add animated view through window
-        this.drawWindowView(325, 55, 150, 90, ctx);
+        // Add more realistic view through window
+        this.drawWindowView(325, 125, 150, 90, ctx);
         
-        // Bulletin board
+        // Bulletin board at correct height
         ctx.fillStyle = '#8B4513';
-        ctx.fillRect(150, 50, 120, 80);
+        ctx.fillRect(150, 140, 120, 80);
         ctx.fillStyle = '#F5F5DC';
-        ctx.fillRect(155, 55, 110, 70);
+        ctx.fillRect(155, 145, 110, 70);
         
         // Add notices to bulletin board
-        this.drawBulletinNotices(155, 55, 110, 70, ctx);
+        this.drawBulletinNotices(155, 145, 110, 70, ctx);
         
         // Reception desk (aligned with floor)
         this.draw3DDesk(400, this.floorLevel.min + 20, 150, 80, ctx);
@@ -1543,38 +1543,38 @@ class GameEngine {
             
             // Add NPCs for each scene
             if (sceneId === 'policeStation') {
-                // Receptionist at the desk
+                // Receptionist at the desk - positioned BEHIND the desk, not on top of it
                 this.npcs[sceneId].push({
-                    x: 475,
-                    y: this.floorLevel.min + 30,
+                    x: 430,
+                    y: this.floorLevel.min + 100, // Position behind the desk, not on it
                     type: 'officer',
                     name: 'Officer Jenny',
                     isReceptionist: true,
                     isFemale: true,
                     // Mostly stay at the desk, occasionally get up to get coffee or talk to someone
                     patrolPoints: [
-                        {x: 475, y: this.floorLevel.min + 30}, // At desk
-                        {x: 475, y: this.floorLevel.min + 30}, // Still at desk (higher weight)
-                        {x: 475, y: this.floorLevel.min + 30}, // Still at desk (higher weight)
-                        {x: 550, y: this.floorLevel.min + 80}, // Getting a file
-                        {x: 300, y: this.floorLevel.min + 60}  // Visiting a colleague
+                        {x: 430, y: this.floorLevel.min + 100}, // Behind desk
+                        {x: 450, y: this.floorLevel.min + 100}, // Still behind desk (higher weight)
+                        {x: 460, y: this.floorLevel.min + 100}, // Still behind desk (higher weight)
+                        {x: 550, y: this.floorLevel.min + 120}, // Getting a file
+                        {x: 300, y: this.floorLevel.min + 120}  // Visiting a colleague
                     ],
                     currentPatrolPoint: 0,
                     facing: 'left',
                     waitTime: 15
                 });
                 
-                // Patrolling officer
+                // Patrolling officer - away from the desk
                 this.npcs[sceneId].push({
                     x: 200, 
-                    y: this.floorLevel.min + 60,
+                    y: this.floorLevel.min + 120,
                     type: 'officer',
                     name: 'Officer Johnson',
                     patrolPoints: [
-                        {x: 200, y: this.floorLevel.min + 60}, 
-                        {x: 600, y: this.floorLevel.min + 60},
-                        {x: 400, y: this.floorLevel.min + 100},
-                        {x: 300, y: this.floorLevel.min + 80}
+                        {x: 200, y: this.floorLevel.min + 120}, 
+                        {x: 600, y: this.floorLevel.min + 120},
+                        {x: 400, y: this.floorLevel.min + 150},
+                        {x: 300, y: this.floorLevel.min + 120}
                     ],
                     currentPatrolPoint: 0,
                     facing: 'right'
@@ -1583,14 +1583,14 @@ class GameEngine {
                 // Detective in a hurry
                 this.npcs[sceneId].push({
                     x: 100,
-                    y: this.floorLevel.min + 90,
+                    y: this.floorLevel.min + 120,
                     type: 'detective',
                     name: 'Detective Morgan',
                     patrolPoints: [
-                        {x: 100, y: this.floorLevel.min + 90},
-                        {x: 300, y: this.floorLevel.min + 50},
-                        {x: 450, y: this.floorLevel.min + 40}, // Talk to receptionist
-                        {x: 630, y: this.floorLevel.min - 70}  // To sheriff's office
+                        {x: 100, y: this.floorLevel.min + 120},
+                        {x: 300, y: this.floorLevel.min + 120},
+                        {x: 380, y: this.floorLevel.min + 120}, // Talk to receptionist
+                        {x: 630, y: this.floorLevel.min + 20}  // To sheriff's office
                     ],
                     currentPatrolPoint: 0,
                     facing: 'right'
@@ -1604,23 +1604,23 @@ class GameEngine {
                         x: 250, y: 350,
                         type: 'detective',
                         name: 'Detective Williams',
-                        patrolPoints: [{x: 250, y: 350}, {x: 400, y: 350}, {x: 600, y: 350}, {x: 720, y: 250}],
+                        patrolPoints: [{x: 250, y: 350}, {x: 400, y: 350}, {x: 600, y: 350}, {x: 720, y: 350}],
                         currentPatrolPoint: 0,
                         facing: 'right'
                     },
                     {
-                        x: 500, y: 320,
+                        x: 500, y: 380,
                         type: 'officer',
                         name: 'Officer Smith',
-                        patrolPoints: [{x: 500, y: 320}, {x: 300, y: 320}, {x: 700, y: 380}],
+                        patrolPoints: [{x: 500, y: 380}, {x: 300, y: 380}, {x: 700, y: 380}],
                         currentPatrolPoint: 0,
                         facing: 'left'
                     },
                     {
-                        x: 170, y: 330,
+                        x: 170, y: 380,
                         type: 'sergeant',
                         name: 'Sergeant Rodriguez',
-                        patrolPoints: [{x: 170, y: 330}, {x: 170, y: 330}, {x: 100, y: 350}, {x: 400, y: 300}],
+                        patrolPoints: [{x: 170, y: 380}, {x: 170, y: 380}, {x: 100, y: 380}, {x: 400, y: 380}],
                         currentPatrolPoint: 0,
                         facing: 'down',
                         waitTime: 10
