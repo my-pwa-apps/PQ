@@ -1038,12 +1038,18 @@ class GameEngine {
         const frame = Math.floor(this.animationFrame / 10) % 2;
         const legOffset = walking ? (frame === 0 ? -3 : 3) : 0;
         
+        // Make characters 20% larger
+        const scale = 1.2;
+        
         // Set up shadow
         ctx.fillStyle = 'rgba(0,0,0,0.2)';
         ctx.beginPath();
-        ctx.ellipse(x, y + 20, 12, 6, 0, 0, Math.PI * 2);
+        ctx.ellipse(x, y + 20, 12 * scale, 6 * scale, 0, 0, Math.PI * 2);
         ctx.fill();
 
+        // Use natural skin tone instead of yellow
+        const skinColor = '#E6B89C';
+        
         // Draw police uniform (proper color)
         const uniformColor = isNPC ? '#1A3C78' : '#0A2050'; // Darker blue for police uniforms
         const pantColor = '#1E2C4D'; // Dark blue for pants
@@ -1051,90 +1057,101 @@ class GameEngine {
         // Draw legs
         ctx.fillStyle = pantColor;
         if (facing === 'left' || facing === 'right') {
-            ctx.fillRect(x - 5, y, 4, 20); // Left leg
-            ctx.fillRect(x + 5 - 4, y + legOffset, 4, 20 - legOffset); // Right leg with offset while walking
+            ctx.fillRect(x - 5 * scale, y, 4 * scale, 20 * scale); // Left leg
+            ctx.fillRect(x + (5 - 4) * scale, y + legOffset, 4 * scale, 20 * scale - legOffset); // Right leg with offset while walking
         } else {
-            ctx.fillRect(x - 5, y + legOffset, 4, 20 - legOffset); // Left leg with offset while walking
-            ctx.fillRect(x + 1, y, 4, 20); // Right leg
+            ctx.fillRect(x - 5 * scale, y + legOffset, 4 * scale, 20 * scale - legOffset); // Left leg with offset while walking
+            ctx.fillRect(x + 1 * scale, y, 4 * scale, 20 * scale); // Right leg
         }
         
         // Draw police belt
         ctx.fillStyle = '#000000';
-        ctx.fillRect(x - 8, y - 2, 16, 3);
+        ctx.fillRect(x - 8 * scale, y - 2, 16 * scale, 3);
         
         // Draw body/torso (uniform)
         ctx.fillStyle = uniformColor;
-        ctx.fillRect(x - 8, y - 15, 16, 14); // Torso
+        ctx.fillRect(x - 8 * scale, y - 15 * scale, 16 * scale, 14 * scale); // Torso
         
         // Draw collar (lighter blue)
         ctx.fillStyle = '#3A5C98';
-        ctx.fillRect(x - 6, y - 15, 12, 3);
+        ctx.fillRect(x - 6 * scale, y - 15 * scale, 12 * scale, 3 * scale);
         
-        // Draw police badge - Use hairColor param as badge color
-        ctx.fillStyle = hairColor || '#FFD700'; // Use hairColor or default to gold if not provided
+        // Draw police badge
+        ctx.fillStyle = badgeColor || '#FFD700'; // Use badgeColor or default to gold if not provided
         if (facing === 'left') {
-            ctx.fillRect(x - 5, y - 10, 5, 5);
+            ctx.fillRect(x - 5 * scale, y - 10 * scale, 5 * scale, 5 * scale);
         } else if (facing === 'right') {
-            ctx.fillRect(x, y - 10, 5, 5);
+            ctx.fillRect(x * scale, y - 10 * scale, 5 * scale, 5 * scale);
         } else {
-            ctx.fillRect(x - 5, y - 10, 5, 5);
+            ctx.fillRect(x - 5 * scale, y - 10 * scale, 5 * scale, 5 * scale);
         }
         
         // Draw arms with uniform color
         ctx.fillStyle = uniformColor;
         if (facing === 'left') {
-            ctx.fillRect(x - 10, y - 15, 5, 15);  // Left arm on left side
+            ctx.fillRect(x - 10 * scale, y - 15 * scale, 5 * scale, 15 * scale);  // Left arm on left side
         } else if (facing === 'right') {
-            ctx.fillRect(x + 5, y - 15, 5, 15);   // Left arm on right side
+            ctx.fillRect(x + 5 * scale, y - 15 * scale, 5 * scale, 15 * scale);   // Left arm on right side
         } else {
-            ctx.fillRect(x - 12, y - 12, 5, 15);  // Left arm
-            ctx.fillRect(x + 7, y - 12, 5, 15);   // Right arm
+            ctx.fillRect(x - 12 * scale, y - 12 * scale, 5 * scale, 15 * scale);  // Left arm
+            ctx.fillRect(x + 7 * scale, y - 12 * scale, 5 * scale, 15 * scale);   // Right arm
+        }
+
+        // Draw hands with skin color
+        ctx.fillStyle = skinColor;
+        if (facing === 'left') {
+            ctx.fillRect(x - 10 * scale, y - 5 * scale, 5 * scale, 5 * scale);  // Left hand
+        } else if (facing === 'right') {
+            ctx.fillRect(x + 5 * scale, y - 5 * scale, 5 * scale, 5 * scale);   // Right hand
+        } else {
+            ctx.fillRect(x - 12 * scale, y - 3 * scale, 5 * scale, 6 * scale);  // Left hand
+            ctx.fillRect(x + 7 * scale, y - 3 * scale, 5 * scale, 6 * scale);   // Right hand
         }
         
-        // Draw head
-        ctx.fillStyle = this.colors.skin;
+        // Draw head with natural skin tone instead of yellow
+        ctx.fillStyle = skinColor;
         ctx.beginPath();
-        ctx.arc(x, y - 25, 10, 0, Math.PI * 2);
+        ctx.arc(x, y - 25 * scale, 10 * scale, 0, Math.PI * 2);
         ctx.fill();
         
         // Draw police hat
         ctx.fillStyle = '#141E33'; // Dark blue hat
-        ctx.fillRect(x - 9, y - 34, 18, 6); // Hat brim
-        ctx.fillRect(x - 7, y - 40, 14, 6); // Hat top
+        ctx.fillRect(x - 9 * scale, y - 34 * scale, 18 * scale, 6 * scale); // Hat brim
+        ctx.fillRect(x - 7 * scale, y - 40 * scale, 14 * scale, 6 * scale); // Hat top
         
         // Hat badge
         ctx.fillStyle = '#FFD700'; // Gold badge
-        ctx.fillRect(x - 3, y - 34, 6, 3);
+        ctx.fillRect(x - 3 * scale, y - 34 * scale, 6 * scale, 3 * scale);
         
         // Draw hair (different styles based on gender)
-        ctx.fillStyle = hairColor;
+        ctx.fillStyle = badgeColor || '#663300'; // Use provided hair color or default to brown
         if (isFemale) {
             // Female hair style
             if (facing === 'left' || facing === 'right') {
                 // Profile view with hair visible 
-                const hairSide = facing === 'left' ? x - 10 : x + 10;
+                const hairSide = facing === 'left' ? x - 10 * scale : x + 10 * scale;
                 ctx.beginPath();
-                ctx.arc(x, y - 25, 10, Math.PI * 0.3, Math.PI * 1.7, facing === 'right');
+                ctx.arc(x, y - 25 * scale, 10 * scale, Math.PI * 0.3, Math.PI * 1.7, facing === 'right');
                 ctx.fill();
                 
                 // Hair bun or ponytail
                 ctx.beginPath();
-                ctx.arc(hairSide, y - 28, 5, 0, Math.PI * 2);
+                ctx.arc(hairSide, y - 28 * scale, 5 * scale, 0, Math.PI * 2);
                 ctx.fill();
             } else {
                 // Front or back view
                 ctx.beginPath();
-                ctx.arc(x, y - 25, 10, Math.PI, Math.PI * 2);
+                ctx.arc(x, y - 25 * scale, 10 * scale, Math.PI, Math.PI * 2);
                 ctx.fill();
                 
                 // Add visible hair on sides
-                ctx.fillRect(x - 10, y - 30, 2, 12);
-                ctx.fillRect(x + 8, y - 30, 2, 12);
+                ctx.fillRect(x - 10 * scale, y - 30 * scale, 2 * scale, 12 * scale);
+                ctx.fillRect(x + 8 * scale, y - 30 * scale, 2 * scale, 12 * scale);
             }
         } else {
             // Male hair style (short)
             ctx.beginPath();
-            ctx.arc(x, y - 30, 8, 0, Math.PI);
+            ctx.arc(x, y - 30 * scale, 8 * scale, 0, Math.PI);
             ctx.fill();
         }
         
@@ -1144,20 +1161,20 @@ class GameEngine {
         // Different face expressions based on facing direction
         if (facing === 'down') {
             // Eyes
-            ctx.fillRect(x - 4, y - 28, 2, 2);
-            ctx.fillRect(x + 2, y - 28, 2, 2);
+            ctx.fillRect(x - 4 * scale, y - 28 * scale, 2 * scale, 2 * scale);
+            ctx.fillRect(x + 2 * scale, y - 28 * scale, 2 * scale, 2 * scale);
             // Mouth
-            ctx.fillRect(x - 2, y - 22, 4, 1);
+            ctx.fillRect(x - 2 * scale, y - 22 * scale, 4 * scale, 1 * scale);
         } else if (facing === 'up') {
             // Back of head, no face details
         } else if (facing === 'left') {
             // Profile facing left
-            ctx.fillRect(x - 4, y - 28, 2, 2); // One eye
-            ctx.fillRect(x - 6, y - 22, 3, 1); // Mouth
+            ctx.fillRect(x - 4 * scale, y - 28 * scale, 2 * scale, 2 * scale); // One eye
+            ctx.fillRect(x - 6 * scale, y - 22 * scale, 3 * scale, 1 * scale); // Mouth
         } else if (facing === 'right') {
             // Profile facing right
-            ctx.fillRect(x + 2, y - 28, 2, 2); // One eye
-            ctx.fillRect(x + 3, y - 22, 3, 1); // Mouth
+            ctx.fillRect(x + 2 * scale, y - 28 * scale, 2 * scale, 2 * scale); // One eye
+            ctx.fillRect(x + 3 * scale, y - 22 * scale, 3 * scale, 1 * scale); // Mouth
         }
     };
 
@@ -2216,7 +2233,7 @@ class GameEngine {
             const hex = color.replace('#', '');
             const adjust = (value) => {
                 const adjusted = Math.max(0, Math.min(255, parseInt(value, 16) + amount));
-                return adjusted.toString(16).padStart(2, '0');
+                return adjusted toString(16).padStart(2, '0');
             };
 
             const r = adjust(hex.substring(0, 2));
