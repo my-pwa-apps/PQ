@@ -562,7 +562,47 @@ class Game {
         dialogBox.classList.add('visible');
     }
 
-    // ... rest of the Game class remains unchanged ...
+    checkCaseSolved() {
+        if (!this.gameState.currentCase) return false;
+        return this.gameState.currentCase.stages.every(stage => stage.completed);
+    }
+
+    completeStage(stageId) {
+        if (!this.gameState.currentCase) return;
+        const stage = this.gameState.currentCase.stages.find(s => s.id === stageId);
+        if (stage) {
+            stage.completed = true;
+            this.updateCaseInfo();
+        }
+    }
+
+    addToInventory(item) {
+        if (!this.gameState.inventory) {
+            this.gameState.inventory = new Set();
+        }
+        this.gameState.inventory.add(item);
+        this.updateInventoryUI();
+    }
+
+    collectEvidence(evidence) {
+        if (!this.gameState.currentCase.evidence) {
+            this.gameState.currentCase.evidence = [];
+        }
+        this.gameState.currentCase.evidence.push(evidence);
+    }
+
+    showDialog(text) {
+        const dialogBox = document.getElementById('dialog-box');
+        if (!dialogBox || !text) return;
+        
+        dialogBox.innerText = text;
+        dialogBox.style.display = 'block';
+        
+        // Auto-hide dialog after 5 seconds
+        setTimeout(() => {
+            dialogBox.style.display = 'none';
+        }, 5000);
+    }
 }
 
 // Then handle DOM content loaded

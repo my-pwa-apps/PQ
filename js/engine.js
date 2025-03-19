@@ -1642,7 +1642,11 @@ class GameEngine {
             // Reset all state
             this.clear();
             this.collisionObjects = [];
-            this.npcs[sceneId] = this.npcs[sceneId] || [];
+            
+            // Initialize NPCs array for this scene if it doesn't exist
+            if (!this.npcs[sceneId]) {
+                this.npcs[sceneId] = [];
+            }
             
             // Reset ambient animations
             Object.keys(this.ambientAnimations).forEach(key => {
@@ -1663,7 +1667,7 @@ class GameEngine {
             // Setup scene components in order
             this.setupAmbientAnimations(this.currentScene);
             this.updateCollisionObjects();
-            this.updateNPCsForScene(this.currentScene);
+            this.initializeNPCsForScene(sceneId);
             
             // Draw the new scene
             requestAnimationFrame(() => {
@@ -1682,659 +1686,168 @@ class GameEngine {
             this.showDialog("Error loading scene. Please try again.");
         }
     };
-    
-    updateNPCsForScene = (sceneId) => {
-        // Create NPCs for the scene if they don't exist yet
-        if (!this.npcs[sceneId]) {
-            this.npcs[sceneId] = [];
-            
-            // Add NPCs for each scene
-            if (sceneId === 'policeStation') {
-                // Receptionist at the desk - permanently stationed at the desk
+
+    initializeNPCsForScene = (sceneId) => {
+        // Clear existing NPCs for this scene
+        this.npcs[sceneId] = [];
+        
+        switch(sceneId) {
+            case 'policeStation':
+                // Receptionist at desk
                 this.npcs[sceneId].push({
-                    x: 435,  // Aligned with the chair position
-                    y: this.floorLevel.min + 75, // Properly positioned to appear sitting in the chair
+                    x: 435,
+                    y: this.floorLevel.min + 75,
                     type: 'officer',
                     name: 'Officer Jenny',
                     isReceptionist: true,
                     isFemale: true,
-                    isWorking: true, // Flag to indicate she's actively working
-                    // IMPORTANT: Always stay at the desk - only very small movements to simulate typing
-                    patrolPoints: [
-                        {x: 435, y: this.floorLevel.min + 75}, // Fixed desk position
-                        {x: 436, y: this.floorLevel.min + 75}, // Tiny movement for animation
-                        {x: 434, y: this.floorLevel.min + 75}, // Tiny movement for animation
-                        {x: 435, y: this.floorLevel.min + 75}  // Back to center position
-                    ],
+                    isWorking: true,
+                    patrolPoints: [{x: 435, y: this.floorLevel.min + 75}],
                     currentPatrolPoint: 0,
-                    facing: 'left',  // Always face the computer
-                    waitTime: 60,    // Stay seated for a long time
-                    conversationChance: 0.02, // Occasional speech bubble while working
-                    dialogue: this.getRandomWorkingDialogue(), // Initial dialogue
-                    conversationTime: 2, // Show dialogue when scene loads
-                    stayAtDesk: true // Special flag to prevent movement
+                    facing: 'left',
+                    waitTime: 60,
+                    conversationChance: 0.02,
+                    dialogue: "Welcome to the station. How can I help you?",
+                    conversationTime: 2,
+                    stayAtDesk: true
                 });
-                
-                // Patrolling officer - away from the desk
+
+                // Patrolling officer
                 this.npcs[sceneId].push({
-                    x: 200, 
+                    x: 200,
                     y: this.floorLevel.min + 120,
                     type: 'officer',
                     name: 'Officer Johnson',
                     patrolPoints: [
-                        {x: 200, y: this.floorLevel.min + 120}, 
+                        {x: 200, y: this.floorLevel.min + 120},
                         {x: 600, y: this.floorLevel.min + 120},
-                        {x: 400, y: this.floorLevel.min + 110}, // Near reception desk to talk
-                        {x: 400, y: this.floorLevel.min + 110}, // Stay at desk for a moment
-                        {x: 300, y: this.floorLevel.min + 120}
+                        {x: 400, y: this.floorLevel.min + 110}
                     ],
                     currentPatrolPoint: 0,
                     facing: 'right',
-                    waitTimes: [2, 2, 15, 0, 2] // Wait longer at reception desk
+                    waitTimes: [2, 2, 15]
                 });
-                
-                // Detective in a hurry
+                break;
+
+            case 'downtown':
+                // Beat cop
                 this.npcs[sceneId].push({
-                    x: 100,
-                    y: this.floorLevel.min + 120,
-                    type: 'detective',
-                    name: 'Detective Morgan',
+                    x: 150,
+                    y: 350,
+                    type: 'officer',
+                    name: 'Officer Parker',
                     patrolPoints: [
-                        {x: 100, y: this.floorLevel.min + 120},
-                        {x: 300, y: this.floorLevel.min + 120},
-                        {x: 380, y: this.floorLevel.min + 110}, // Talk to receptionist
-                        {x: 380, y: this.floorLevel.min + 110}, // Stay at desk for a moment
-                        {x: 630, y: this.floorLevel.min + 20}   // To sheriff's office
+                        {x: 150, y: 350},
+                        {x: 300, y: 350},
+                        {x: 450, y: 350}
+                    ],
+                    currentPatrolPoint: 0,
+                    facing: 'right'
+                });
+
+                // Witness
+                this.npcs[sceneId].push({
+                    x: 600,
+                    y: 320,
+                    type: 'civilian',
+                    name: 'Witness',
+                    patrolPoints: [
+                        {x: 600, y: 320},
+                        {x: 550, y: 340},
+                        {x: 630, y: 350}
+                    ],
+                    currentPatrolPoint: 0,
+                    facing: 'left',
+                    isFemale: true,
+                    dialogue: "I saw someone suspicious last night."
+                });
+                break;
+
+            case 'officeArea':
+                // Detective at desk
+                this.npcs[sceneId].push({
+                    x: 250,
+                    y: 350,
+                    type: 'detective',
+                    name: 'Detective Williams',
+                    patrolPoints: [
+                        {x: 250, y: 350},
+                        {x: 400, y: 350}
                     ],
                     currentPatrolPoint: 0,
                     facing: 'right',
-                    waitTimes: [2, 2, 15, 0, 2], // Wait longer at reception desk
-                    dialogue: "Can I get those files I requested?"
-                });
-            }
-            
-            // Add NPCs for other scenes (unchanged code)
-            else if (sceneId === 'officeArea') {
-                this.npcs[sceneId] = [
-                    {
-                        x: 250, y: 350,
-                        type: 'detective',
-                        name: 'Detective Williams',
-                        patrolPoints: [{x: 250, y: 350}, {x: 400, y: 350}, {x: 600, y: 350}, {x: 720, y: 350}],
-                        currentPatrolPoint: 0,
-                        facing: 'right'
-                    },
-                    {
-                        x: 500, y: 380,
-                        type: 'officer',
-                        name: 'Officer Smith',
-                        patrolPoints: [{x: 500, y: 380}, {x: 300, y: 380}, {x: 700, y: 380}],
-                        currentPatrolPoint: 0,
-                        facing: 'left'
-                    },
-                    {
-                        x: 170, y: 380,
-                        type: 'sergeant',
-                        name: 'Sergeant Rodriguez',
-                        patrolPoints: [{x: 170, y: 380}, {x: 170, y: 380}, {x: 100, y: 380}, {x: 400, y: 380}],
-                        currentPatrolPoint: 0,
-                        facing: 'down',
-                        waitTime: 10
-                    }
-                ];
-            }
-            
-            // Add NPCs for downtown
-            else if (sceneId === 'downtown') {
-                this.npcs[sceneId] = [
-                    {
-                        x: 150, y: 350,
-                        type: 'officer',
-                        name: 'Officer Parker',
-                        patrolPoints: [{x: 150, y: 350}, {x: 300, y: 350}, {x: 450, y: 350}, {x: 300, y: 350}],
-                        currentPatrolPoint: 0,
-                        facing: 'right'
-                    },
-                    {
-                        x: 600, y: 320,
-                        type: 'civilian',
-                        name: 'Witness',
-                        patrolPoints: [{x: 600, y: 320}, {x: 550, y: 340}, {x: 630, y: 350}],
-                        currentPatrolPoint: 0,
-                        facing: 'left',
-                        isFemale: true
-                    }
-                ];
-            }
-        }
-    };
-
-    // Add method to update collision objects based on current scene
-    updateCollisionObjects = () => {
-        this.collisionObjects = [];
-        
-        switch(this.currentScene) {
-            case 'policeStation':
-                // Reception desk
-                this.collisionObjects.push({
-                    x: 400, y: 320, width: 150, height: 80,
-                    type: 'desk',
-                    id: 'receptionDesk',
-                    interactions: {
-                        look: "The reception desk. Officer Jenny usually sits here.",
-                        use: "You check the sign-in sheet.",
-                        take: "You can't take the desk with you, detective."
-                    }
-                });
-                
-                // Sheriff's office door
-                this.collisionObjects.push({
-                    x: 50, y: 200, width: 60, height: 120,
-                    type: 'door',
-                    id: 'sheriffsOfficeDoor',
-                    target: 'sheriffsOffice',
-                    interactions: {
-                        look: "The Sheriff's office. The door is slightly ajar.",
-                        use: "You enter the Sheriff's office.",
-                        talk: "There's no one at the door to talk to."
-                    }
-                });
-                
-                // Briefing room door
-                this.collisionObjects.push({
-                    x: 600, y: 200, width: 60, height: 120,
-                    type: 'door',
-                    id: 'briefingRoomDoor',
-                    target: 'briefingRoom',
-                    interactions: {
-                        look: "The door to the briefing room.",
-                        use: "You enter the briefing room.",
-                        talk: "There's no one at the door to talk to."
-                    }
-                });
-                
-                // Office area door
-                this.collisionObjects.push({
-                    x: 200, y: 200, width: 60, height: 120,
-                    type: 'door',
-                    id: 'officeAreaDoor',
-                    target: 'officeArea',
-                    interactions: {
-                        look: "The door to the detectives' office area.",
-                        use: "You enter the office area.",
-                        talk: "There's no one at the door to talk to."
-                    }
-                });
-                
-                // Downtown exit door
-                this.collisionObjects.push({
-                    x: 365, y: 420, width: 70, height: 30,
-                    type: 'door',
-                    id: 'exitDoor',
-                    target: 'downtown',
-                    interactions: {
-                        look: "The exit door leading downtown.",
-                        use: "You head downtown to investigate.",
-                        talk: "It's a door. It doesn't talk back."
-                    }
+                    dialogue: "Looking into that burglary case."
                 });
                 break;
-                
-            case 'officeArea':
-                // Main lobby door
-                this.collisionObjects.push({
-                    x: 400, y: 200, width: 60, height: 120,
-                    type: 'door',
-                    id: 'mainLobbyDoor',
-                    target: 'policeStation',
-                    interactions: {
-                        look: "The door back to the main lobby.",
-                        use: "You return to the main lobby.",
-                        talk: "There's no one at the door to talk to."
-                    }
-                });
-                
-                // Detective desks
-                for (let i = 0; i < 4; i++) {
-                    this.collisionObjects.push({
-                        x: 100 + i * 150, y: 320, width: 120, height: 70,
-                        type: 'desk',
-                        interactions: {
-                            look: `Detective desk ${i+1}. Files and paperwork are scattered across it.`,
-                            use: "You sit down and review some case files.",
-                            take: "The desk is bolted to the floor."
-                        }
-                    });
-                }
-                
-                // Coffee machine
-                this.collisionObjects.push({
-                    x: 700, y: 230, width: 50, height: 70,
-                    type: 'object',
-                    id: 'coffeeMachine',
-                    interactions: {
-                        look: "The department's coffee machine. It's seen better days.",
-                        use: "You pour yourself a cup of coffee.",
-                        take: "The other detectives would hunt you down if you took this."
-                    }
-                });
-                break;
-                
-            // ...existing code for other scenes...
         }
     };
 
-    // Helper functions for 3D rendering
-    drawFloorGrid = (x, y, width, height) => {
-        const ctx = this.ctx;
-        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-        ctx.lineWidth = 1;
-
-        // Draw horizontal lines with perspective
-        for (let i = 0; i <= height; i += 20) {
-            ctx.beginPath();
-            ctx.moveTo(x, y + i);
-            // Calculate perspective vanishing point
-            const vanishX = this.canvas.width / 2;
-            const vanishY = y - 100;
-            const perspectiveX1 = x + (x - vanishX) * (i / height);
-            const perspectiveX2 = (x + width) + ((x + width) - vanishX) * (i / height);
-            ctx.moveTo(perspectiveX1, y + i);
-            ctx.lineTo(perspectiveX2, y + i);
-            ctx.stroke();
-        }
-
-        // Draw vertical lines
-        for (let i = 0; i <= width; i += 40) {
-            ctx.beginPath();
-            const perspectiveX = x + i;
-            const vanishY = y - 100;
-            ctx.moveTo(perspectiveX, y);
-            ctx.lineTo(
-                x + width/2 + (perspectiveX - (x + width/2)) * 0.7,
-                y + height
-            );
-            ctx.stroke();
-        }
-    };
-
-    draw3DWall = (x, y, width, height, color, ctx) => {
-        ctx = ctx || this.ctx;
-        ctx.fillStyle = color;
-        
-        // Main wall
-        ctx.fillRect(x, y, width, height);
-        
-        // Add depth shading
-        const gradient = ctx.createLinearGradient(x, y, x + width, y);
-        gradient.addColorStop(0, 'rgba(0,0,0,0.2)');
-        gradient.addColorStop(0.5, 'rgba(0,0,0,0)');
-        gradient.addColorStop(1, 'rgba(0,0,0,0.2)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(x, y, width, height);
-    };
-
-    draw3DDesk = (x, y, width, height, ctx) => {
-        ctx = ctx || this.ctx;
-        
-        // ADJUSTED TO MAKE DESK SCALE SUITABLE FOR ENVIRONMENT
-        const deskWidth = 150;  // Increased from original width
-        const deskDepth = 70;   // Increased from original depth
-        const deskHeight = 40;  // Desk height
-        
-        // Desk top
-        ctx.fillStyle = this.colors.brown;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + deskWidth, y);
-        ctx.lineTo(x + deskWidth - 20, y + deskDepth);
-        ctx.lineTo(x - 20, y + deskDepth);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Desk front
-        ctx.fillStyle = this.adjustColor(this.colors.brown, -20);
-        ctx.fillRect(x - 20, y + deskDepth, deskWidth, deskHeight);
-        
-        // Desk side
-        ctx.fillStyle = this.adjustColor(this.colors.brown, -40);
-        ctx.beginPath();
-        ctx.moveTo(x + deskWidth, y);
-        ctx.lineTo(x + deskWidth - 20, y + deskDepth);
-        ctx.lineTo(x + deskWidth - 20, y + deskDepth + deskHeight);
-        ctx.lineTo(x + deskWidth, y + deskHeight);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Add desk poles at four corners
-        ctx.fillStyle = this.adjustColor(this.colors.brown, -50);
-        
-        // Front legs - These should extend from the front of the desk to the floor
-        // Left front leg
-        ctx.fillRect(x - 20, y + deskDepth + deskHeight, 10, this.floorLevel.max - (y + deskDepth + deskHeight));
-        
-        // Right front leg
-        ctx.fillRect(x + deskWidth - 30, y + deskDepth + deskHeight, 10, this.floorLevel.max - (y + deskDepth + deskHeight));
-        
-        // Back legs - These should extend from the back of the desk to the floor
-        // Left back leg
-        ctx.fillRect(x, y + 10, 8, this.floorLevel.max - y - 10);
-        
-        // Right back leg
-        ctx.fillRect(x + deskWidth - 8, y + 10, 8, this.floorLevel.max - y - 10);
-        
-        return { width: deskWidth, depth: deskDepth, height: deskHeight };
-    };
-    
-    drawDeskItems = (x, y, width, height, ctx) => {
-        ctx = ctx || this.ctx;
-        
-        // POSITION COMPUTER TO FACE THE RECEPTIONIST
-        // Computer monitor - positioned on right side of desk to face the receptionist
-        ctx.fillStyle = '#333333';
-        ctx.fillRect(x + width - 65, y - 30, 40, 30); // Moved to right side
-        ctx.fillStyle = '#00AAAA';
-        ctx.fillRect(x + width - 62, y - 27, 34, 24); // Screen
-        
-        // Keyboard - positioned in front of monitor
-        ctx.fillStyle = '#666666';
-        ctx.fillRect(x + width - 70, y - 5, 50, 15); // Aligned with monitor
-        
-        // Phone - on left side of desk
-        ctx.fillStyle = '#222222';
-        ctx.fillRect(x + 20, y + 20, 30, 15);
-        ctx.fillStyle = '#333333';
-        ctx.fillRect(x + 25, y + 5, 20, 15);
-        
-        // Papers - scattered around
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(x + 60, y + 15, 30, 20);
-        ctx.fillRect(x + 65, y + 10, 30, 20);
-        
-        // Computer screen content - showing text/data
-        ctx.fillStyle = '#AAFFAA';
-        ctx.fillRect(x + width - 60, y - 25, 30, 5);
-        ctx.fillRect(x + width - 60, y - 18, 30, 3);
-        ctx.fillRect(x + width - 60, y - 13, 20, 3);
-    };
-
-    drawDoor = (x, y, direction, label) => {
-        const ctx = this.ctx;
-        ctx.fillStyle = this.colors.brown;
-        ctx.fillRect(x, y, 60, 120);
-        ctx.fillStyle = this.colors.yellow;
-        ctx.fillRect(direction === 'left' ? x + 45 : x + 5, y + 60, 10, 10);
-        
-        // Add door label
-        ctx.fillStyle = this.colors.white;
-        ctx.font = '12px monospace';
-        ctx.fillText(label, x - 10, y - 5);
-    };
-
-    drawDoorWithFrame = (x, y, direction, label, ctx) => {
-        ctx = ctx || this.ctx;
-        
-        // Door frame with proper wall connection
-        ctx.fillStyle = '#4A4A4A';
-        ctx.fillRect(x - 5, y - 5, 70, 130);
-        
-        // Door
-        ctx.fillStyle = '#8B4513';
-        ctx.fillRect(x, y, 60, 120);
-        
-        // Make the door reach exactly to the floor
-        ctx.fillRect(x, y, 60, this.floorLevel.min - y);
-        
-        // Door handle
-        ctx.fillStyle = '#FFD700';
-        ctx.fillRect(direction === 'left' ? x + 45 : x + 5, y + 60, 10, 10);
-        
-        // Door sign
-        ctx.fillStyle = '#E0E0E0';
-        ctx.fillRect(x + 10, y + 10, 40, 20);
-        
-        // Label text
-        ctx.fillStyle = '#000000';
-        ctx.font = '8px monospace';
-        ctx.fillText(label.substring(0, 8), x + 12, y + 22);
-    };
-    
-    drawWindowView = (x, y, width, height, ctx) => {
-        ctx = ctx || this.ctx;
-        
-        // Animated view through window
-        ctx.fillStyle = '#87CEEB'; // Sky blue
-        ctx.fillRect(x, y, width, height * 0.6);
-        
-        // Draw buildings in distance
-        ctx.fillStyle = '#555555';
-        for (let i = 0; i < 5; i++) {
-            const buildingHeight = 20 + Math.sin(i + this.animationFrame * 0.1) * 5;
-            ctx.fillRect(x + 5 + i * 22, y + height * 0.6 - buildingHeight, 15, buildingHeight);
-        }
-        
-        // Animate clouds
-        ctx.fillStyle = '#FFFFFF';
-        ctx.beginPath();
-        ctx.arc(x + 20 + (this.animationFrame % 50), y + 30, 10, 0, Math.PI * 2);
-        ctx.arc(x + 35 + (this.animationFrame % 50), y + 25, 12, 0, Math.PI * 2);
-        ctx.arc(x + 50 + (this.animationFrame % 50), y + 30, 10, 0, Math.PI * 2);
-        ctx.fill();
-    };
-    
-    drawBulletinNotices = (x, y, width, height, ctx) => {
-        ctx = ctx || this.ctx;
-        
-        // Add notices to bulletin board
-        const notices = [
-            {color: '#FFFFFF', width: 30, height: 25},
-            {color: '#FFFFCC', width: 40, height: 20},
-            {color: '#CCFFFF', width: 25, height: 30}
-        ];
-        
-        notices.forEach((notice, i) => {
-            ctx.fillStyle = notice.color;
-            ctx.fillRect(x + 5 + i * 35, y + 5 + (i % 2) * 30, notice.width, notice.height);
-            
-            // Add some lines of "text"
-            ctx.fillStyle = '#000000';
-            for (let j = 0; j < 3; j++) {
-                ctx.fillRect(x + 8 + i * 35, y + 10 + (i % 2) * 30 + j * 5, notice.width - 6, 1);
-            }
-        });
-    };
-    
-    drawDeskItems = (x, y, width, height, ctx) => {
-        ctx = ctx || this.ctx;
-        
-        // POSITION COMPUTER TO FACE THE RECEPTIONIST
-        // Computer monitor - positioned on right side of desk to face the receptionist
-        ctx.fillStyle = '#333333';
-        ctx.fillRect(x + width - 65, y - 30, 40, 30); // Moved to right side
-        ctx.fillStyle = '#00AAAA';
-        ctx.fillRect(x + width - 62, y - 27, 34, 24); // Screen
-        
-        // Keyboard - positioned in front of monitor
-        ctx.fillStyle = '#666666';
-        ctx.fillRect(x + width - 70, y - 5, 50, 15); // Aligned with monitor
-        
-        // Phone - on left side of desk
-        ctx.fillStyle = '#222222';
-        ctx.fillRect(x + 20, y + 20, 30, 15);
-        ctx.fillStyle = '#333333';
-        ctx.fillRect(x + 25, y + 5, 20, 15);
-        
-        // Papers - scattered around
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(x + 60, y + 15, 30, 20);
-        ctx.fillRect(x + 65, y + 10, 30, 20);
-        
-        // Computer screen content - showing text/data
-        ctx.fillStyle = '#AAFFAA';
-        ctx.fillRect(x + width - 60, y - 25, 30, 5);
-        ctx.fillRect(x + width - 60, y - 18, 30, 3);
-        ctx.fillRect(x + width - 60, y - 13, 20, 3);
-    };
-    
-    drawWallDecorations = (ctx) => {
-        ctx = ctx || this.ctx;
-        
-        // Police badge emblem
-        ctx.fillStyle = '#FFD700';
-        ctx.beginPath();
-        ctx.moveTo(400, 50);
-        ctx.lineTo(430, 65);
-        ctx.lineTo(430, 95);
-        ctx.lineTo(400, 110);
-        ctx.lineTo(370, 95);
-        ctx.lineTo(370, 65);
-        ctx.closePath();
-        ctx.fill();
-        
-        ctx.fillStyle = '#0000AA';
-        ctx.beginPath();
-        ctx.arc(400, 80, 20, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Wall clock
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(650, 70, 25, 0, Math.PI * 2);
-        ctx.stroke();
-        
-        // Clock hands
-        const time = new Date();
-        const hours = time.getHours() % 12;
-        const minutes = time.getMinutes();
-        
-        // Hour hand
-        ctx.save();
-        ctx.translate(650, 70);
-        ctx.rotate(hours * Math.PI/6 + minutes * Math.PI/360);
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(0, -12);
-        ctx.stroke();
-        ctx.restore();
-        
-        // Minute hand
-        ctx.save();
-        ctx.translate(650, 70);
-        ctx.rotate(minutes * Math.PI/30);
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(0, -18);
-        ctx.stroke();
-        ctx.restore();
-    };
-    
-    drawAmbientAnimations = () => {
-        if (!this.ambientAnimations) return;
-        
-        const ctx = this.ctx;
-        const anim = this.ambientAnimations;
-        
-        // Coffee steam
-        if (anim.coffeeSteam.active) {
-            ctx.fillStyle = 'rgba(255,255,255,0.5)';
-            for (let i = 0; i < 3; i++) {
-                const offsetX = Math.sin((this.animationFrame + i * 5) * 0.2) * 3;
-                const size = 3 + Math.sin(this.animationFrame * 0.3) * 2;
-                ctx.beginPath();
-                ctx.arc(
-                    anim.coffeeSteam.x + offsetX, 
-                    anim.coffeeSteam.y - i * 5 - this.animationFrame % 10, 
-                    size, 0, Math.PI * 2
-                );
-                ctx.fill();
-            }
-        }
-        
-        // Typing NPC animation
-        if (anim.typingNPC.active) {
-            // Typing hands animation on keyboard
-            const typingOffset = this.animationFrame % 4 === 0 ? 2 : 0;
-            ctx.fillStyle = '#FFD8B1'; // Skin color
-            ctx.fillRect(anim.typingNPC.x, anim.typingNPC.y + typingOffset, 5, 5);
-            ctx.fillRect(anim.typingNPC.x + 15, anim.typingNPC.y + typingOffset, 5, 5);
-        }
-        
-        // Blinking lights
-        if ((this.animationFrame % 50) < 5) {
-            ctx.fillStyle = '#FF0000';
-            ctx.beginPath();
-            ctx.arc(750, 50, 5, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    };
-    
-    setupAmbientAnimations = (scene) => {
-        // Reset all animations
-        this.ambientAnimations.coffeeSteam.active = false;
-        this.ambientAnimations.typingNPC.active = false;
-        
-        switch(scene) {
-            case 'policeStation':
-                // No coffee in main lobby
-                this.ambientAnimations.typingNPC.x = 400;
-                this.ambientAnimations.typingNPC.y = this.floorLevel.min - 8;
-                this.ambientAnimations.typingNPC.active = true;
-                break;
-                
-            case 'officeArea':
-                // Coffee machine steam
-                this.ambientAnimations.coffeeSteam.x = 725;
-                this.ambientAnimations.coffeeSteam.y = 230;
-                this.ambientAnimations.coffeeSteam.active = true;
-                break;
-                
-            case 'briefingRoom':
-                // Projector light
-                this.ambientAnimations.projectorLight = {
-                    x: 350, y: 30, width: 200, height: 100,
-                    active: true, frame: 0
-                };
-                break;
-        }
-    };
-
-    updateNPCs = () => {
+    updateNPCs = (deltaTime = 1/60) => {
         const currentSceneNPCs = this.npcs[this.currentScene];
         if (!currentSceneNPCs) return;
 
         currentSceneNPCs.forEach(npc => {
+            // Skip update if NPC is in conversation or waiting
+            if (npc.conversationTime > 0) {
+                npc.conversationTime -= deltaTime;
+                npc.isWalking = false;
+                return;
+            }
+
+            if (npc.waitTime > 0) {
+                npc.waitTime -= deltaTime;
+                npc.isWalking = false;
+                return;
+            }
+
+            // Special handling for receptionist
+            if (npc.stayAtDesk) {
+                npc.isWalking = false;
+                npc.facing = 'left';
+                if (Math.random() < (npc.conversationChance || 0.005)) {
+                    npc.conversationTime = 3;
+                    npc.dialogue = this.getRandomWorkingDialogue();
+                }
+                return;
+            }
+
+            // Regular NPC movement
             const target = npc.patrolPoints[npc.currentPatrolPoint];
+            if (!target) return;
+
             const dx = target.x - npc.x;
             const dy = target.y - npc.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance < 2) {
-                // Move to next patrol point
+                // Reached waypoint
+                if (npc.waitTimes && npc.waitTimes[npc.currentPatrolPoint]) {
+                    npc.waitTime = npc.waitTimes[npc.currentPatrolPoint];
+                } else {
+                    npc.waitTime = 1 + Math.random() * 2;
+                }
                 npc.currentPatrolPoint = (npc.currentPatrolPoint + 1) % npc.patrolPoints.length;
-                
-                // Add idle animation or interaction at waypoints
-                if (Math.random() > 0.7) {
-                    npc.idleAction = {
-                        type: Math.random() > 0.5 ? 'talk' : 'look',
-                        duration: Math.floor(Math.random() * 3) + 2
-                    };
+                npc.isWalking = false;
+
+                // Random chance to start conversation
+                if (Math.random() < 0.3) {
+                    npc.conversationTime = 2;
+                    npc.dialogue = this.getRandomDialogue(npc.type);
                 }
             } else {
-                // Move towards current target
-                const speed = 2;
+                // Move towards target
+                const speed = 1;
                 npc.x += (dx / distance) * speed;
                 npc.y += (dy / distance) * speed;
-                
-                // Update facing direction
-                npc.facing = dx > 0 ? 'right' : 'left';
-                
-                // Reset any idle action when moving
-                npc.idleAction = null;
+                npc.facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+                npc.isWalking = true;
             }
-            
-            // Ensure NPCs stay on the floor
+
+            // Keep NPCs within floor bounds
             npc.y = Math.max(this.floorLevel.min + 50, Math.min(npc.y, this.floorLevel.max));
+
+            // Check for conversations with nearby NPCs
+            this.checkNPCConversations(npc, currentSceneNPCs);
         });
     };
 
