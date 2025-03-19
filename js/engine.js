@@ -278,7 +278,7 @@ class GameEngine {
             // Special handling for receptionist - COMPLETE REWRITE TO KEEP HER AT DESK
             if (npc.isReceptionist && npc.stayAtDesk) {
                 // Only show typing animation and keep at desk
-                npc.x = 435; // Force position to stay at desk
+                npc.x = 515; // Force position to match chair position at the desk side
                 npc.y = this.floorLevel.min + 75; // Force height to appear seated in chair
                 npc.facing = 'left'; // Always face the computer
                 npc.isWalking = false; // Never appear to be walking
@@ -294,8 +294,8 @@ class GameEngine {
                     npc.conversationTime -= deltaTime;
                 }
                 
-                // Enable typing animation
-                this.ambientAnimations.typingNPC.x = npc.x - 10;
+                // Enable typing animation - UPDATE POSITION to match computer
+                this.ambientAnimations.typingNPC.x = npc.x - 30; // Position hands closer to keyboard
                 this.ambientAnimations.typingNPC.y = npc.y - 15;
                 this.ambientAnimations.typingNPC.active = true;
                 
@@ -416,13 +416,12 @@ class GameEngine {
             let sittingOfficer = null;
             if (this.npcs && this.npcs[this.currentScene]) {
                 sittingOfficer = this.npcs[this.currentScene].find(npc => 
-                    npc.isReceptionist && npc.isWorking && 
-                    npc.currentPatrolPoint <= 2 && !npc.isWalking);
+                    npc.isReceptionist && npc.isWorking && !npc.isWalking);
             }
             
-            // Draw chair for receptionist desk (behind desk and before other NPCs)
+            // Draw chair for receptionist desk - POSITIONED TO THE SIDE OF THE DESK
             if (this.currentScene === 'policeStation') {
-                this.drawOfficeChair(435, this.floorLevel.min + 80, 'left', ctx);
+                this.drawOfficeChair(515, this.floorLevel.min + 80, 'left', ctx);
             }
             
             // Draw NPCs in the correct Z-order
@@ -456,24 +455,25 @@ class GameEngine {
             
             // Now draw the desk for the police station (after chair, before sitting officer)
             if (this.currentScene === 'policeStation') {
-                // Draw the desk
-                this.draw3DDesk(400, this.floorLevel.min + 40, 120, 50, ctx);
+                // Draw the desk - ADJUSTED POSITION to allow for chair on side
+                this.draw3DDesk(400, this.floorLevel.min + 40, 150, 70, ctx);
                 
                 // Draw desk items
-                this.drawDeskItems(400, this.floorLevel.min + 40, 120, 50, ctx);
+                this.drawDeskItems(400, this.floorLevel.min + 40, 150, 70, ctx);
                 
-                // Now draw the sitting receptionist if present
+                // Now draw the sitting receptionist if present - POSITIONED AT CHAIR
                 if (sittingOfficer) {
-                    // Make sure officer appears to be sitting at the desk
+                    // Make sure officer appears to be sitting at the chair on the side of desk
+                    const sittingX = 515; // Matching chair position
                     const sittingY = this.floorLevel.min + 75; // Positioned to look like sitting in chair
                     
                     // Draw the sitting officer
                     this.drawPixelCharacter(
-                        sittingOfficer.x,
+                        sittingX,
                         sittingY,
                         this.colors.blue,
                         this.colors.yellow,
-                        'left', // Always facing left when at desk
+                        'left', // Always facing left when at desk (facing the computer)
                         false, // Not walking when at desk
                         true,
                         true // Female
@@ -481,7 +481,7 @@ class GameEngine {
                     
                     // Draw typing animation or dialogue bubble
                     if (sittingOfficer.conversationTime > 0 && sittingOfficer.dialogue) {
-                        this.drawConversationBubble(sittingOfficer.x, sittingY - 50, sittingOfficer.dialogue, ctx);
+                        this.drawConversationBubble(sittingX, sittingY - 50, sittingOfficer.dialogue, ctx);
                     }
                 }
             }
@@ -676,60 +676,64 @@ class GameEngine {
         // Use the stored color palette for consistency
         const colors = this.colors;
         
-        // Floor - set to standard height
+        // MAKE FLOOR SPACE BIGGER AND WALL SPACE LESS
+        // Adjust floor level to begin higher up on the screen
+        const floorY = 250; // Increased from original 300
+        
+        // Floor - set to standard height with more floor space
         ctx.fillStyle = colors.lightGray;
-        ctx.fillRect(0, this.floorLevel.min, this.canvas.width, this.floorLevel.max - this.floorLevel.min);
+        ctx.fillRect(0, floorY, this.canvas.width, this.canvas.height - floorY);
         
         // Draw floor grid for perspective
-        this.drawFloorGrid(0, this.floorLevel.min, this.canvas.width, this.floorLevel.max - this.floorLevel.min);
+        this.drawFloorGrid(0, floorY, this.canvas.width, this.canvas.height - floorY);
         
-        // Draw walls (slight perspective)
+        // Draw walls (slight perspective) - shorter wall height
         ctx.fillStyle = colors.white;
-        this.draw3DWall(0, 0, this.canvas.width, this.floorLevel.min - 10, colors.white, ctx);
+        this.draw3DWall(0, 0, this.canvas.width, floorY - 10, colors.white, ctx);
         
         // Wall skirting board
         ctx.fillStyle = '#4A4A4A';
-        ctx.fillRect(0, this.floorLevel.min - 10, this.canvas.width, 10);
+        ctx.fillRect(0, floorY - 10, this.canvas.width, 10);
         
         // Single window (positioned at a more realistic height - lower on wall)
         // Window frame
         ctx.fillStyle = '#A0A0A0';
-        ctx.fillRect(320, 120, 160, 100);
+        ctx.fillRect(320, 80, 160, 100);
             
         // Window glass
         ctx.fillStyle = '#B0E0FF';
-        ctx.fillRect(325, 125, 150, 90);
+        ctx.fillRect(325, 85, 150, 90);
             
         // Window frame dividers
         ctx.strokeStyle = '#A0A0A0';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(400, 125);
-        ctx.lineTo(400, 215);
+        ctx.moveTo(400, 85);
+        ctx.lineTo(400, 175);
         ctx.stroke();
             
         ctx.beginPath();
-        ctx.moveTo(325, 170);
-        ctx.lineTo(475, 170);
+        ctx.moveTo(325, 130);
+        ctx.lineTo(475, 130);
         ctx.stroke();
 
-        // Add more realistic view through window
-        this.drawWindowView(325, 125, 150, 90, ctx);
+        // Add more realistic view through window WITH TREE
+        this.drawWindowViewWithTree(325, 85, 150, 90, ctx);
         
-        // Bulletin board at correct height
+        // MOVED bulletin board away from doors to empty wall space
         ctx.fillStyle = '#8B4513';
-        ctx.fillRect(150, 140, 120, 80);
+        ctx.fillRect(500, 100, 120, 80);
         ctx.fillStyle = '#F5F5DC';
-        ctx.fillRect(155, 145, 110, 70);
+        ctx.fillRect(505, 105, 110, 70);
         
         // Add notices to bulletin board
-        this.drawBulletinNotices(155, 145, 110, 70, ctx);
+        this.drawBulletinNotices(505, 105, 110, 70, ctx);
         
         // Draw door to sheriff's office
-        this.drawDoorWithFrame(630, this.floorLevel.min - 120, 'right', "Sheriff's Office", ctx);
+        this.drawDoorWithFrame(700, floorY - 120, 'right', "Sheriff's Office", ctx);
         
-        // Door to briefing room
-        this.drawDoorWithFrame(200, this.floorLevel.min - 120, 'left', "Office Area", ctx);
+        // Door to office area
+        this.drawDoorWithFrame(100, floorY - 120, 'left', "Office Area", ctx);
         
         // Add exit to downtown
         this.drawExitDoor(400, this.canvas.height - 30, "Exit to Downtown", ctx);
@@ -743,14 +747,65 @@ class GameEngine {
         // Set up ambient animations for the scene
         this.setupAmbientAnimations('policeStation');
         
-        // IMPORTANT: We need to draw the NPCs in the correct z-order based on their y-positions,
-        // and the receptionist needs special handling to appear at the desk correctly
-        
         // Update collision objects for this scene
         this.updateCollisionObjects();
     };
 
-    // Add new room for desks
+    // New method to draw window view with a tree
+    drawWindowViewWithTree = (x, y, width, height, ctx) => {
+        ctx = ctx || this.ctx;
+        
+        // Sky background
+        ctx.fillStyle = '#87CEEB'; // Sky blue
+        ctx.fillRect(x, y, width, height);
+        
+        // Draw buildings in distance
+        ctx.fillStyle = '#555555';
+        for (let i = 0; i < 4; i++) {
+            const buildingHeight = 20 + Math.sin(i + this.animationFrame * 0.1) * 5;
+            ctx.fillRect(x + 5 + i * 25, y + height * 0.7 - buildingHeight, 15, buildingHeight);
+        }
+        
+        // Add tree in foreground
+        // Tree trunk
+        ctx.fillStyle = '#8B4513'; // Brown trunk
+        ctx.fillRect(x + width/2 - 7, y + height*0.5, 14, height*0.5);
+        
+        // Tree leaves/foliage (three levels for more detail)
+        ctx.fillStyle = '#228B22'; // Forest green
+        // Bottom foliage - widest
+        ctx.beginPath();
+        ctx.moveTo(x + width/2, y + height*0.5);
+        ctx.lineTo(x + width/2 - 35, y + height*0.65);
+        ctx.lineTo(x + width/2 + 35, y + height*0.65);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Middle foliage
+        ctx.beginPath();
+        ctx.moveTo(x + width/2, y + height*0.3);
+        ctx.lineTo(x + width/2 - 30, y + height*0.5);
+        ctx.lineTo(x + width/2 + 30, y + height*0.5);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Top foliage
+        ctx.beginPath();
+        ctx.moveTo(x + width/2, y + height*0.1);
+        ctx.lineTo(x + width/2 - 25, y + height*0.35);
+        ctx.lineTo(x + width/2 + 25, y + height*0.35);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Animate clouds
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(x + 20 + (this.animationFrame % 150), y + 30, 10, 0, Math.PI * 2);
+        ctx.arc(x + 35 + (this.animationFrame % 150), y + 25, 12, 0, Math.PI * 2);
+        ctx.arc(x + 50 + (this.animationFrame % 150), y + 30, 10, 0, Math.PI * 2);
+        ctx.fill();
+    };
+
     drawOfficeArea = (ctx) => {
         const colors = this.colors;
         ctx = ctx || this.ctx; // Use provided context or default to main context
@@ -1906,46 +1961,85 @@ class GameEngine {
     draw3DDesk = (x, y, width, height, ctx) => {
         ctx = ctx || this.ctx;
         
+        // ADJUSTED TO MAKE DESK SCALE SUITABLE FOR ENVIRONMENT
+        const deskWidth = 150;  // Increased from original width
+        const deskDepth = 70;   // Increased from original depth
+        const deskHeight = 40;  // Desk height
+        
         // Desk top
         ctx.fillStyle = this.colors.brown;
         ctx.beginPath();
         ctx.moveTo(x, y);
-        ctx.lineTo(x + width, y);
-        ctx.lineTo(x + width - 20, y + height);
-        ctx.lineTo(x - 20, y + height);
+        ctx.lineTo(x + deskWidth, y);
+        ctx.lineTo(x + deskWidth - 20, y + deskDepth);
+        ctx.lineTo(x - 20, y + deskDepth);
         ctx.closePath();
         ctx.fill();
         
         // Desk front
         ctx.fillStyle = this.adjustColor(this.colors.brown, -20);
-        ctx.fillRect(x - 20, y + height, width, 20);
+        ctx.fillRect(x - 20, y + deskDepth, deskWidth, deskHeight);
         
         // Desk side
         ctx.fillStyle = this.adjustColor(this.colors.brown, -40);
         ctx.beginPath();
-        ctx.moveTo(x + width, y);
-        ctx.lineTo(x + width - 20, y + height);
-        ctx.lineTo(x + width - 20, y + height + 20);
-        ctx.lineTo(x + width, y + 20);
+        ctx.moveTo(x + deskWidth, y);
+        ctx.lineTo(x + deskWidth - 20, y + deskDepth);
+        ctx.lineTo(x + deskWidth - 20, y + deskDepth + deskHeight);
+        ctx.lineTo(x + deskWidth, y + deskHeight);
         ctx.closePath();
         ctx.fill();
         
-        // Add desk poles at four corners - FIXED POSITIONS
+        // Add desk poles at four corners
         ctx.fillStyle = this.adjustColor(this.colors.brown, -50);
         
         // Front legs - These should extend from the front of the desk to the floor
         // Left front leg
-        ctx.fillRect(x - 20, y + height + 20, 10, this.floorLevel.max - (y + height + 20));
+        ctx.fillRect(x - 20, y + deskDepth + deskHeight, 10, this.floorLevel.max - (y + deskDepth + deskHeight));
         
         // Right front leg
-        ctx.fillRect(x + width - 30, y + height + 20, 10, this.floorLevel.max - (y + height + 20));
+        ctx.fillRect(x + deskWidth - 30, y + deskDepth + deskHeight, 10, this.floorLevel.max - (y + deskDepth + deskHeight));
         
         // Back legs - These should extend from the back of the desk to the floor
         // Left back leg
         ctx.fillRect(x, y + 10, 8, this.floorLevel.max - y - 10);
         
         // Right back leg
-        ctx.fillRect(x + width - 8, y + 10, 8, this.floorLevel.max - y - 10);
+        ctx.fillRect(x + deskWidth - 8, y + 10, 8, this.floorLevel.max - y - 10);
+        
+        return { width: deskWidth, depth: deskDepth, height: deskHeight };
+    };
+    
+    drawDeskItems = (x, y, width, height, ctx) => {
+        ctx = ctx || this.ctx;
+        
+        // POSITION COMPUTER TO FACE THE RECEPTIONIST
+        // Computer monitor - positioned on right side of desk to face the receptionist
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(x + width - 65, y - 30, 40, 30); // Moved to right side
+        ctx.fillStyle = '#00AAAA';
+        ctx.fillRect(x + width - 62, y - 27, 34, 24); // Screen
+        
+        // Keyboard - positioned in front of monitor
+        ctx.fillStyle = '#666666';
+        ctx.fillRect(x + width - 70, y - 5, 50, 15); // Aligned with monitor
+        
+        // Phone - on left side of desk
+        ctx.fillStyle = '#222222';
+        ctx.fillRect(x + 20, y + 20, 30, 15);
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(x + 25, y + 5, 20, 15);
+        
+        // Papers - scattered around
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(x + 60, y + 15, 30, 20);
+        ctx.fillRect(x + 65, y + 10, 30, 20);
+        
+        // Computer screen content - showing text/data
+        ctx.fillStyle = '#AAFFAA';
+        ctx.fillRect(x + width - 60, y - 25, 30, 5);
+        ctx.fillRect(x + width - 60, y - 18, 30, 3);
+        ctx.fillRect(x + width - 60, y - 13, 20, 3);
     };
 
     drawDoor = (x, y, direction, label) => {
@@ -2037,32 +2131,33 @@ class GameEngine {
     drawDeskItems = (x, y, width, height, ctx) => {
         ctx = ctx || this.ctx;
         
-        // Computer monitor - positioned on left side of desk to face the receptionist
+        // POSITION COMPUTER TO FACE THE RECEPTIONIST
+        // Computer monitor - positioned on right side of desk to face the receptionist
         ctx.fillStyle = '#333333';
-        ctx.fillRect(x + 30, y - 30, 40, 30); // Moved to left side
+        ctx.fillRect(x + width - 65, y - 30, 40, 30); // Moved to right side
         ctx.fillStyle = '#00AAAA';
-        ctx.fillRect(x + 33, y - 27, 34, 24); // Screen
+        ctx.fillRect(x + width - 62, y - 27, 34, 24); // Screen
         
         // Keyboard - positioned in front of monitor
         ctx.fillStyle = '#666666';
-        ctx.fillRect(x + 25, y - 5, 50, 15); // Moved to align with monitor
+        ctx.fillRect(x + width - 70, y - 5, 50, 15); // Aligned with monitor
         
-        // Phone - on right side of desk
+        // Phone - on left side of desk
         ctx.fillStyle = '#222222';
-        ctx.fillRect(x + width - 40, y + 20, 30, 15);
+        ctx.fillRect(x + 20, y + 20, 30, 15);
         ctx.fillStyle = '#333333';
-        ctx.fillRect(x + width - 35, y + 5, 20, 15);
+        ctx.fillRect(x + 25, y + 5, 20, 15);
         
-        // Papers - on right side of desk
+        // Papers - scattered around
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(x + width - 60, y + 15, 30, 20);
-        ctx.fillRect(x + width - 55, y + 10, 30, 20);
+        ctx.fillRect(x + 60, y + 15, 30, 20);
+        ctx.fillRect(x + 65, y + 10, 30, 20);
         
-        // Computer screen content - facing right toward receptionist
+        // Computer screen content - showing text/data
         ctx.fillStyle = '#AAFFAA';
-        ctx.fillRect(x + 35, y - 25, 30, 5);
-        ctx.fillRect(x + 35, y - 18, 30, 3);
-        ctx.fillRect(x + 35, y - 13, 20, 3);
+        ctx.fillRect(x + width - 60, y - 25, 30, 5);
+        ctx.fillRect(x + width - 60, y - 18, 30, 3);
+        ctx.fillRect(x + width - 60, y - 13, 20, 3);
     };
     
     drawWallDecorations = (ctx) => {
@@ -2416,40 +2511,43 @@ class GameEngine {
     drawOfficeChair = (x, y, facing = 'left', ctx) => {
         ctx = ctx || this.ctx;
         
+        // Make chair bigger to match desk scale
+        const scale = 1.2;
+        
         // Chair base (darker gray)
         ctx.fillStyle = '#333333';
-        ctx.fillRect(x - 10, y, 20, 5);
+        ctx.fillRect(x - 10 * scale, y, 20 * scale, 5 * scale);
         
         // Chair wheels
         ctx.fillStyle = '#222222';
         ctx.beginPath();
-        ctx.arc(x - 10, y + 5, 3, 0, Math.PI * 2);
+        ctx.arc(x - 10 * scale, y + 5 * scale, 3 * scale, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(x + 10, y + 5, 3, 0, Math.PI * 2);
+        ctx.arc(x + 10 * scale, y + 5 * scale, 3 * scale, 0, Math.PI * 2);
         ctx.fill();
         
         // Chair post
         ctx.fillStyle = '#444444';
-        ctx.fillRect(x - 2, y - 15, 4, 15);
+        ctx.fillRect(x - 2 * scale, y - 15 * scale, 4 * scale, 15 * scale);
         
         // Chair seat
         ctx.fillStyle = '#1E3F7A'; // Dark blue for police department chairs
-        ctx.fillRect(x - 10, y - 25, 20, 10);
+        ctx.fillRect(x - 10 * scale, y - 25 * scale, 20 * scale, 10 * scale);
         
         // Chair back
         if (facing === 'left') {
-            ctx.fillRect(x - 15, y - 45, 5, 25);
+            ctx.fillRect(x - 15 * scale, y - 45 * scale, 5 * scale, 25 * scale);
         } else {
-            ctx.fillRect(x + 10, y - 45, 5, 25);
+            ctx.fillRect(x + 10 * scale, y - 45 * scale, 5 * scale, 25 * scale);
         }
         
         // Chair arms
         ctx.fillStyle = '#333333';
         if (facing === 'left') {
-            ctx.fillRect(x - 15, y - 25, 3, 10);
+            ctx.fillRect(x - 15 * scale, y - 25 * scale, 3 * scale, 10 * scale);
         } else {
-            ctx.fillRect(x + 12, y - 25, 3, 10);
+            ctx.fillRect(x + 12 * scale, y - 25 * scale, 3 * scale, 10 * scale);
         }
     };
 
