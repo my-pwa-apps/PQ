@@ -647,23 +647,8 @@ class GameEngine {
         // Draw phones and computer on reception desk
         this.drawDeskItems(400, this.floorLevel.min + 20, 150, 80, ctx);
         
-        // Add female officer at desk
-        this.drawPixelCharacter(
-            475, // X position
-            this.floorLevel.min + 30, // Y position (aligned to floor)
-            colors.blue, // Uniform color
-            colors.yellow, // Badge color
-            'left', // Facing left (towards player/reception area)
-            false, // Not walking
-            true, // Is NPC
-            true // Is female
-        );
-        
-        // Door to sheriff's office
-        this.drawDoorWithFrame(630, this.floorLevel.min - 120, 'right', "Sheriff's Office", ctx);
-        
-        // Door to briefing room
-        this.drawDoorWithFrame(200, this.floorLevel.min - 120, 'left', "Office Area", ctx);
+        // Draw an office chair at the desk for the receptionist
+        this.drawOfficeChair(475, this.floorLevel.min + 60, 'left', ctx);
         
         // Door to sheriff's office
         this.drawDoorWithFrame(630, this.floorLevel.min - 120, 'right', "Sheriff's Office", ctx);
@@ -1058,9 +1043,13 @@ class GameEngine {
         ctx.beginPath();
         ctx.ellipse(x, y + 20, 12, 6, 0, 0, Math.PI * 2);
         ctx.fill();
+
+        // Draw police uniform (proper color)
+        const uniformColor = isNPC ? '#1A3C78' : '#0A2050'; // Darker blue for police uniforms
+        const pantColor = '#1E2C4D'; // Dark blue for pants
         
         // Draw legs
-        ctx.fillStyle = this.colors.darkBlue;
+        ctx.fillStyle = pantColor;
         if (facing === 'left' || facing === 'right') {
             ctx.fillRect(x - 5, y, 4, 20); // Left leg
             ctx.fillRect(x + 5 - 4, y + legOffset, 4, 20 - legOffset); // Right leg with offset while walking
@@ -1069,11 +1058,30 @@ class GameEngine {
             ctx.fillRect(x + 1, y, 4, 20); // Right leg
         }
         
-        // Draw body
-        ctx.fillStyle = bodyColor;
-        ctx.fillRect(x - 8, y - 15, 16, 20);
+        // Draw police belt
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x - 8, y - 2, 16, 3);
         
-        // Draw arms
+        // Draw body/torso (uniform)
+        ctx.fillStyle = uniformColor;
+        ctx.fillRect(x - 8, y - 15, 16, 14); // Torso
+        
+        // Draw collar (lighter blue)
+        ctx.fillStyle = '#3A5C98';
+        ctx.fillRect(x - 6, y - 15, 12, 3);
+        
+        // Draw police badge
+        ctx.fillStyle = badgeColor;
+        if (facing === 'left') {
+            ctx.fillRect(x - 5, y - 10, 5, 5);
+        } else if (facing === 'right') {
+            ctx.fillRect(x, y - 10, 5, 5);
+        } else {
+            ctx.fillRect(x - 5, y - 10, 5, 5);
+        }
+        
+        // Draw arms with uniform color
+        ctx.fillStyle = uniformColor;
         if (facing === 'left') {
             ctx.fillRect(x - 10, y - 15, 5, 15);  // Left arm on left side
         } else if (facing === 'right') {
@@ -1089,29 +1097,48 @@ class GameEngine {
         ctx.arc(x, y - 25, 10, 0, Math.PI * 2);
         ctx.fill();
         
-        // Draw hair
+        // Draw police hat
+        ctx.fillStyle = '#141E33'; // Dark blue hat
+        ctx.fillRect(x - 9, y - 34, 18, 6); // Hat brim
+        ctx.fillRect(x - 7, y - 40, 14, 6); // Hat top
+        
+        // Hat badge
+        ctx.fillStyle = '#FFD700'; // Gold badge
+        ctx.fillRect(x - 3, y - 34, 6, 3);
+        
+        // Draw hair (different styles based on gender)
         ctx.fillStyle = hairColor;
         if (isFemale) {
-            // Female hair style with longer hair
-            ctx.beginPath();
-            ctx.arc(x, y - 25, 12, Math.PI, Math.PI * 2);
-            ctx.fill();
-            
-            // Longer hair down the back
-            ctx.beginPath();
-            ctx.moveTo(x - 10, y - 25);
-            ctx.lineTo(x - 10, y - 10);
-            ctx.lineTo(x + 10, y - 10);
-            ctx.lineTo(x + 10, y - 25);
-            ctx.fill();
+            // Female hair style
+            if (facing === 'left' || facing === 'right') {
+                // Profile view with hair visible 
+                const hairSide = facing === 'left' ? x - 10 : x + 10;
+                ctx.beginPath();
+                ctx.arc(x, y - 25, 10, Math.PI * 0.3, Math.PI * 1.7, facing === 'right');
+                ctx.fill();
+                
+                // Hair bun or ponytail
+                ctx.beginPath();
+                ctx.arc(hairSide, y - 28, 5, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Front or back view
+                ctx.beginPath();
+                ctx.arc(x, y - 25, 10, Math.PI, Math.PI * 2);
+                ctx.fill();
+                
+                // Add visible hair on sides
+                ctx.fillRect(x - 10, y - 30, 2, 12);
+                ctx.fillRect(x + 8, y - 30, 2, 12);
+            }
         } else {
-            // Male hair style
+            // Male hair style (short)
             ctx.beginPath();
             ctx.arc(x, y - 30, 8, 0, Math.PI);
             ctx.fill();
         }
         
-        // Draw face
+        // Draw face details
         ctx.fillStyle = this.colors.black;
         
         // Different face expressions based on facing direction
@@ -1131,12 +1158,6 @@ class GameEngine {
             // Profile facing right
             ctx.fillRect(x + 2, y - 28, 2, 2); // One eye
             ctx.fillRect(x + 3, y - 22, 3, 1); // Mouth
-        }
-        
-        // Draw badge for NPCs that are police officers
-        if (isNPC) {
-            ctx.fillStyle = this.colors.yellow;
-            ctx.fillRect(x - 3, y - 10, 6, 2);
         }
     };
 
@@ -1494,17 +1515,74 @@ class GameEngine {
     };
     
     updateNPCsForScene = (sceneId) => {
+        // Create NPCs for the scene if they don't exist yet
         if (!this.npcs[sceneId]) {
-            // ...existing code...
+            this.npcs[sceneId] = [];
             
-            // Add NPCs for the new office area
-            if (sceneId === 'officeArea') {
+            // Add NPCs for each scene
+            if (sceneId === 'policeStation') {
+                // Receptionist at the desk
+                this.npcs[sceneId].push({
+                    x: 475,
+                    y: this.floorLevel.min + 30,
+                    type: 'officer',
+                    name: 'Officer Jenny',
+                    isReceptionist: true,
+                    isFemale: true,
+                    // Mostly stay at the desk, occasionally get up to get coffee or talk to someone
+                    patrolPoints: [
+                        {x: 475, y: this.floorLevel.min + 30}, // At desk
+                        {x: 475, y: this.floorLevel.min + 30}, // Still at desk (higher weight)
+                        {x: 475, y: this.floorLevel.min + 30}, // Still at desk (higher weight)
+                        {x: 550, y: this.floorLevel.min + 80}, // Getting a file
+                        {x: 300, y: this.floorLevel.min + 60}  // Visiting a colleague
+                    ],
+                    currentPatrolPoint: 0,
+                    facing: 'left',
+                    waitTime: 15
+                });
+                
+                // Patrolling officer
+                this.npcs[sceneId].push({
+                    x: 200, 
+                    y: this.floorLevel.min + 60,
+                    type: 'officer',
+                    name: 'Officer Johnson',
+                    patrolPoints: [
+                        {x: 200, y: this.floorLevel.min + 60}, 
+                        {x: 600, y: this.floorLevel.min + 60},
+                        {x: 400, y: this.floorLevel.min + 100},
+                        {x: 300, y: this.floorLevel.min + 80}
+                    ],
+                    currentPatrolPoint: 0,
+                    facing: 'right'
+                });
+                
+                // Detective in a hurry
+                this.npcs[sceneId].push({
+                    x: 100,
+                    y: this.floorLevel.min + 90,
+                    type: 'detective',
+                    name: 'Detective Morgan',
+                    patrolPoints: [
+                        {x: 100, y: this.floorLevel.min + 90},
+                        {x: 300, y: this.floorLevel.min + 50},
+                        {x: 450, y: this.floorLevel.min + 40}, // Talk to receptionist
+                        {x: 630, y: this.floorLevel.min - 70}  // To sheriff's office
+                    ],
+                    currentPatrolPoint: 0,
+                    facing: 'right'
+                });
+            }
+            
+            // Add NPCs for the office area
+            else if (sceneId === 'officeArea') {
                 this.npcs[sceneId] = [
                     {
                         x: 250, y: 350,
                         type: 'detective',
-                        name: 'Detective Johnson',
-                        patrolPoints: [{x: 250, y: 350}, {x: 400, y: 350}, {x: 600, y: 350}],
+                        name: 'Detective Williams',
+                        patrolPoints: [{x: 250, y: 350}, {x: 400, y: 350}, {x: 600, y: 350}, {x: 720, y: 250}],
                         currentPatrolPoint: 0,
                         facing: 'right'
                     },
@@ -1515,6 +1593,38 @@ class GameEngine {
                         patrolPoints: [{x: 500, y: 320}, {x: 300, y: 320}, {x: 700, y: 380}],
                         currentPatrolPoint: 0,
                         facing: 'left'
+                    },
+                    {
+                        x: 170, y: 330,
+                        type: 'sergeant',
+                        name: 'Sergeant Rodriguez',
+                        patrolPoints: [{x: 170, y: 330}, {x: 170, y: 330}, {x: 100, y: 350}, {x: 400, y: 300}],
+                        currentPatrolPoint: 0,
+                        facing: 'down',
+                        waitTime: 10
+                    }
+                ];
+            }
+            
+            // Add NPCs for downtown
+            else if (sceneId === 'downtown') {
+                this.npcs[sceneId] = [
+                    {
+                        x: 150, y: 350,
+                        type: 'officer',
+                        name: 'Officer Parker',
+                        patrolPoints: [{x: 150, y: 350}, {x: 300, y: 350}, {x: 450, y: 350}, {x: 300, y: 350}],
+                        currentPatrolPoint: 0,
+                        facing: 'right'
+                    },
+                    {
+                        x: 600, y: 320,
+                        type: 'civilian',
+                        name: 'Witness',
+                        patrolPoints: [{x: 600, y: 320}, {x: 550, y: 340}, {x: 630, y: 350}],
+                        currentPatrolPoint: 0,
+                        facing: 'left',
+                        isFemale: true
                     }
                 ];
             }
