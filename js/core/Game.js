@@ -112,15 +112,42 @@ class Game {
         if (!caseInfoPanel || !this.gameState.currentCase) return;
 
         let caseHTML = `<h3>${this.gameState.currentCase.title}</h3>`;
-        caseHTML += '<p>Case stages:</p>';
+        caseHTML += `<p>${this.gameState.currentCase.description}</p>`;
+        caseHTML += '<p>Case objectives:</p>';
         caseHTML += '<ul>';
         
         this.gameState.currentCase.stages.forEach(stage => {
-            caseHTML += `<li>${stage.description} ${stage.completed ? '✓' : ''}</li>`;
+            caseHTML += `<li>${stage.objective} ${stage.completed ? '✓' : ''}</li>`;
         });
         
         caseHTML += '</ul>';
+        
+        // Add evidence section if any exists
+        if (this.gameState.currentCase.evidence && this.gameState.currentCase.evidence.length > 0) {
+            caseHTML += '<p>Evidence collected:</p>';
+            caseHTML += '<ul>';
+            
+            this.gameState.currentCase.evidence.forEach(item => {
+                caseHTML += `<li>${item}</li>`;
+            });
+            
+            caseHTML += '</ul>';
+        }
+        
+        // Add suspects section if any exists
+        if (this.gameState.currentCase.suspects && this.gameState.currentCase.suspects.length > 0) {
+            caseHTML += '<p>Suspects:</p>';
+            caseHTML += '<ul>';
+            
+            this.gameState.currentCase.suspects.forEach(suspect => {
+                caseHTML += `<li>${suspect.name}</li>`;
+            });
+            
+            caseHTML += '</ul>';
+        }
+        
         caseInfoPanel.innerHTML = caseHTML;
+        console.log("Case info updated:", this.gameState.currentCase);
     }
 
     updateInventoryUI() {

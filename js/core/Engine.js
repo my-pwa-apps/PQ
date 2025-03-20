@@ -339,30 +339,320 @@ class GameEngine {
     }
 
     // Optimize major performance bottlenecks
-    drawCurrentScene = () => {
+    drawCurrentScene() {
         try {
             const ctx = this.offscreenCtx || this.ctx;
-            // Use a cached background when possible
-            if (!this.cachedScenes) this.cachedScenes = new Map();
+            ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             
-            // Check if scene background can be cached
-            if (!this.cachedScenes.has(this.currentScene)) {
-                // Draw the scene to a cached canvas
-                // ...existing code...
+            // Get current scene data from GameData if available
+            const sceneData = window.GAME_DATA?.scenes?.[this.currentScene];
+            
+            // Default background color if no scene data or background
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            if (sceneData) {
+                console.log(`Drawing scene: ${this.currentScene}`);
+                
+                // Draw background image if available in the scene data
+                if (sceneData.background && typeof sceneData.background === 'string') {
+                    // For image backgrounds
+                    if (sceneData.background.endsWith('.png') || 
+                        sceneData.background.endsWith('.jpg') || 
+                        sceneData.background.endsWith('.jpeg')) {
+                        // Try to load the background image
+                        if (!this._backgroundImage) {
+                            this._backgroundImage = new Image();
+                            this._backgroundImage.src = sceneData.background;
+                            this._backgroundImage.onload = () => {
+                                console.log("Background image loaded");
+                                this.drawCurrentScene();
+                            };
+                            this._backgroundImage.onerror = (err) => {
+                                console.error("Failed to load background image:", err);
+                                // Draw fallback scene
+                                this._drawFallbackScene(ctx, this.currentScene);
+                            };
+                            
+                            // Draw fallback while loading
+                            this._drawFallbackScene(ctx, this.currentScene);
+                            return;
+                        } else if (this._backgroundImage.complete) {
+                            ctx.drawImage(this._backgroundImage, 0, 0, this.canvas.width, this.canvas.height);
+                        } else {
+                            // Draw fallback if image isn't loaded yet
+                            this._drawFallbackScene(ctx, this.currentScene);
+                            return;
+                        }
+                    } else {
+                        // Draw fallback for non-image backgrounds
+                        this._drawFallbackScene(ctx, this.currentScene);
+                    }
+                } else {
+                    // Draw fallback if no background specified
+                    this._drawFallbackScene(ctx, this.currentScene);
+                }
+                
+                // Draw hotspots if debug mode is on
+                if (this.debugMode && sceneData.hotspots) {
+                    this._drawHotspots(ctx, sceneData.hotspots);
+                }
             } else {
-                // Use the cached background
-                ctx.drawImage(this.cachedScenes.get(this.currentScene), 0, 0);
+                console.warn(`No scene data found for ${this.currentScene}`);
+                ctx.fillStyle = '#333333';
+                ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw error message
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Scene "${this.currentScene}" not found`, this.canvas.width / 2, this.canvas.height / 2);
             }
             
-            // Draw dynamic elements (NPCs, player, animations)
-            // ...existing code...
+            // Draw NPCs if they exist for this scene
+            if (this.npcs && this.npcs[this.currentScene]) {
+                this._drawNPCs(ctx);
+            }
+            
+            // Draw player character
+            this._drawPlayer(ctx);
+            
+            // Draw ambient animations
+            if (this.drawAmbientAnimations) {
+                this.drawAmbientAnimations();
+            }
+            
+            // Draw UI elements or overlays
+            this._drawUI(ctx);
+            
         } catch (error) {
             console.error("Error drawing scene:", error);
         }
-    };
+    }
 
-    // Remove duplicated drawWallDecorations method
-    // ...existing code...
+    // Add helper method for drawing fallback scenes
+    _drawFallbackScene(ctx, sceneId) {
+        switch (sceneId) {
+            case 'policeStation':
+                // Police Station - simplified version
+                ctx.fillStyle = '#87CEEB'; // Sky blue
+                ctx.fillRect(0, 0, this.canvas.width, 300);
+                
+                ctx.fillStyle = '#8B4513'; // Wood brown
+                ctx.fillRect(0, 300, this.canvas.width, this.canvas.height - 300);
+                
+                // Building
+                ctx.fillStyle = '#D3D3D3'; // Light gray
+                ctx.fillRect(150, 100, 500, 200);
+                
+                // Door
+                ctx.fillStyle = '#8B4513'; // Brown
+                ctx.fillRect(350, 200, 100, 100);
+                
+                // Windows
+                ctx.fillStyle = '#ADD8E6'; // Light blue
+                ctx.fillRect(200, 150, 80, 80);
+                ctx.fillRect(500, 150, 80, 80);
+                
+                // Sign
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText("POLICE STATION", 400, 80);
+                break;
+                
+            case 'downtown':
+                // Downtown - simplified version
+                ctx.fillStyle = '#87CEEB'; // Sky blue
+                ctx.fillRect(0, 0, this.canvas.width, 200);
+                
+                ctx.fillStyle = '#708090'; // Slate gray for street
+                ctx.fillRect(0, 400, this.canvas.width, this.canvas.height - 400);
+                
+                // Buildings
+                for (let i = 0; i < 4; i++) {
+                    const height = 150 + Math.random() * 100;
+                    ctx.fillStyle = i % 2 ? '#A0A0A0' : '#808080';
+                    ctx.fillRect(i * 200, 200, 180, height);
+                    
+                    // Windows
+                    ctx.fillStyle = '#FFFF00'; // Yellow windows 
+                    for (let j = 0; j < 3; j++) {
+                        for (let k = 0; k < 4; k++) {
+                            if (Math.random() > 0.3) { // Some windows are dark
+                                ctx.fillRect(i * 200 + 20 + j * 50, 220 + k * 40, 30, 20);
+                            }
+                        }
+                    }
+                }
+                
+                // Street markings
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(0, 450);
+                ctx.lineTo(this.canvas.width, 450);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.setLineDash([20, 20]);
+                ctx.moveTo(0, 500);
+                ctx.lineTo(this.canvas.width, 500);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                break;
+                
+            default:
+                // Default scene
+                const gradient = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+                gradient.addColorStop(0, '#4B6CB7');
+                gradient.addColorStop(1, '#182848');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Grid pattern
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.lineWidth = 1;
+                
+                // Draw grid lines
+                for (let i = 0; i < this.canvas.width; i += 50) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, 0);
+                    ctx.lineTo(i, this.canvas.height);
+                    ctx.stroke();
+                }
+                
+                for (let i = 0; i < this.canvas.height; i += 50) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, i);
+                    ctx.lineTo(this.canvas.width, i);
+                    ctx.stroke();
+                }
+                
+                // Display scene name
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Scene: ${sceneId || "Unknown"}`, this.canvas.width / 2, this.canvas.height / 2);
+        }
+    }
+
+    // Add helper method for drawing hotspots
+    _drawHotspots(ctx, hotspots) {
+        if (!hotspots || !Array.isArray(hotspots)) return;
+        
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+        ctx.lineWidth = 2;
+        
+        hotspots.forEach(hotspot => {
+            if (hotspot.x !== undefined && hotspot.y !== undefined) {
+                const width = hotspot.width || 50;
+                const height = hotspot.height || 50;
+                
+                ctx.strokeRect(hotspot.x, hotspot.y, width, height);
+                
+                // Add label
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(hotspot.x, hotspot.y - 20, Math.min(width, 200), 20);
+                
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(hotspot.name || "Hotspot", hotspot.x + 5, hotspot.y - 5);
+            }
+        });
+        
+        ctx.restore();
+    }
+
+    // Add helper method for drawing NPCs
+    _drawNPCs(ctx) {
+        const npcs = this.npcs[this.currentScene];
+        if (!npcs || !Array.isArray(npcs)) return;
+        
+        // Sort NPCs by y position for correct depth
+        const sortedNPCs = [...npcs].sort((a, b) => a.y - b.y);
+        
+        sortedNPCs.forEach(npc => {
+            if (!npc) return;
+            
+            // Draw simple placeholder for NPCs
+            ctx.fillStyle = npc.color || '#FF0000';
+            ctx.beginPath();
+            ctx.arc(npc.x, npc.y, 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw name label
+            if (npc.name) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(npc.x - 40, npc.y - 30, 80, 20);
+                
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(npc.name, npc.x, npc.y - 15);
+            }
+        });
+    }
+
+    // Add helper method for drawing the player character
+    _drawPlayer(ctx) {
+        if (!this.playerPosition) return;
+        
+        // Draw player character (simplified)
+        ctx.fillStyle = '#0000FF'; // Blue for player
+        ctx.beginPath();
+        ctx.arc(this.playerPosition.x, this.playerPosition.y, 20, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw direction indicator
+        ctx.fillStyle = '#FFFFFF';
+        
+        const dirX = this.playerPosition.x;
+        const dirY = this.playerPosition.y;
+        const radius = 20;
+        
+        switch (this.playerFacing) {
+            case 'up':
+                ctx.beginPath();
+                ctx.moveTo(dirX, dirY - radius);
+                ctx.lineTo(dirX - 5, dirY - radius + 10);
+                ctx.lineTo(dirX + 5, dirY - radius + 10);
+                ctx.closePath();
+                ctx.fill();
+                break;
+            case 'down':
+                ctx.beginPath();
+                ctx.moveTo(dirX, dirY + radius);
+                ctx.lineTo(dirX - 5, dirY + radius - 10);
+                ctx.lineTo(dirX + 5, dirY + radius - 10);
+                ctx.closePath();
+                ctx.fill();
+                break;
+            case 'left':
+                ctx.beginPath();
+                ctx.moveTo(dirX - radius, dirY);
+                ctx.lineTo(dirX - radius + 10, dirY - 5);
+                ctx.lineTo(dirX - radius + 10, dirY + 5);
+                ctx.closePath();
+                ctx.fill();
+                break;
+            case 'right':
+                ctx.beginPath();
+                ctx.moveTo(dirX + radius, dirY);
+                ctx.lineTo(dirX + radius - 10, dirY - 5);
+                ctx.lineTo(dirX + radius - 10, dirY + 5);
+                ctx.closePath();
+                ctx.fill();
+                break;
+        }
+    }
+
+    // Add helper method for drawing UI elements
+    _drawUI(ctx) {
+        // Currently empty - would contain HUD elements, cursor, etc.
+    }
 
     // Fix memory leak in animation system
     updateAnimations = (deltaTime) => {
