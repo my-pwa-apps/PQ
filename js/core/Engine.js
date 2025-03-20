@@ -518,7 +518,149 @@ class GameEngine {
         }
     }
     
-    // ...existing code...
+    // Adding the missing loadScene method
+    loadScene(sceneId) {
+        try {
+            // Validate scene ID
+            if (!sceneId) {
+                console.error('No scene ID provided');
+                sceneId = 'policeStation'; // Default scene as fallback
+            }
+
+            console.log(`Loading scene: ${sceneId}`);
+
+            // Stop current background music and animations
+            if (window.soundManager) {
+                if (this.stopBackgroundMusic) {
+                    this.stopBackgroundMusic();
+                } else if (window.soundManager.stopBackgroundMusic) {
+                    window.soundManager.stopBackgroundMusic();
+                }
+            }
+
+            // Reset all state
+            if (this.clear) {
+                this.clear();
+            } else {
+                // Fallback if clear method isn't defined
+                if (this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                if (this.offscreenCtx) this.offscreenCtx.clearRect(0, 0, this.offscreenCanvas.width, this.offscreenCanvas.height);
+            }
+            
+            this.collisionObjects = [];
+            
+            // Initialize NPCs array for this scene if it doesn't exist
+            if (!this.npcs[sceneId]) {
+                this.npcs[sceneId] = [];
+            }
+            
+            // Reset ambient animations if they exist
+            if (this.ambientAnimations) {
+                Object.keys(this.ambientAnimations).forEach(key => {
+                    this.ambientAnimations[key].active = false;
+                });
+            }
+
+            // Update current scene
+            this.currentScene = sceneId;
+            
+            // Set default player position for new scene
+            const defaultY = this.floorLevel ? this.floorLevel.min + 50 : 350;
+            this.playerPosition = { x: 400, y: defaultY };
+            
+            // Reset movement state
+            this.isWalking = false;
+            this.walkTarget = null;
+            
+            // Setup scene components if the methods exist
+            if (this.setupAmbientAnimations) {
+                this.setupAmbientAnimations(this.currentScene);
+            }
+            
+            if (this.updateCollisionObjects) {
+                this.updateCollisionObjects();
+            }
+            
+            if (this.initializeNPCsForScene) {
+                this.initializeNPCsForScene(sceneId);
+            }
+            
+            // Draw the new scene
+            requestAnimationFrame(() => {
+                if (this.drawCurrentScene) {
+                    this.drawCurrentScene();
+                }
+                
+                // Start scene music after scene is drawn
+                if (window.soundManager && this.startBackgroundMusic) {
+                    this.startBackgroundMusic();
+                }
+            });
+            
+            console.log(`Scene loaded successfully: ${this.currentScene}`);
+        } catch (error) {
+            console.error("Error loading scene:", error);
+            console.error("Stack trace:", error.stack);
+            if (this.showDialog) {
+                this.showDialog("Error loading scene. Please try again.");
+            }
+        }
+    }
+
+    // Add the clear method that's referenced in loadScene
+    clear() {
+        // Clear all canvas contexts if they exist
+        if (this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        if (this.bufferCtx) this.bufferCtx.clearRect(0, 0, this.bufferCanvas.width, this.bufferCanvas.height);
+        if (this.backContext) this.backContext.clearRect(0, 0, this.backBuffer.width, this.backBuffer.height);
+        if (this.offscreenCtx) this.offscreenCtx.clearRect(0, 0, this.offscreenCanvas.width, this.offscreenCanvas.height);
+    }
+
+    // Add a stub update method needed for the game loop
+    update(deltaTime = 1/60) {
+        // Stub implementation for updating game state
+        console.log("Game state update called");
+        
+        // Handle player walking animation and movement
+        if (this.isWalking && this.walkTarget) {
+            // Calculate direction and distance
+            const dx = this.walkTarget.x - this.playerPosition.x;
+            const dy = this.walkTarget.y - this.playerPosition.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // If we've reached the target (or close enough), stop walking
+            if (distance < 5) {
+                this.isWalking = false;
+                this.walkTarget = null;
+                // Check if we reached a hotspot
+                if (this.checkCollision) {
+                    const hitObject = this.checkCollision(this.playerPosition.x, this.playerPosition.y);
+                    if (hitObject && this.processInteraction) {
+                        this.processInteraction(hitObject);
+                    }
+                }
+            } else {
+                // Move player towards target
+                const speed = 5; // pixels per frame
+                const moveX = (dx / distance) * speed;
+                const moveY = (dy / distance) * speed;
+                this.playerPosition.x += moveX;
+                this.playerPosition.y += moveY;
+                
+                // Update player facing based on movement direction
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    this.playerFacing = dx > 0 ? 'right' : 'left';
+                } else {
+                    this.playerFacing = dy > 0 ? 'down' : 'up';
+                }
+            }
+        }
+        
+        // Update NPCs if the method exists
+        if (this.updateNPCs) {
+            this.updateNPCs(deltaTime);
+        }
+    }
 }
 
 // Make GameEngine available in the global scope
