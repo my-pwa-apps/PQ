@@ -315,7 +315,42 @@ class GameEngine {
         return null;
     }
 
-    // Adding a stub for processInteraction
+    // Add this method to show dialog messages to the player
+    showDialog(text) {
+        if (!text) return;
+        
+        // First try using any existing dialog system
+        if (window.game && window.game.showDialog) {
+            window.game.showDialog(text);
+            return;
+        }
+        
+        // Fallback: check for dialog box in DOM
+        const dialogBox = document.getElementById('dialog-text') || document.getElementById('dialog-box');
+        if (dialogBox) {
+            dialogBox.innerText = text;
+            
+            // Make sure it's visible
+            const dialogContainer = dialogBox.parentElement;
+            if (dialogContainer && dialogContainer.style) {
+                dialogContainer.style.display = 'block';
+            }
+            
+            // Auto-hide after a delay
+            setTimeout(() => {
+                if (dialogContainer && dialogContainer.style) {
+                    dialogContainer.style.display = 'block'; // Keep it visible
+                }
+            }, 3000);
+            
+            return;
+        }
+        
+        // Last resort - show in console
+        console.log("DIALOG: " + text);
+    }
+
+    // Update processInteraction method to show dialog messages
     processInteraction(object) {
         console.log("Processing interaction with:", object);
         
@@ -325,7 +360,9 @@ class GameEngine {
         
         // Handle basic interaction logic
         if (object.interactions && object.interactions[this.activeCommand]) {
-            console.log(object.interactions[this.activeCommand]);
+            const message = object.interactions[this.activeCommand];
+            console.log(message);
+            this.showDialog(message);
             
             // Special handling for doors
             if (object.type === 'door' && this.activeCommand === 'use' && object.target) {
@@ -338,7 +375,9 @@ class GameEngine {
                 }
             }
         } else {
-            console.log(`Cannot ${this.activeCommand} that.`);
+            const message = `Cannot ${this.activeCommand} that.`;
+            console.log(message);
+            this.showDialog(message);
         }
     }
 
@@ -348,118 +387,19 @@ class GameEngine {
             const ctx = this.offscreenCtx || this.ctx;
             ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             
+            // Always draw the fallback scene first, immediately
+            this._drawFallbackScene(ctx, this.currentScene);
+            
+            // Skip the image loading process since it's causing issues
+            // Instead we'll rely on the fallback scenes for now
+            
             // Get current scene data from GameData if available
             const sceneData = window.GAME_DATA?.scenes?.[this.currentScene];
-            
-            // Default background color if no scene data or background
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            
             if (sceneData) {
-                console.log(`Drawing scene: ${this.currentScene}`);
-                
-                // Draw background image if available in the scene data
-                if (sceneData.background && typeof sceneData.background === 'string') {
-                    // For image backgrounds
-                    if (sceneData.background.endsWith('.png') || 
-                        sceneData.background.endsWith('.jpg') || 
-                        sceneData.background.endsWith('.jpeg')) {
-                        
-                        // Use a scene-specific image loading system
-                        const imageKey = `${this.currentScene}_bg`;
-                        
-                        // Initialize image cache if needed
-                        if (!this._backgroundImages) {
-                            this._backgroundImages = new Map();
-                        }
-                        
-                        // Try to get cached image or create a new one
-                        let bgImage = this._backgroundImages.get(imageKey);
-                        
-                        if (!bgImage) {
-                            // Image not yet loaded - create new image
-                            bgImage = {
-                                element: new Image(),
-                                loaded: false,
-                                failed: false,
-                                path: sceneData.background
-                            };
-                            
-                            // Store in cache
-                            this._backgroundImages.set(imageKey, bgImage);
-                            
-                            // Set up image load handlers
-                            bgImage.element.onload = () => {
-                                console.log(`Background image loaded for ${this.currentScene}`);
-                                bgImage.loaded = true;
-                                this.drawCurrentScene(); // Redraw when image loads
-                            };
-                            
-                            bgImage.element.onerror = (err) => {
-                                console.error(`Failed to load background image for ${this.currentScene}:`, err);
-                                bgImage.failed = true;
-                                // No need to redraw, fallback already showing
-                            };
-                            
-                            // Ensure path is absolute
-                            let imagePath = bgImage.path;
-                            if (!imagePath.startsWith('/') && !imagePath.startsWith('http')) {
-                                // Try different relative paths
-                                if (imagePath.startsWith('./')) {
-                                    imagePath = imagePath.substring(2);
-                                }
-                            }
-                            
-                            // Apply the source path
-                            bgImage.element.src = imagePath;
-                            
-                            // Draw fallback while loading
-                            this._drawFallbackScene(ctx, this.currentScene);
-                            return;
-                        } 
-                        else if (bgImage.loaded) {
-                            // Image successfully loaded - draw it
-                            try {
-                                ctx.drawImage(bgImage.element, 0, 0, this.canvas.width, this.canvas.height);
-                            } catch (imgError) {
-                                console.error("Error drawing background image:", imgError);
-                                this._drawFallbackScene(ctx, this.currentScene);
-                            }
-                        } 
-                        else if (bgImage.failed) {
-                            // Image previously failed - use fallback
-                            this._drawFallbackScene(ctx, this.currentScene);
-                        } 
-                        else {
-                            // Image still loading - use fallback
-                            this._drawFallbackScene(ctx, this.currentScene);
-                        }
-                    } else {
-                        // Not an image path (could be a color or other format)
-                        this._drawFallbackScene(ctx, this.currentScene);
-                    }
-                } else {
-                    // No background specified
-                    this._drawFallbackScene(ctx, this.currentScene);
-                }
-                
-                // Draw hotspots for debugging if enabled
-                if (this.debugMode && sceneData.hotspots) {
-                    this._drawHotspots(ctx, sceneData.hotspots);
-                } else if (sceneData.hotspots) {
-                    // Always draw hotspots for now during development
+                // Draw hotspots if they exist in the scene data
+                if (sceneData.hotspots) {
                     this._drawHotspots(ctx, sceneData.hotspots);
                 }
-            } else {
-                console.warn(`No scene data found for ${this.currentScene}`);
-                ctx.fillStyle = '#333333';
-                ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-                
-                // Draw error message
-                ctx.fillStyle = '#FFFFFF';
-                ctx.font = '20px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(`Scene "${this.currentScene}" not found`, this.canvas.width / 2, this.canvas.height / 2);
             }
             
             // Draw NPCs if they exist for this scene
@@ -476,7 +416,9 @@ class GameEngine {
             }
             
             // Draw UI elements or overlays
-            this._drawUI(ctx);
+            if (this._drawUI) {
+                this._drawUI(ctx);
+            }
             
         } catch (error) {
             console.error("Error drawing scene:", error);
@@ -975,8 +917,10 @@ class GameEngine {
 
     // Add a stub update method needed for the game loop
     update(deltaTime = 1/60) {
-        // Stub implementation for updating game state
-        console.log("Game state update called");
+        // Reduce logging - only log occasionally for debug purposes
+        if (Math.random() < 0.01) { // Log only 1% of the time
+            console.log("Game state update running");
+        }
         
         // Handle player walking animation and movement
         if (this.isWalking && this.walkTarget) {
@@ -1212,6 +1156,35 @@ class GameEngine {
         console.log(`Created ${this.collisionObjects.length} collision objects for scene ${this.currentScene}`);
     }
 }
+
+// Add this after the class definition but before the window.GameEngine assignment
+// Helper function for robust image loading
+GameEngine.prototype._tryLoadImage = function(path) {
+    // First try the path as-is
+    const img = new Image();
+    
+    return new Promise((resolve, reject) => {
+        // Set up timeout to fail gracefully after 5 seconds
+        const timeoutId = setTimeout(() => {
+            console.warn(`Image load timed out: ${path}`);
+            reject(new Error('Image load timed out'));
+        }, 5000);
+        
+        img.onload = () => {
+            clearTimeout(timeoutId);
+            resolve(img);
+        };
+        
+        img.onerror = () => {
+            clearTimeout(timeoutId);
+            console.warn(`Failed to load image: ${path}, will use fallback.`);
+            reject(new Error(`Failed to load image: ${path}`));
+        };
+        
+        // Try to load the image
+        img.src = path;
+    });
+};
 
 // Make GameEngine available in the global scope
 window.GameEngine = GameEngine;
