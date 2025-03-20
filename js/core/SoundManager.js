@@ -133,7 +133,7 @@ class SoundManager {
     }
 }
 
-// Make the SoundManager class available globally
+// Make SoundManager available in the global scope
 window.SoundManager = SoundManager;
 
 // Initialize sound manager

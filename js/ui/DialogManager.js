@@ -3,10 +3,25 @@ class DialogManager {
         this.dialogBox = document.getElementById('dialog-box');
         this.dialogQueue = [];
         this.isShowing = false;
+        
+        // Create dialog box if it doesn't exist
+        if (!this.dialogBox) {
+            this.createDialogBox();
+        }
+        
+        // Prevent memory leaks with bound methods
+        this._hideDialogBound = this.hideDialog.bind(this);
+    }
+    
+    createDialogBox() {
+        this.dialogBox = document.createElement('div');
+        this.dialogBox.id = 'dialog-box';
+        this.dialogBox.className = 'dialog-box';
+        document.body.appendChild(this.dialogBox);
     }
 
     show(text, duration = 5000) {
-        if (!this.dialogBox || !text) return;
+        if (!text) return;
         
         if (this.isShowing) {
             this.dialogQueue.push({text, duration});
@@ -17,9 +32,11 @@ class DialogManager {
         this.dialogBox.innerText = text;
         this.dialogBox.style.display = 'block';
         
-        setTimeout(() => {
-            this.hideDialog();
-        }, duration);
+        if (this._hideTimeout) {
+            clearTimeout(this._hideTimeout);
+        }
+        
+        this._hideTimeout = setTimeout(this._hideDialogBound, duration);
     }
 
     hideDialog() {
@@ -34,6 +51,18 @@ class DialogManager {
                 this.show(nextDialog.text, nextDialog.duration);
             }, 100);
         }
+        
+        this._hideTimeout = null;
+    }
+    
+    // Add a method for cleaning up
+    destroy() {
+        if (this._hideTimeout) {
+            clearTimeout(this._hideTimeout);
+            this._hideTimeout = null;
+        }
+        this.dialogQueue = [];
+        this.isShowing = false;
     }
 }
 

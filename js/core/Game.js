@@ -2,38 +2,59 @@ class Game {
     constructor() {
         this.engine = null;
         this.soundManager = null;
+        this.dialogManager = null;
+        this.sceneManager = null;
         this.gameState = {
             inventory: new Set(),
-            currentCase: GAME_DATA.cases.case1 // Start with first case
+            currentCase: null // Will be initialized after GAME_DATA is available
         };
         this.currentScene = 'policeStation';
+        
+        // Initialize the game state if GAME_DATA is available
+        if (window.GAME_DATA) {
+            this.gameState.currentCase = window.GAME_DATA.cases.case1;
+        }
+        
+        // Prevent duplicate event listeners
+        this._boundHandlers = new Map();
     }
 
     async initGame() {
         console.log('Initializing game...');
         
         try {
-            // Make sure SoundManager class exists
-            if (typeof window.SoundManager !== 'function') {
-                console.error('SoundManager class not found. Make sure SoundManager.js is loaded properly.');
-                throw new Error('SoundManager not available');
+            // Check for required dependencies
+            if (typeof GAME_DATA === 'undefined') {
+                throw new Error('Game data not available');
             }
             
-            // Initialize sound first and wait for it
-            this.soundManager = window.soundManager || new SoundManager();
-            window.soundManager = this.soundManager; // Ensure global access
-            await this.soundManager.initialize();
+            // Initialize game state with data
+            this.gameState.currentCase = GAME_DATA.cases.case1;
+            
+            // Create UI managers first
+            this.dialogManager = new DialogManager();
+            if (window.SceneManager) {
+                this.sceneManager = new SceneManager(this);
+            }
+            
+            // Initialize sound manager safely
+            if (window.SoundManager) {
+                this.soundManager = window.soundManager || new SoundManager();
+                window.soundManager = this.soundManager;
+                await this.soundManager.initialize();
+            } else {
+                console.warn('SoundManager not available');
+            }
 
             // Initialize game engine
-            if (typeof window.GameEngine === 'function') {
+            if (window.GameEngine) {
                 this.engine = new GameEngine();
                 window.gameEngine = this.engine;
             } else {
-                console.error('GameEngine class not found. Make sure Engine.js is loaded properly.');
                 throw new Error('GameEngine not available');
             }
             
-            // Setup UI elements
+            // Setup UI elements and interactions after engine is ready
             this.setupUI();
             
             console.log('Game engine ready, starting game...');
@@ -41,6 +62,7 @@ class Game {
             
         } catch (error) {
             console.error('Failed to initialize game:', error);
+            this.showErrorMessage(`Game initialization failed: ${error.message}`);
             throw error;
         }
     }
@@ -65,6 +87,24 @@ class Game {
         
         // Set up initial case
         this.updateCaseInfo();
+    }
+    
+    // Centralize dialog showing through DialogManager
+    showDialog(text) {
+        if (this.dialogManager) {
+            this.dialogManager.show(text);
+        } else {
+            // Fallback
+            const dialogBox = document.getElementById('dialog-box');
+            if (dialogBox && text) {
+                dialogBox.innerText = text;
+                dialogBox.style.display = 'block';
+                
+                setTimeout(() => {
+                    dialogBox.style.display = 'none';
+                }, 5000);
+            }
+        }
     }
 
     updateCaseInfo() {
@@ -104,10 +144,6 @@ class Game {
         });
     }
 
-    showDialog(text) {
-        this.dialogManager.show(text);
-    }
-
     checkCaseSolved() {
         if (!this.gameState.currentCase) return false;
         return this.gameState.currentCase.stages.every(stage => stage.completed);
@@ -136,6 +172,41 @@ class Game {
         }
         this.gameState.currentCase.evidence.push(evidence);
     }
+
+    // Add proper cleanup
+    destroy() {
+        // Stop and remove all subsystems
+        if (this.engine) {
+            this.engine.destroy();
+            this.engine = null;
+        }
+        
+        // Remove event listeners
+        this._boundHandlers.forEach((handler, event) => {
+            document.removeEventListener(event, handler);
+        });
+        
+        // Clear game state
+        this.gameState.inventory.clear();
+    }
+    
+    // Show user-friendly error message
+    showErrorMessage(message) {
+        // Create error overlay if needed
+        const errorBox = document.getElementById('error-message') || 
+                         this.createErrorElement();
+        
+        errorBox.textContent = message;
+        errorBox.style.display = 'block';
+    }
+    
+    createErrorElement() {
+        const errorBox = document.createElement('div');
+        errorBox.id = 'error-message';
+        errorBox.style.cssText = 'position:absolute;top:10px;left:10px;right:10px;background:rgba(255,0,0,0.8);color:white;padding:10px;z-index:1000;';
+        document.body.appendChild(errorBox);
+        return errorBox;
+    }
 }
 
 // Make Game class globally available
@@ -145,7 +216,7 @@ window.Game = Game;
 window.addEventListener('DOMContentLoaded', () => {
     console.log("DOM fully loaded");
     
-    // Ensure GAME_DATA is defined
+    // Ensure GAME_DATA is defined before creating game
     if (typeof GAME_DATA === 'undefined') {
         console.error("GAME_DATA is not defined. Make sure GameData.js is loaded first.");
         return;
@@ -153,17 +224,23 @@ window.addEventListener('DOMContentLoaded', () => {
     
     try {
         const game = new Game();
+        window.game = game; // Make game instance globally available
         game.initGame().catch(error => {
             console.error("Game initialization failed:", error);
         });
-        window.game = game; // Make game instance globally available
     } catch (error) {
         console.error("Failed to create game instance:", error);
     }
 });
 
-// Error handling
+// Improved error handling
 window.onerror = function(msg, url, lineNo, columnNo, error) {
-    console.error('Error: ' + msg + '\nURL: ' + url + '\nLine: ' + lineNo + '\nColumn: ' + columnNo + '\nError object: ' + JSON.stringify(error));
+    console.error(`Error: ${msg}\nURL: ${url}\nLine: ${lineNo}\nColumn: ${columnNo}\nError object: ${JSON.stringify(error)}`);
+    
+    // Show user-friendly error
+    if (window.game) {
+        window.game.showErrorMessage(`Something went wrong. Please refresh the page.`);
+    }
+    
     return false;
 };

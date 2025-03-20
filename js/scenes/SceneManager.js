@@ -4,28 +4,58 @@ class SceneManager {
         this.currentScene = null;
         this.scenes = new Map();
         this.transitions = new Map();
+        this.loadingScene = false;
+        
+        // Initialize with game data if available
+        if (window.GAME_DATA && window.GAME_DATA.scenes) {
+            this.initializeScenes();
+        }
+    }
+    
+    initializeScenes() {
+        for (const [sceneId, sceneData] of Object.entries(window.GAME_DATA.scenes)) {
+            this.addScene(sceneId, sceneData);
+        }
     }
 
-    loadScene(sceneId) {
-        if (!this.scenes.has(sceneId)) {
-            console.error(`Scene ${sceneId} not found`);
-            return;
-        }
-
-        const scene = this.scenes.get(sceneId);
-        this.currentScene = scene;
+    async loadScene(sceneId) {
+        if (this.loadingScene) return; // Prevent multiple scene loads
+        this.loadingScene = true;
         
-        if (window.soundManager) {
-            window.soundManager.playBackgroundMusic(scene.music);
-        }
+        try {
+            if (!this.scenes.has(sceneId)) {
+                console.error(`Scene ${sceneId} not found`);
+                this.loadingScene = false;
+                return;
+            }
 
-        if (window.gameEngine) {
-            window.gameEngine.loadScene(sceneId);
+            const scene = this.scenes.get(sceneId);
+            this.currentScene = scene;
+            
+            // Play scene music
+            if (window.soundManager && scene.music) {
+                window.soundManager.playBackgroundMusic(scene.music);
+            }
+
+            // Update game engine
+            if (window.gameEngine) {
+                window.gameEngine.loadScene(sceneId);
+            }
+            
+            // Update game state
+            if (this.game) {
+                this.game.currentScene = sceneId;
+            }
+            
+            this.loadingScene = false;
+        } catch (error) {
+            console.error(`Error loading scene ${sceneId}:`, error);
+            this.loadingScene = false;
         }
     }
 
     addScene(sceneId, sceneData) {
-        this.scenes.set(sceneId, sceneData);
+        this.scenes.set(sceneId, {...sceneData, id: sceneId});
     }
 
     addTransition(fromScene, toScene, condition) {
@@ -37,6 +67,17 @@ class SceneManager {
 
     getCurrentScene() {
         return this.currentScene;
+    }
+    
+    // Check if a transition is possible
+    canTransition(fromScene, toScene) {
+        if (!this.transitions.has(fromScene)) return false;
+        const conditions = this.transitions.get(fromScene);
+        
+        if (!conditions.has(toScene)) return false;
+        
+        const condition = conditions.get(toScene);
+        return typeof condition === 'function' ? condition() : !!condition;
     }
 }
 
