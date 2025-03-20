@@ -4,52 +4,33 @@ class Game {
         this.soundManager = null;
         this.gameState = {
             inventory: new Set(),
-            currentCase: null // Will be set after data loads
+            currentCase: GAME_DATA.cases.case1 // Start with first case
         };
         this.currentScene = 'policeStation';
-        this.initialized = false;
-        this.initializeGameState();
-    }
-
-    initializeGameState() {
-        // If GAME_DATA isn't available yet, retry after a short delay
-        if (typeof window.GAME_DATA === 'undefined') {
-            console.warn("Game data not available yet. Retrying in 100ms...");
-            setTimeout(() => this.initializeGameState(), 100);
-            return;
-        }
-
-        console.log("Game data found, initializing game state");
-        // Now we can safely access the game data
-        this.gameState.currentCase = window.GAME_DATA.cases.case1;
-        this.initialized = true;
     }
 
     async initGame() {
         console.log('Initializing game...');
         
         try {
+            // Make sure SoundManager class exists
+            if (typeof window.SoundManager !== 'function') {
+                console.error('SoundManager class not found. Make sure SoundManager.js is loaded properly.');
+                throw new Error('SoundManager not available');
+            }
+            
             // Initialize sound first and wait for it
-            this.soundManager = new SoundManager();
+            this.soundManager = window.soundManager || new SoundManager();
+            window.soundManager = this.soundManager; // Ensure global access
             await this.soundManager.initialize();
-            window.soundManager = this.soundManager;
 
             // Initialize game engine
-            this.engine = new GameEngine();
-            window.gameEngine = this.engine;
-            
-            // Wait for game state to be initialized if it hasn't yet
-            if (!this.initialized) {
-                await new Promise(resolve => {
-                    const checkInitialized = () => {
-                        if (this.initialized) {
-                            resolve();
-                        } else {
-                            setTimeout(checkInitialized, 100);
-                        }
-                    };
-                    checkInitialized();
-                });
+            if (typeof window.GameEngine === 'function') {
+                this.engine = new GameEngine();
+                window.gameEngine = this.engine;
+            } else {
+                console.error('GameEngine class not found. Make sure Engine.js is loaded properly.');
+                throw new Error('GameEngine not available');
             }
             
             // Setup UI elements
@@ -157,23 +138,27 @@ class Game {
     }
 }
 
+// Make Game class globally available
+window.Game = Game;
+
 // Then handle DOM content loaded
 window.addEventListener('DOMContentLoaded', () => {
     console.log("DOM fully loaded");
-    const game = new Game();
-    window.game = game; // Make game instance globally available
-
-    // Only call initGame when we're sure the data is available
-    if (typeof window.GAME_DATA !== 'undefined') {
-        game.initGame();
-    } else {
-        console.log("Waiting for game data to load before initializing game...");
-        const waitForGameData = setInterval(() => {
-            if (typeof window.GAME_DATA !== 'undefined') {
-                clearInterval(waitForGameData);
-                game.initGame();
-            }
-        }, 100);
+    
+    // Ensure GAME_DATA is defined
+    if (typeof GAME_DATA === 'undefined') {
+        console.error("GAME_DATA is not defined. Make sure GameData.js is loaded first.");
+        return;
+    }
+    
+    try {
+        const game = new Game();
+        game.initGame().catch(error => {
+            console.error("Game initialization failed:", error);
+        });
+        window.game = game; // Make game instance globally available
+    } catch (error) {
+        console.error("Failed to create game instance:", error);
     }
 });
 
