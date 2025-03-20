@@ -96,10 +96,12 @@ body {
     z-index: 4;
     flex: 1;
     min-height: 150px;
+    max-height: 200px;
     background: var(--color-ui-background);
     padding: 10px;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
 }
 
 #command-panel {
@@ -151,17 +153,17 @@ body {
 }
 
 #dialog-box {
-    position: absolute;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80%;
+    position: relative;
+    width: 100%;
     background-color: rgba(0, 0, 0, 0.8);
     color: white;
     padding: 10px;
     border-radius: 5px;
     font-family: Arial, sans-serif;
-    display: none;
+    margin-top: 10px;
+    min-height: 80px;
+    border: 1px solid var(--color-accent);
+    box-sizing: border-box;
 }
 
 #dialog-box.visible {
@@ -516,4 +518,11 @@ body {
     #gameCanvas {
         max-height: 70vh;
     }
+}
+
+#interaction-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow-y: auto;
 }
