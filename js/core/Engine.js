@@ -278,17 +278,21 @@ class GameEngine {
 
         console.log(`Handling interaction at (${x}, ${y}) with action: ${this.activeCommand}`);
         
-        // Placeholder for actual interaction logic
-        if (this.activeCommand === 'move' && this.walkTarget) {
+        // Handle movement command
+        if (this.activeCommand === 'move') {
+            console.log(`Moving player to ${x}, ${y}`);
             this.walkTarget = { x, y };
             this.isWalking = true;
+            return;
         }
         
-        // Check for collisions if the method exists
+        // Check for collisions with interactive objects
         if (this.checkCollision) {
             const clickedObject = this.checkCollision(x, y);
             if (clickedObject && this.processInteraction) {
                 this.processInteraction(clickedObject);
+            } else {
+                console.log(`No interactive object at ${x}, ${y}`);
             }
         }
     }
@@ -1013,6 +1017,199 @@ class GameEngine {
         if (this.updateNPCs) {
             this.updateNPCs(deltaTime);
         }
+    }
+
+    handleMovement(direction) {
+        if (!direction || !this.playerPosition) return;
+        
+        console.log(`Moving player ${direction}`);
+        
+        // Store original position to revert if collision occurs
+        const oldX = this.playerPosition.x;
+        const oldY = this.playerPosition.y;
+        
+        // Set facing direction
+        this.playerFacing = direction;
+        this.isWalking = true;
+        
+        // Calculate new position based on direction
+        const moveSpeed = 10;
+        switch (direction) {
+            case 'up':
+                this.playerPosition.y -= moveSpeed;
+                break;
+            case 'down':
+                this.playerPosition.y += moveSpeed;
+                break;
+            case 'left':
+                this.playerPosition.x -= moveSpeed;
+                break;
+            case 'right':
+                this.playerPosition.x += moveSpeed;
+                break;
+        }
+        
+        // Check if new position is within bounds
+        const minX = 20;
+        const maxX = this.canvas.width / (window.devicePixelRatio || 1) - 20;
+        const minY = this.floorLevel ? this.floorLevel.min : 300;
+        const maxY = this.floorLevel ? this.floorLevel.max : 450;
+        
+        // Keep player within bounds
+        this.playerPosition.x = Math.max(minX, Math.min(this.playerPosition.x, maxX));
+        this.playerPosition.y = Math.max(minY, Math.min(this.playerPosition.y, maxY));
+        
+        // Check for collisions
+        if (this.checkCollision) {
+            const collision = this.checkCollision(this.playerPosition.x, this.playerPosition.y);
+            if (collision) {
+                // If there's a collision with a solid object, revert movement
+                if (collision.solid) {
+                    this.playerPosition.x = oldX;
+                    this.playerPosition.y = oldY;
+                }
+                
+                // Check if we should interact with the object
+                if (this.activeCommand === 'use' && this.processInteraction) {
+                    this.processInteraction(collision);
+                }
+            }
+        }
+        
+        // Update the scene
+        this.drawCurrentScene();
+        
+        // Reset walking state after a short delay
+        setTimeout(() => {
+            this.isWalking = false;
+            this.drawCurrentScene();
+        }, 100);
+    }
+
+    updateCollisionObjects() {
+        // Clear existing collision objects
+        this.collisionObjects = [];
+        
+        // Add scene-specific objects
+        switch(this.currentScene) {
+            case 'policeStation':
+                // Reception desk
+                this.collisionObjects.push({
+                    x: 350, 
+                    y: 320, 
+                    width: 150, 
+                    height: 50,
+                    type: 'desk',
+                    id: 'receptionDesk',
+                    solid: true,
+                    interactions: {
+                        look: "A standard police station reception desk.",
+                        talk: "There's no one at the desk at the moment.",
+                        use: "There's a visitor log on the desk.",
+                        take: "You can't take the desk."
+                    }
+                });
+                
+                // Exit door
+                this.collisionObjects.push({
+                    x: 350, 
+                    y: 200, 
+                    width: 100, 
+                    height: 100,
+                    type: 'door',
+                    id: 'exitDoor',
+                    target: 'downtown',
+                    interactions: {
+                        look: "The exit door leading downtown.",
+                        use: "You head outside to downtown.",
+                        talk: "It's a door. It doesn't talk back."
+                    }
+                });
+                
+                // Notice board
+                this.collisionObjects.push({
+                    x: 600, 
+                    y: 150, 
+                    width: 100, 
+                    height: 80,
+                    type: 'object',
+                    id: 'noticeBoard',
+                    interactions: {
+                        look: "A notice board with various wanted posters and police announcements.",
+                        use: "You scan through the notices.",
+                        take: "The notice board is mounted to the wall."
+                    }
+                });
+                
+                // Office chair
+                this.collisionObjects.push({
+                    x: 300, 
+                    y: 350, 
+                    width: 40, 
+                    height: 40,
+                    type: 'object',
+                    id: 'chair',
+                    interactions: {
+                        look: "An office chair for the receptionist.",
+                        use: "You shouldn't sit on this chair. It belongs to the receptionist.",
+                        take: "The chair won't fit in your pocket."
+                    }
+                });
+                break;
+                
+            case 'downtown':
+                // Electronics store
+                this.collisionObjects.push({
+                    x: 200, 
+                    y: 300, 
+                    width: 180, 
+                    height: 100,
+                    type: 'building',
+                    id: 'electronicsStore',
+                    interactions: {
+                        look: "An electronics store. The window appears to be broken.",
+                        use: "You examine the broken window more closely.",
+                        talk: "The store is closed."
+                    }
+                });
+                
+                // Return to police station
+                this.collisionObjects.push({
+                    x: 400, 
+                    y: 500, 
+                    width: 100, 
+                    height: 50,
+                    type: 'door',
+                    id: 'stationDoor',
+                    target: 'policeStation',
+                    interactions: {
+                        look: "The way back to the police station.",
+                        use: "You head back to the police station.",
+                        talk: "It's a door. It doesn't talk back."
+                    }
+                });
+                
+                // Suspicious person
+                this.collisionObjects.push({
+                    x: 600, 
+                    y: 350, 
+                    width: 40, 
+                    height: 40,
+                    type: 'npc',
+                    id: 'witness',
+                    interactions: {
+                        look: "Someone who might have seen something suspicious.",
+                        talk: "\"I saw someone breaking into that electronics store last night.\"",
+                        use: "You can't use a person."
+                    }
+                });
+                break;
+                
+            default:
+                console.log(`No collision objects defined for scene: ${this.currentScene}`);
+        }
+        
+        console.log(`Created ${this.collisionObjects.length} collision objects for scene ${this.currentScene}`);
     }
 }
 
