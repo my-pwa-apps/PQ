@@ -12,7 +12,7 @@ class GameEngine {
         }
 
         // Initialize core properties
-        this.currentScene = 'policeStation';
+        this.currentScene = 'officeArea'; // Changed from policeStation to officeArea
         this.isRunning = false;
         this.initialized = false;
         this.spriteCache = new Map();
@@ -442,6 +442,66 @@ class GameEngine {
     // Add helper method for drawing fallback scenes
     _drawFallbackScene(ctx, sceneId) {
         switch (sceneId) {
+            case 'officeArea':
+                // Office area background - blue walls with wood floor
+                ctx.fillStyle = '#27408B'; // Royal blue for walls
+                ctx.fillRect(0, 0, this.canvas.width, 300);
+                
+                ctx.fillStyle = '#8B4513'; // Brown wood floor
+                ctx.fillRect(0, 300, this.canvas.width, this.canvas.height - 300);
+                
+                // Draw multiple desks
+                for (let i = 0; i < 4; i++) {
+                    // Desk
+                    ctx.fillStyle = '#A0522D'; // Sienna brown for desks
+                    ctx.fillRect(100 + i * 160, 320, 120, 60);
+                    
+                    // Computer on desk
+                    ctx.fillStyle = '#2F4F4F'; // Dark slate gray
+                    ctx.fillRect(120 + i * 160, 310, 40, 30);
+                    
+                    // Screen
+                    ctx.fillStyle = '#87CEEB'; // Sky blue
+                    ctx.fillRect(125 + i * 160, 315, 30, 20);
+                    
+                    // Chair
+                    ctx.fillStyle = '#000000'; // Black
+                    ctx.fillRect(140 + i * 160, 390, 40, 40);
+                }
+                
+                // Filing cabinets along the wall
+                for (let i = 0; i < 3; i++) {
+                    ctx.fillStyle = '#708090'; // Slate gray
+                    ctx.fillRect(50 + i * 100, 100, 70, 150);
+                    
+                    // Drawer handles
+                    ctx.fillStyle = '#C0C0C0'; // Silver
+                    for (let j = 0; j < 3; j++) {
+                        ctx.fillRect(95 + i * 100, 120 + j * 40, 15, 5);
+                    }
+                }
+                
+                // Coffee machine in corner
+                ctx.fillStyle = '#000000'; // Black
+                ctx.fillRect(700, 230, 50, 70);
+                ctx.fillStyle = '#FF0000'; // Red
+                ctx.fillRect(715, 250, 20, 10);
+                ctx.fillStyle = '#4682B4'; // Steel blue
+                ctx.fillRect(710, 270, 30, 10);
+                
+                // Door to main lobby
+                ctx.fillStyle = '#8B4513'; // Brown
+                ctx.fillRect(400, 200, 80, 100);
+                ctx.fillStyle = '#FFD700'; // Gold handle
+                ctx.fillRect(460, 250, 10, 10);
+                
+                // Sign on wall
+                ctx.fillStyle = '#FFFFFF'; 
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText("DETECTIVE OFFICE", this.canvas.width / 2, 50);
+                break;
+                
             case 'policeStation':
                 // Police Station - simplified version
                 ctx.fillStyle = '#87CEEB'; // Sky blue
@@ -1036,6 +1096,76 @@ class GameEngine {
         
         // Add scene-specific objects
         switch(this.currentScene) {
+            case 'officeArea':
+                // Detective desks
+                for (let i = 0; i < 4; i++) {
+                    this.collisionObjects.push({
+                        x: 100 + i * 160, 
+                        y: 320, 
+                        width: 120, 
+                        height: 60,
+                        type: 'desk',
+                        id: 'detectiveDesk' + (i+1),
+                        solid: true,
+                        interactions: {
+                            look: `Detective desk ${i+1}. Papers are neatly organized with case files.`,
+                            talk: "Talking to a desk won't help solve cases.",
+                            use: i === 0 ? "You search through the papers and find the case file on the downtown burglaries." : "Nothing of interest on this desk.",
+                            take: "The desk belongs to the police department."
+                        }
+                    });
+                }
+                
+                // Filing cabinets
+                for (let i = 0; i < 3; i++) {
+                    this.collisionObjects.push({
+                        x: 50 + i * 100, 
+                        y: 100, 
+                        width: 70, 
+                        height: 150,
+                        type: 'object',
+                        id: 'filingCabinet' + (i+1),
+                        solid: true,
+                        interactions: {
+                            look: "A filing cabinet containing various case records.",
+                            use: i === 1 ? "You find some interesting records about previous similar burglaries." : "Just routine case files, nothing relevant to your current investigation.",
+                            take: "The filing cabinet is too heavy and belongs to the department."
+                        }
+                    });
+                }
+                
+                // Coffee machine
+                this.collisionObjects.push({
+                    x: 700, 
+                    y: 230, 
+                    width: 50, 
+                    height: 70,
+                    type: 'object',
+                    id: 'coffeeMachine',
+                    interactions: {
+                        look: "An office coffee machine. Keeps detectives running.",
+                        use: "You make yourself a cup of coffee. The caffeine helps you focus.",
+                        take: "The coffee machine is department property and too hot to carry."
+                    }
+                });
+                
+                // Door to main lobby
+                this.collisionObjects.push({
+                    x: 400, 
+                    y: 200, 
+                    width: 80, 
+                    height: 100,
+                    type: 'door',
+                    id: 'lobbyDoor',
+                    target: 'policeStation',
+                    interactions: {
+                        look: "Door leading to the main lobby of the police station.",
+                        use: "You head to the police station lobby.",
+                        talk: "It's a door. It doesn't respond."
+                    }
+                });
+                break;
+                
             case 'policeStation':
                 // Reception desk
                 this.collisionObjects.push({
@@ -1067,6 +1197,22 @@ class GameEngine {
                         look: "The exit door leading downtown.",
                         use: "You head outside to downtown.",
                         talk: "It's a door. It doesn't talk back."
+                    }
+                });
+                
+                // Office Area door
+                this.collisionObjects.push({
+                    x: 100, 
+                    y: 200, 
+                    width: 80, 
+                    height: 100,
+                    type: 'door',
+                    id: 'officeAreaDoor',
+                    target: 'officeArea',
+                    interactions: {
+                        look: "Door to the detective office area.",
+                        use: "You head to the detective office area.",
+                        talk: "It's a door. It doesn't respond."
                     }
                 });
                 

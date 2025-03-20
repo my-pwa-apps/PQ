@@ -31,6 +31,30 @@ window.GAME_DATA = {
                     result: 'You found a piece of glass with fingerprints!'
                 }
             ]
+        },
+        officeArea: {
+            background: 'images/office_area.png',
+            music: 'office_theme',
+            hotspots: [
+                {
+                    name: 'Detective Desk',
+                    description: 'A cluttered detective desk with case files.',
+                    interaction: 'search',
+                    result: 'You found a case file on the recent burglaries.'
+                },
+                {
+                    name: 'Filing Cabinet',
+                    description: 'A metal filing cabinet with various folders.',
+                    interaction: 'search',
+                    result: 'You find some interesting records about previous cases.'
+                },
+                {
+                    name: 'Exit Door',
+                    description: 'Door leading to the main lobby.',
+                    interaction: 'use',
+                    result: 'You head back to the main lobby.'
+                }
+            ]
         }
     },
     cases: {
