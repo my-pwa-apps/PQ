@@ -1,0 +1,3 @@
+window.GAME_DATA = {
+    // ...existing game data from game.js...
+};

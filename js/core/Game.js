@@ -4,11 +4,20 @@ class Game {
         this.soundManager = null;
         this.gameState = {
             inventory: new Set(),
-            currentCase: GAME_DATA.cases.case1
+            currentCase: null // Will be set after data loads
         };
         this.currentScene = 'policeStation';
-        this.dialogManager = new DialogManager();
-        this.sceneManager = new SceneManager();
+        this.initializeGameState();
+    }
+
+    initializeGameState() {
+        // Ensure GAME_DATA is loaded
+        if (typeof window.GAME_DATA === 'undefined') {
+            console.error('Game data not loaded! Retrying in 100ms...');
+            setTimeout(() => this.initializeGameState(), 100);
+            return;
+        }
+        this.gameState.currentCase = window.GAME_DATA.cases.case1;
     }
 
     async initGame() {
