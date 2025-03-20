@@ -605,6 +605,30 @@ class Game {
     }
 }
 
+// Add logic to process interactions and update game state
+function processInteraction(sceneName, hotspotName) {
+    const scene = window.GAME_DATA.scenes[sceneName];
+    const hotspot = scene.hotspots.find(h => h.name === hotspotName);
+
+    if (hotspot) {
+        const result = window.GameEngine.handleInteraction(hotspot, window.GAME_DATA.inventory);
+        if (result && hotspot.interaction === 'search') {
+            // Example: Add found item to inventory
+            if (result.includes('key')) {
+                window.GameEngine.addToInventory('key');
+            }
+        }
+    } else {
+        console.log('Hotspot not found.');
+    }
+}
+
+// Export the new function
+window.Game = {
+    ...window.Game,
+    processInteraction
+};
+
 // Then handle DOM content loaded
 window.addEventListener('DOMContentLoaded', () => {
     console.log("DOM fully loaded");

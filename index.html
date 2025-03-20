@@ -24,7 +24,10 @@
             <canvas id="gameCanvas" width="800" height="600"></canvas>
             
             <!-- Case information panel -->
-            <div id="case-info"></div>
+            <div id="case-info" class="ui-panel">
+                <h3>Case Information</h3>
+                <div id="case-details"></div>
+            </div>
             
             <!-- Controls guide -->
             <div id="controls-guide">
@@ -44,8 +47,13 @@
             
             <!-- Dialog and inventory container -->
             <div id="interaction-container">
-                <div id="dialog-box"></div>
-                <div id="inventory-panel"></div>
+                <div id="dialog-box" class="ui-panel">
+                    <p id="dialog-text"></p>
+                </div>
+                <div id="inventory-panel" class="ui-panel">
+                    <h3>Inventory</h3>
+                    <div id="inventory-items"></div>
+                </div>
             </div>
         </div>
     </div>

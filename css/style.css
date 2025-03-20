@@ -155,58 +155,55 @@ body {
     bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
-    width: 90%;
-    max-width: 600px;
-    background: rgba(0, 0, 0, 0.9);
-    border: 2px solid var(--color-accent);
+    width: 80%;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
     padding: 10px;
-    z-index: 100;
-    font-size: var(--font-size-md);
-    color: #FFFFFF;
-    margin-top: 5px;
-    font-family: 'Courier New', monospace;
-    overflow-y: auto;
-    display: block; /* Always show */
-    min-height: 50px;
+    border-radius: 5px;
+    font-family: Arial, sans-serif;
+    display: none;
 }
 
 #dialog-box.visible {
-    opacity: 1;
+    display: block;
 }
 
 #inventory-panel {
     position: absolute;
     top: 10px;
-    right: 10px;
+    left: 10px;
+    width: 200px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    font-family: Arial, sans-serif;
+}
+
+#inventory-items {
     display: flex;
     flex-wrap: wrap;
     gap: 5px;
-    padding: 10px;
-    background: rgba(0, 0, 0, 0.9);
-    border: 2px solid var(--color-accent);
-    z-index: 3;
-    width: 200px;
-    min-height: 50px;
-    display: block; /* Always show */
 }
 
 .inventory-item {
-    width: 40px;
-    height: 40px;
-    background-color: var(--color-primary);
-    border: 1px solid var(--color-accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: transform 0.2s ease;
-    will-change: transform;
-    font-size: 12px;
+    background-color: #444;
     color: white;
+    padding: 5px;
+    border-radius: 3px;
+    cursor: pointer;
 }
 
-.inventory-item:hover {
-    transform: scale(1.1);
+#case-info {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 200px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    font-family: Arial, sans-serif;
 }
 
 #case-info {

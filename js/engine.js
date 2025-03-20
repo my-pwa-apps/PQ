@@ -2912,5 +2912,38 @@ class GameEngine {
     };
 }
 
+// Add functionality to handle interactions with hotspots
+function handleInteraction(hotspot, inventory) {
+    if (hotspot.interaction === 'use' && hotspot.requiredItem) {
+        if (inventory.includes(hotspot.requiredItem)) {
+            console.log(hotspot.result);
+            return hotspot.result;
+        } else {
+            console.log('You need a ' + hotspot.requiredItem + ' to interact with this.');
+            return null;
+        }
+    } else {
+        console.log(hotspot.result);
+        return hotspot.result;
+    }
+}
+
+// Add functionality to manage inventory
+function addToInventory(item) {
+    if (!window.GAME_DATA.inventory.includes(item)) {
+        window.GAME_DATA.inventory.push(item);
+        console.log(item + ' added to inventory.');
+    } else {
+        console.log(item + ' is already in your inventory.');
+    }
+}
+
+// Export the new functions
+window.GameEngine = {
+    ...window.GameEngine,
+    handleInteraction,
+    addToInventory
+};
+
 // Make GameEngine available in the global scope
 window.GameEngine = GameEngine;
