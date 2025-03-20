@@ -153,7 +153,7 @@ body {
 
 #dialog-box {
     position: absolute;
-    bottom: 10px;
+    bottom: 80px;
     left: 50%;
     transform: translateX(-50%);
     width: 80%;
@@ -165,6 +165,7 @@ body {
     border: 1px solid var(--color-accent);
     min-height: 60px;
     z-index: 10;
+    display: block; /* Make sure it's visible by default */
 }
 
 #dialog-box.visible {
@@ -530,7 +531,7 @@ body {
 
 /* Add this to ensure the dialog text is visible */
 #dialog-text {
-    color: var(--color-text);
+    color: white;
     font-size: 14px;
     line-height: 1.4;
     margin: 0;
