@@ -7,17 +7,22 @@ class Game {
             currentCase: null // Will be set after data loads
         };
         this.currentScene = 'policeStation';
+        this.initialized = false;
         this.initializeGameState();
     }
 
     initializeGameState() {
-        // Ensure GAME_DATA is loaded
+        // If GAME_DATA isn't available yet, retry after a short delay
         if (typeof window.GAME_DATA === 'undefined') {
-            console.error('Game data not loaded! Retrying in 100ms...');
+            console.warn("Game data not available yet. Retrying in 100ms...");
             setTimeout(() => this.initializeGameState(), 100);
             return;
         }
+
+        console.log("Game data found, initializing game state");
+        // Now we can safely access the game data
         this.gameState.currentCase = window.GAME_DATA.cases.case1;
+        this.initialized = true;
     }
 
     async initGame() {
@@ -32,6 +37,20 @@ class Game {
             // Initialize game engine
             this.engine = new GameEngine();
             window.gameEngine = this.engine;
+            
+            // Wait for game state to be initialized if it hasn't yet
+            if (!this.initialized) {
+                await new Promise(resolve => {
+                    const checkInitialized = () => {
+                        if (this.initialized) {
+                            resolve();
+                        } else {
+                            setTimeout(checkInitialized, 100);
+                        }
+                    };
+                    checkInitialized();
+                });
+            }
             
             // Setup UI elements
             this.setupUI();
@@ -142,8 +161,20 @@ class Game {
 window.addEventListener('DOMContentLoaded', () => {
     console.log("DOM fully loaded");
     const game = new Game();
-    game.initGame();
     window.game = game; // Make game instance globally available
+
+    // Only call initGame when we're sure the data is available
+    if (typeof window.GAME_DATA !== 'undefined') {
+        game.initGame();
+    } else {
+        console.log("Waiting for game data to load before initializing game...");
+        const waitForGameData = setInterval(() => {
+            if (typeof window.GAME_DATA !== 'undefined') {
+                clearInterval(waitForGameData);
+                game.initGame();
+            }
+        }, 100);
+    }
 });
 
 // Error handling
