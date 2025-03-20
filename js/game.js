@@ -1,3 +1,5 @@
+import GameEngine from './engine.js';
+
 const GAME_DATA = {
     scenes: {
         policeStation: {
