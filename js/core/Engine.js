@@ -154,6 +154,190 @@ class GameEngine {
         };
     }
 
+    // Adding the missing setupEventListeners method
+    setupEventListeners() {
+        console.log("Setting up event listeners");
+        
+        // Command buttons
+        document.querySelectorAll('.cmd-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.cmd-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.activeCommand = btn.dataset.action;
+                if (window.soundManager) {
+                    window.soundManager.playSound('click');
+                }
+                this.updateCursor();
+            });
+        });
+
+        // Canvas click with throttling
+        let lastClickTime = 0;
+        this._handleClick = (e) => {
+            // Throttle clicks to prevent double-clicks or spam
+            const now = Date.now();
+            if (now - lastClickTime < 300) return; // 300ms debounce
+            lastClickTime = now;
+
+            const rect = this.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (this.canvas.width / rect.width / (window.devicePixelRatio || 1));
+            const y = (e.clientY - rect.top) * (this.canvas.height / rect.height / (window.devicePixelRatio || 1));
+            
+            // First check for door interactions
+            if (this.collisionObjects) {
+                const doors = this.collisionObjects.filter(obj => obj.type === 'door');
+                for (const door of doors) {
+                    if (x >= door.x && x <= door.x + door.width &&
+                        y >= door.y && y <= door.y + door.height) {
+                        if (this.activeCommand === 'use') {
+                            this.processInteraction(door);
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            // Otherwise handle movement or other interactions
+            if (this.handleInteraction) {
+                this.handleInteraction(x, y);
+            } else {
+                console.warn("handleInteraction method not defined");
+            }
+        };
+        this.canvas.addEventListener('click', this._handleClick);
+
+        // Keyboard navigation
+        let keyLastPressed = 0;
+        this._handleKeyDown = (e) => {
+            if (!this.keyboardEnabled) return;
+            
+            // Throttle key presses
+            const now = Date.now();
+            if (now - keyLastPressed < 200) return; // 200ms debounce
+            keyLastPressed = now;
+            
+            if (this.handleMovement) {
+                switch(e.key) {
+                    case 'ArrowUp':
+                    case 'w':
+                        this.handleMovement('up');
+                        e.preventDefault();
+                        break;
+                    case 'ArrowDown':
+                    case 's':
+                        this.handleMovement('down');
+                        e.preventDefault();
+                        break;
+                    case 'ArrowLeft':
+                    case 'a':
+                        this.handleMovement('left');
+                        e.preventDefault();
+                        break;
+                    case 'ArrowRight':
+                    case 'd':
+                        this.handleMovement('right');
+                        e.preventDefault();
+                        break;
+                }
+            } else {
+                console.warn("handleMovement method not defined");
+            }
+        };
+        document.addEventListener('keydown', this._handleKeyDown);
+
+        // Improved mouse interaction
+        this._handleMouseMove = (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+            
+            // Change cursor if hovering over interactive element
+            if (this.checkCollision && this.checkCollision(x, y)) {
+                this.canvas.style.cursor = 'pointer';
+            } else if (this.updateCursor) {
+                this.updateCursor(); // Use action-specific cursor
+            } else {
+                this.canvas.style.cursor = 'default';
+            }
+        };
+        this.canvas.addEventListener('mousemove', this._handleMouseMove);
+    }
+
+    // Adding the missing updateCursor method
+    updateCursor() {
+        const cursorStyle = this.activeCommand ? 'pointer' : 'default';
+        this.canvas.style.cursor = cursorStyle;
+    }
+
+    // Adding a stub for handleInteraction if it's referenced but not fully implemented
+    handleInteraction(x, y) {
+        if (!this.activeCommand) {
+            console.log("No action selected");
+            return;
+        }
+
+        console.log(`Handling interaction at (${x}, ${y}) with action: ${this.activeCommand}`);
+        
+        // Placeholder for actual interaction logic
+        if (this.activeCommand === 'move' && this.walkTarget) {
+            this.walkTarget = { x, y };
+            this.isWalking = true;
+        }
+        
+        // Check for collisions if the method exists
+        if (this.checkCollision) {
+            const clickedObject = this.checkCollision(x, y);
+            if (clickedObject && this.processInteraction) {
+                this.processInteraction(clickedObject);
+            }
+        }
+    }
+
+    // Adding a stub for checkCollision
+    checkCollision(x, y) {
+        // This is a stub implementation
+        if (!this.collisionObjects || !Array.isArray(this.collisionObjects)) {
+            return null;
+        }
+        
+        // Check static objects (doors, desks, etc)
+        for (const obj of this.collisionObjects) {
+            if (x >= obj.x && x <= obj.x + (obj.width || 50) &&
+                y >= obj.y && y <= obj.y + (obj.height || 50)) {
+                return obj;
+            }
+        }
+        
+        return null;
+    }
+
+    // Adding a stub for processInteraction
+    processInteraction(object) {
+        console.log("Processing interaction with:", object);
+        
+        if (!object || !this.activeCommand) {
+            return;
+        }
+        
+        // Handle basic interaction logic
+        if (object.interactions && object.interactions[this.activeCommand]) {
+            console.log(object.interactions[this.activeCommand]);
+            
+            // Special handling for doors
+            if (object.type === 'door' && this.activeCommand === 'use' && object.target) {
+                console.log(`Transitioning to ${object.target}`);
+                this.currentScene = object.target;
+                
+                // Load the new scene if the method exists
+                if (this.loadScene) {
+                    setTimeout(() => this.loadScene(object.target), 500);
+                }
+            }
+        } else {
+            console.log(`Cannot ${this.activeCommand} that.`);
+        }
+    }
+
     // Optimize major performance bottlenecks
     drawCurrentScene = () => {
         try {
