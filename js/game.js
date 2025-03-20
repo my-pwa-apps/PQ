@@ -469,7 +469,7 @@ class Game {
             inventory: new Set(),
             currentCase: GAME_DATA.cases.case1 // Start with first case
         };
-        this.currentScene = 'policeStation';
+        this.currentScene = 'officeArea'; // Changed from policeStation to officeArea
     }
 
     async initGame() {
