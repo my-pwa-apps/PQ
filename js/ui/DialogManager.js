@@ -1,69 +1,105 @@
 class DialogManager {
     constructor() {
-        this.dialogBox = document.getElementById('dialog-box');
-        this.dialogQueue = [];
-        this.isShowing = false;
+        this.dialogElement = document.getElementById('dialog-box');
+        this.dialogTextElement = document.getElementById('dialog-text');
+        this.isVisible = false;
+        this.messageQueue = [];
+        this.typingSpeed = 30; // ms per character
+        this.isTyping = false;
         
-        // Create dialog box if it doesn't exist
-        if (!this.dialogBox) {
-            this.createDialogBox();
-        }
-        
-        // Prevent memory leaks with bound methods
-        this._hideDialogBound = this.hideDialog.bind(this);
-    }
-    
-    createDialogBox() {
-        this.dialogBox = document.createElement('div');
-        this.dialogBox.id = 'dialog-box';
-        this.dialogBox.className = 'dialog-box';
-        document.body.appendChild(this.dialogBox);
-    }
-
-    show(text, duration = 5000) {
-        if (!text) return;
-        
-        if (this.isShowing) {
-            this.dialogQueue.push({text, duration});
+        if (!this.dialogElement || !this.dialogTextElement) {
+            console.error('Dialog elements not found in the DOM');
             return;
         }
-
-        this.isShowing = true;
-        this.dialogBox.innerText = text;
-        this.dialogBox.style.display = 'block';
         
-        if (this._hideTimeout) {
-            clearTimeout(this._hideTimeout);
-        }
-        
-        this._hideTimeout = setTimeout(this._hideDialogBound, duration);
-    }
-
-    hideDialog() {
-        if (!this.dialogBox) return;
-        
-        this.dialogBox.style.display = 'none';
-        this.isShowing = false;
-
-        if (this.dialogQueue.length > 0) {
-            const nextDialog = this.dialogQueue.shift();
-            setTimeout(() => {
-                this.show(nextDialog.text, nextDialog.duration);
-            }, 100);
-        }
-        
-        this._hideTimeout = null;
+        // Initialize with empty text
+        this.showDialog('Welcome to Police Quest. Use the command buttons to interact with the game world.');
     }
     
-    // Add a method for cleaning up
-    destroy() {
-        if (this._hideTimeout) {
-            clearTimeout(this._hideTimeout);
-            this._hideTimeout = null;
+    showDialog(text, duration = 5000) {
+        if (!this.dialogElement || !this.dialogTextElement) return;
+        
+        // Add to queue
+        this.messageQueue.push({
+            text: text,
+            duration: duration
+        });
+        
+        // If not currently showing a message, show this one
+        if (!this.isVisible && !this.isTyping) {
+            this.processNextMessage();
         }
-        this.dialogQueue = [];
-        this.isShowing = false;
+    }
+    
+    processNextMessage() {
+        if (this.messageQueue.length === 0) {
+            // If queue is empty, hide dialog
+            this.hideDialog();
+            return;
+        }
+        
+        const message = this.messageQueue.shift();
+        this.displayMessage(message.text, message.duration);
+    }
+    
+    displayMessage(text, duration) {
+        // Show the dialog element
+        this.dialogElement.style.display = 'block';
+        this.isVisible = true;
+        
+        // Type out the text
+        this.typeText(text, () => {
+            // When finished typing, set timeout to hide or show next message
+            setTimeout(() => {
+                this.processNextMessage();
+            }, duration);
+        });
+    }
+    
+    typeText(text, callback) {
+        this.isTyping = true;
+        this.dialogTextElement.textContent = '';
+        
+        let i = 0;
+        const typingInterval = setInterval(() => {
+            if (i < text.length) {
+                this.dialogTextElement.textContent += text.charAt(i);
+                i++;
+            } else {
+                clearInterval(typingInterval);
+                this.isTyping = false;
+                if (callback) callback();
+            }
+        }, this.typingSpeed);
+    }
+    
+    hideDialog() {
+        if (!this.dialogElement) return;
+        
+        // Don't hide if there are messages waiting
+        if (this.messageQueue.length > 0) {
+            this.processNextMessage();
+            return;
+        }
+        
+        // Hide with a fade effect
+        this.dialogElement.style.opacity = '1';
+        let opacity = 1;
+        const fadeInterval = setInterval(() => {
+            opacity -= 0.1;
+            this.dialogElement.style.opacity = opacity.toString();
+            
+            if (opacity <= 0) {
+                clearInterval(fadeInterval);
+                this.dialogElement.style.display = 'none';
+                this.isVisible = false;
+                this.dialogElement.style.opacity = '1'; // Reset for next time
+            }
+        }, 50);
     }
 }
 
-window.DialogManager = DialogManager;
+// Initialize the dialog manager when the DOM is loaded
+window.addEventListener('DOMContentLoaded', () => {
+    window.dialogManager = new DialogManager();
+});
