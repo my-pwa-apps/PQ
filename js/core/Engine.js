@@ -360,41 +360,90 @@ class GameEngine {
                     if (sceneData.background.endsWith('.png') || 
                         sceneData.background.endsWith('.jpg') || 
                         sceneData.background.endsWith('.jpeg')) {
-                        // Try to load the background image
-                        if (!this._backgroundImage) {
-                            this._backgroundImage = new Image();
-                            this._backgroundImage.src = sceneData.background;
-                            this._backgroundImage.onload = () => {
-                                console.log("Background image loaded");
-                                this.drawCurrentScene();
+                        
+                        // Use a scene-specific image loading system
+                        const imageKey = `${this.currentScene}_bg`;
+                        
+                        // Initialize image cache if needed
+                        if (!this._backgroundImages) {
+                            this._backgroundImages = new Map();
+                        }
+                        
+                        // Try to get cached image or create a new one
+                        let bgImage = this._backgroundImages.get(imageKey);
+                        
+                        if (!bgImage) {
+                            // Image not yet loaded - create new image
+                            bgImage = {
+                                element: new Image(),
+                                loaded: false,
+                                failed: false,
+                                path: sceneData.background
                             };
-                            this._backgroundImage.onerror = (err) => {
-                                console.error("Failed to load background image:", err);
-                                // Draw fallback scene
-                                this._drawFallbackScene(ctx, this.currentScene);
+                            
+                            // Store in cache
+                            this._backgroundImages.set(imageKey, bgImage);
+                            
+                            // Set up image load handlers
+                            bgImage.element.onload = () => {
+                                console.log(`Background image loaded for ${this.currentScene}`);
+                                bgImage.loaded = true;
+                                this.drawCurrentScene(); // Redraw when image loads
                             };
+                            
+                            bgImage.element.onerror = (err) => {
+                                console.error(`Failed to load background image for ${this.currentScene}:`, err);
+                                bgImage.failed = true;
+                                // No need to redraw, fallback already showing
+                            };
+                            
+                            // Ensure path is absolute
+                            let imagePath = bgImage.path;
+                            if (!imagePath.startsWith('/') && !imagePath.startsWith('http')) {
+                                // Try different relative paths
+                                if (imagePath.startsWith('./')) {
+                                    imagePath = imagePath.substring(2);
+                                }
+                            }
+                            
+                            // Apply the source path
+                            bgImage.element.src = imagePath;
                             
                             // Draw fallback while loading
                             this._drawFallbackScene(ctx, this.currentScene);
                             return;
-                        } else if (this._backgroundImage.complete) {
-                            ctx.drawImage(this._backgroundImage, 0, 0, this.canvas.width, this.canvas.height);
-                        } else {
-                            // Draw fallback if image isn't loaded yet
+                        } 
+                        else if (bgImage.loaded) {
+                            // Image successfully loaded - draw it
+                            try {
+                                ctx.drawImage(bgImage.element, 0, 0, this.canvas.width, this.canvas.height);
+                            } catch (imgError) {
+                                console.error("Error drawing background image:", imgError);
+                                this._drawFallbackScene(ctx, this.currentScene);
+                            }
+                        } 
+                        else if (bgImage.failed) {
+                            // Image previously failed - use fallback
                             this._drawFallbackScene(ctx, this.currentScene);
-                            return;
+                        } 
+                        else {
+                            // Image still loading - use fallback
+                            this._drawFallbackScene(ctx, this.currentScene);
                         }
                     } else {
-                        // Draw fallback for non-image backgrounds
+                        // Not an image path (could be a color or other format)
                         this._drawFallbackScene(ctx, this.currentScene);
                     }
                 } else {
-                    // Draw fallback if no background specified
+                    // No background specified
                     this._drawFallbackScene(ctx, this.currentScene);
                 }
                 
-                // Draw hotspots if debug mode is on
+                // Draw hotspots for debugging if enabled
                 if (this.debugMode && sceneData.hotspots) {
+                    this._drawHotspots(ctx, sceneData.hotspots);
+                } else if (sceneData.hotspots) {
+                    // Always draw hotspots for now during development
                     this._drawHotspots(ctx, sceneData.hotspots);
                 }
             } else {
@@ -427,6 +476,20 @@ class GameEngine {
             
         } catch (error) {
             console.error("Error drawing scene:", error);
+            
+            // Last resort fallback - draw something rather than nothing
+            try {
+                const ctx = this.offscreenCtx || this.ctx;
+                ctx.fillStyle = '#333333';
+                ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                ctx.fillStyle = '#FF0000';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText("Error rendering scene", this.canvas.width / 2, this.canvas.height / 2);
+            } catch (finalError) {
+                console.error("Critical rendering error:", finalError);
+            }
         }
     }
 
