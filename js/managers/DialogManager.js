@@ -1,26 +1,28 @@
 class DialogManager {
-    constructor() {
+    constructor(game) {
+        this.game = game;
         this.currentDialog = null;
+        this.currentIndex = 0;
     }
 
     show(dialogId) {
         const dialog = window.GAME_DATA.dialogs[dialogId];
         if (!dialog) {
-            console.error(`Dialog with id ${dialogId} not found`);
+            console.error(`Dialog ${dialogId} not found`);
             return;
         }
         this.currentDialog = dialog;
-        // Display the first dialog message
-        this.displayDialog(0);
+        this.currentIndex = 0;
+        this.displayCurrentDialog();
     }
 
-    displayDialog(index) {
-        if (!this.currentDialog || !this.currentDialog[index]) {
+    displayCurrentDialog() {
+        if (!this.currentDialog || !this.currentDialog[this.currentIndex]) {
             return;
         }
-        const dialogEntry = this.currentDialog[index];
-        // You can implement the actual dialog display logic here
-        console.log('Dialog:', dialogEntry.text);
+        const entry = this.currentDialog[this.currentIndex];
+        console.log("Showing dialog:", entry.text);
+        // Implement actual dialog display logic here
     }
 }
 
