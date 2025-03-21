@@ -31,6 +31,11 @@ class DialogManager {
         this.dialogTextElement.textContent = text;
         this.dialogElement.style.display = 'block';
     }
+    
+    // Add an alias method 'show' that calls 'showDialog'
+    show(text) {
+        this.showDialog(text);
+    }
 }
 
 // Initialize the dialog manager when the DOM is loaded
