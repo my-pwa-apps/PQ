@@ -1,15 +1,20 @@
 // Define the game data in the global scope
 window.GAME_DATA = {
+    config: {
+        defaultSceneBounds: { width: 800, height: 600 },
+        defaultPlayerStart: { x: 400, y: 450 }
+    },
     scenes: {
         policeStation: {
             background: 'images/police_station.png',
             music: 'station_theme',
+            bounds: { width: 800, height: 600 },
             walkableAreas: [
                 { x1: 100, y1: 400, x2: 700, y2: 500 }  // Main floor area
             ],
             collisionZones: [
-                { x1: 0, y1: 0, x2: 800, y2: 380 },     // Walls and furniture
-                { x1: 0, y1: 520, x2: 800, y2: 600 }    // Behind desk area
+                { x1: 0, y1: 0, x2: 800, y2: 380 },     // Upper wall
+                { x1: 0, y1: 520, x2: 800, y2: 600 }    // Lower wall
             ],
             hotspots: [
                 {
@@ -39,11 +44,17 @@ window.GAME_DATA = {
                     target: 'parkingLot',
                     result: 'You head out to the parking lot.'
                 }
-            ]
+            ],
+            defaultPosition: { x: 400, y: 450 },
+            spawnPoints: {
+                fromParking: { x: 700, y: 450 },
+                fromOffice: { x: 200, y: 450 }
+            }
         },
         downtown: {
             background: 'images/downtown.png',
             music: 'downtown_theme',
+            bounds: { width: 800, height: 600 },
             walkableAreas: [
                 { x1: 50, y1: 350, x2: 750, y2: 500 }   // Sidewalk area
             ],
@@ -72,11 +83,24 @@ window.GAME_DATA = {
                     target: 'policeStation',
                     result: 'You head back to the station.'
                 }
-            ]
+            ],
+            defaultPosition: { x: 400, y: 425 },
+            spawnPoints: {
+                fromStation: { x: 100, y: 425 },
+                fromCoffee: { x: 600, y: 425 }
+            }
         },
         officeArea: {
             background: 'images/office_area.png',
             music: 'office_theme',
+            bounds: { width: 800, height: 600 },
+            walkableAreas: [
+                { x1: 150, y1: 380, x2: 650, y2: 520 }  // Office floor
+            ],
+            collisionZones: [
+                { x1: 0, y1: 0, x2: 800, y2: 360 },     // Desks and walls
+                { x1: 0, y1: 540, x2: 800, y2: 600 }    // Back wall
+            ],
             hotspots: [
                 {
                     name: 'Detective Desk',
@@ -109,6 +133,14 @@ window.GAME_DATA = {
         parkingLot: {
             background: 'images/parking_lot.png',
             music: 'outdoor_theme',
+            bounds: { width: 800, height: 600 },
+            walkableAreas: [
+                { x1: 50, y1: 300, x2: 750, y2: 550 }   // Parking area
+            ],
+            collisionZones: [
+                { x1: 0, y1: 0, x2: 800, y2: 280 },     // Building
+                { x1: 200, y1: 300, x2: 600, y2: 400 }  // Parked cars
+            ],
             hotspots: [
                 {
                     name: 'Police Car',
@@ -129,6 +161,14 @@ window.GAME_DATA = {
         captainsOffice: {
             background: 'images/captains_office.png',
             music: 'office_theme',
+            bounds: { width: 800, height: 600 },
+            walkableAreas: [
+                { x1: 200, y1: 350, x2: 600, y2: 500 }  // Office floor
+            ],
+            collisionZones: [
+                { x1: 0, y1: 0, x2: 800, y2: 330 },     // Desk and furniture
+                { x1: 0, y1: 520, x2: 800, y2: 600 }    // Back wall
+            ],
             hotspots: [
                 {
                     name: 'Captain',
@@ -149,6 +189,15 @@ window.GAME_DATA = {
         coffeeShop: {
             background: 'images/coffee_shop.png',
             music: 'coffee_shop_theme',
+            bounds: { width: 800, height: 600 },
+            walkableAreas: [
+                { x1: 100, y1: 350, x2: 700, y2: 500 }  // Shop floor
+            ],
+            collisionZones: [
+                { x1: 0, y1: 0, x2: 800, y2: 330 },     // Counter and walls
+                { x1: 50, y1: 350, x2: 200, y2: 450 },  // Tables
+                { x1: 500, y1: 350, x2: 650, y2: 450 }  // More tables
+            ],
             hotspots: [
                 {
                     name: 'Barista',
@@ -258,6 +307,10 @@ window.GAME_DATA = {
         }
     },
     dialogs: {
+        categories: {
+            investigation: ['captainDialog', 'baristaDialog'],
+            suspects: ['suspiciousPersonDialog']
+        },
         captainDialog: [
             { text: "How's the investigation going, Detective?", options: [1, 2, 3] },
             { text: "I'm making progress on the case.", next: 4 },
@@ -296,7 +349,19 @@ window.GAME_DATA = {
     vehicleDestinations: [
         { name: "Downtown", target: "downtown" },
         { name: "Police Station", target: "policeStation" }
-    ]
+    ],
+    settings: {
+        defaultWalkSpeed: 3,
+        dialogDisplayTime: 3000,
+        musicVolume: 0.7,
+        sfxVolume: 1.0
+    }
 };
 
-console.log("Game data loaded successfully");
+try {
+    Object.freeze(window.GAME_DATA);
+    Object.freeze(window.GAME_DATA.config);
+    Object.freeze(window.GAME_DATA.settings);
+} catch (error) {
+    console.error('Failed to initialize game data:', error);
+}
