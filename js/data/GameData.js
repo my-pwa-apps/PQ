@@ -4,6 +4,13 @@ window.GAME_DATA = {
         policeStation: {
             background: 'images/police_station.png',
             music: 'station_theme',
+            walkableAreas: [
+                { x1: 100, y1: 400, x2: 700, y2: 500 }  // Main floor area
+            ],
+            collisionZones: [
+                { x1: 0, y1: 0, x2: 800, y2: 380 },     // Walls and furniture
+                { x1: 0, y1: 520, x2: 800, y2: 600 }    // Behind desk area
+            ],
             hotspots: [
                 {
                     name: 'Desk',
@@ -37,6 +44,13 @@ window.GAME_DATA = {
         downtown: {
             background: 'images/downtown.png',
             music: 'downtown_theme',
+            walkableAreas: [
+                { x1: 50, y1: 350, x2: 750, y2: 500 }   // Sidewalk area
+            ],
+            collisionZones: [
+                { x1: 0, y1: 0, x2: 800, y2: 340 },     // Buildings
+                { x1: 0, y1: 520, x2: 800, y2: 600 }    // Street
+            ],
             hotspots: [
                 {
                     name: 'Electronics Store',
