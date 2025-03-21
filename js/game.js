@@ -605,6 +605,142 @@ class Game {
             dialogBox.style.display = 'none';
         }, 5000);
     }
+
+    // Add police procedure system
+    policeProcedures = {
+        arrestProtocol: {
+            steps: [
+                { id: "read_rights", description: "Read rights to suspect", completed: false },
+                { id: "handcuff", description: "Properly handcuff the suspect", completed: false },
+                { id: "search", description: "Search suspect for weapons or evidence", completed: false },
+                { id: "document", description: "Document all evidence found", completed: false },
+                { id: "transport", description: "Transport suspect to station", completed: false }
+            ],
+            active: false
+        },
+        trafficStop: {
+            steps: [
+                { id: "call_dispatch", description: "Call dispatch with location and plate", completed: false },
+                { id: "approach_vehicle", description: "Approach vehicle from the rear", completed: false },
+                { id: "request_documents", description: "Request license and registration", completed: false },
+                { id: "verify_documents", description: "Verify documents with dispatch", completed: false }
+            ],
+            active: false
+        },
+        evidenceHandling: {
+            steps: [
+                { id: "wear_gloves", description: "Put on evidence handling gloves", completed: false },
+                { id: "photograph", description: "Photograph evidence in place", completed: false },
+                { id: "bag_tag", description: "Bag and tag evidence properly", completed: false },
+                { id: "document_chain", description: "Document chain of custody", completed: false }
+            ],
+            active: false
+        }
+    };
+
+    // Method to start a procedure
+    startProcedure(procedureType) {
+        if (this.policeProcedures[procedureType]) {
+            this.policeProcedures[procedureType].active = true;
+            this.policeProcedures[procedureType].steps.forEach(step => step.completed = false);
+            this.updateProcedureUI(procedureType);
+            this.showDialog(`You must follow proper ${procedureType.replace(/([A-Z])/g, ' $1').toLowerCase()} procedure.`);
+        }
+    }
+
+    // Method to complete a procedure step
+    completeProcedureStep(procedureType, stepId) {
+        if (!this.policeProcedures[procedureType] || !this.policeProcedures[procedureType].active) {
+            return false;
+        }
+        
+        const step = this.policeProcedures[procedureType].steps.find(s => s.id === stepId);
+        if (step) {
+            step.completed = true;
+            this.updateProcedureUI(procedureType);
+            this.showDialog(`Completed: ${step.description}`);
+            
+            // Check if all steps are complete
+            if (this.policeProcedures[procedureType].steps.every(s => s.completed)) {
+                this.completeProcedure(procedureType);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    // Method to mark a procedure as complete
+    completeProcedure(procedureType) {
+        if (this.policeProcedures[procedureType]) {
+            this.policeProcedures[procedureType].active = false;
+            this.showDialog(`You have successfully completed the ${procedureType.replace(/([A-Z])/g, ' $1').toLowerCase()} procedure!`);
+            
+            // Award points or progress in the game
+            this.addScore(50);
+            
+            // Clear the procedure UI
+            const procedurePanel = document.getElementById('procedure-panel');
+            if (procedurePanel) procedurePanel.style.display = 'none';
+        }
+    }
+
+    // Update the procedure UI
+    updateProcedureUI(procedureType) {
+        const procedurePanel = document.getElementById('procedure-panel');
+        if (!procedurePanel) return;
+        
+        const procedure = this.policeProcedures[procedureType];
+        if (!procedure || !procedure.active) {
+            procedurePanel.style.display = 'none';
+            return;
+        }
+        
+        procedurePanel.style.display = 'block';
+        
+        let html = `<h3>${procedureType.replace(/([A-Z])/g, ' $1').trim()} Procedure</h3>`;
+        html += '<ul class="procedure-steps">';
+        
+        procedure.steps.forEach(step => {
+            html += `<li class="${step.completed ? 'completed' : ''}">${step.description}</li>`;
+        });
+        
+        html += '</ul>';
+        procedurePanel.innerHTML = html;
+    }
+
+    // Validate if a player action follows procedure
+    validateProcedureAction(action, procedureType, expectedStep) {
+        if (!this.policeProcedures[procedureType] || !this.policeProcedures[procedureType].active) {
+            return true; // No active procedure, so no validation needed
+        }
+        
+        // Find the first uncompleted step
+        const nextStep = this.policeProcedures[procedureType].steps.find(step => !step.completed);
+        
+        // If the action matches the expected next step
+        if (nextStep && nextStep.id === expectedStep) {
+            return true;
+        }
+        
+        // Show error message for incorrect procedure
+        this.showDialog("You need to follow proper police procedure!");
+        return false;
+    }
+
+    // Add score tracking
+    score = 0;
+    
+    addScore(points) {
+        this.score += points;
+        this.updateScoreUI();
+    }
+    
+    updateScoreUI() {
+        const scoreElement = document.getElementById('score-display');
+        if (scoreElement) {
+            scoreElement.textContent = `Score: ${this.score}`;
+        }
+    }
 }
 
 // Add logic to process interactions and update game state

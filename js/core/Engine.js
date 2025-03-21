@@ -1948,12 +1948,22 @@ class GameEngine {
         }
     }
 
-    // Add new method to draw human characters
-    _drawHumanCharacter(ctx, x, y, facing = 'down', characterType = 'civilian', customColor = null) {
-        // Create a more detailed human character with proper proportions
+    // Add new method to draw human characters in classic Sierra style
+    _drawHumanCharacter(ctx, x, y, facing = 'down', characterType = 'detective', customColor = null) {
+        // Create a Sierra-style character with proper proportions and animation
         ctx.save();
         
-        // Different character types have different colors/uniforms
+        // Apply Sierra-style z-depth scaling based on y-position
+        const minY = 300;  // Top of walkable area
+        const maxY = 450;  // Bottom of walkable area
+        const scaleFactor = 0.7 + ((y - minY) / (maxY - minY)) * 0.5;
+        
+        // Scale the character based on y-position (depth)
+        ctx.scale(scaleFactor, scaleFactor);
+        x = x / scaleFactor;  // Adjust x for scale
+        y = y / scaleFactor;  // Adjust y for scale
+        
+        // Character type determines colors (Sierra-style pixel art colors)
         let skinColor = '#FFD8B1';
         let hairColor = '#8B4513';
         let shirtColor = customColor || '#3333FF';
@@ -1973,26 +1983,44 @@ class GameEngine {
             }
         }
         
-        // Animation offset based on walk cycle
-        const walkCycle = this.animationFrame % 20;
-        const walkOffset = (walkCycle < 10) ? Math.sin(walkCycle * Math.PI / 10) * 2 : 0;
+        // Animation frames - Sierra-style walk cycle
+        const walkCycle = this.animationFrame % 8;
+        let walkOffset = 0;
+        let legSpread = 6;
         
-        // Base body positions - adjusted based on facing direction
+        if (this.isWalking) {
+            if (walkCycle < 2) {
+                walkOffset = 1;
+                legSpread = 8;
+            } else if (walkCycle < 4) {
+                walkOffset = 2;
+                legSpread = 10;
+            } else if (walkCycle < 6) {
+                walkOffset = 1;
+                legSpread = 8;
+            } else {
+                walkOffset = 0;
+                legSpread = 6;
+            }
+        }
+        
+        // Base body positions - classic Sierra proportions
         let headY = y - 35;
         let bodyY = y - 20;
         let legsY = y;
         
+        // Draw character based on facing direction - Sierra style
         switch(facing) {
             case 'up':
-                // Draw back view
+                // Draw back view (Sierra-style)
                 // Legs
                 ctx.fillStyle = pantsColor;
-                ctx.fillRect(x - 8, legsY, 6, 20);
-                ctx.fillRect(x + 2, legsY, 6, 20);
+                ctx.fillRect(x - legSpread, legsY - walkOffset, 5, 20); // Left leg
+                ctx.fillRect(x + legSpread - 5, legsY + walkOffset, 5, 20); // Right leg
                 
                 // Body/shirt (back)
                 ctx.fillStyle = shirtColor;
-                ctx.fillRect(x - 12, bodyY, 24, 20);
+                ctx.fillRect(x - 10, bodyY, 20, 20);
                 
                 // Head (back)
                 ctx.fillStyle = hairColor;
@@ -2002,15 +2030,15 @@ class GameEngine {
                 break;
                 
             case 'down':
-                // Draw front view
+                // Draw front view (Sierra-style)
                 // Legs
                 ctx.fillStyle = pantsColor;
-                ctx.fillRect(x - 8, legsY, 6, 20);
-                ctx.fillRect(x + 2, legsY, 6, 20);
+                ctx.fillRect(x - legSpread, legsY - walkOffset, 5, 20); // Left leg
+                ctx.fillRect(x + legSpread - 5, legsY + walkOffset, 5, 20); // Right leg
                 
                 // Body/shirt
                 ctx.fillStyle = shirtColor;
-                ctx.fillRect(x - 12, bodyY, 24, 20);
+                ctx.fillRect(x - 10, bodyY, 20, 20);
                 
                 // Head
                 ctx.fillStyle = skinColor;
@@ -2024,31 +2052,34 @@ class GameEngine {
                 ctx.arc(x, headY - 5, 10, Math.PI, Math.PI * 2);
                 ctx.fill();
                 
-                // Face
+                // Face - Sierra-style pixel art face
                 ctx.fillStyle = '#000000';
+                ctx.fillRect(x - 4, headY - 1, 2, 2); // Left eye
+                ctx.fillRect(x + 2, headY - 1, 2, 2); // Right eye
+                
+                // Simple mouth
                 ctx.beginPath();
-                ctx.arc(x - 3, headY, 1, 0, Math.PI * 2); // Left eye
-                ctx.arc(x + 3, headY, 1, 0, Math.PI * 2); // Right eye
-                ctx.fill();
+                ctx.moveTo(x - 3, headY + 4);
+                ctx.lineTo(x + 3, headY + 4);
+                ctx.stroke();
                 
                 // Detective badge or feature for detective characters
                 if (characterType === 'detective') {
                     ctx.fillStyle = '#FFD700'; // Gold
-                    ctx.beginPath();
-                    ctx.arc(x, bodyY + 5, 3, 0, Math.PI * 2); // Badge
-                    ctx.fill();
+                    ctx.fillRect(x, bodyY + 5, 4, 4); // Badge
                 }
                 break;
                 
             case 'left':
-                // Draw left profile
-                // Leg
+                // Draw left profile (Sierra-style)
+                // Legs
                 ctx.fillStyle = pantsColor;
-                ctx.fillRect(x - 5, legsY, 10, 20);
+                ctx.fillRect(x - 6, legsY - walkOffset, 5, 20); // Front leg
+                ctx.fillRect(x - 1, legsY + walkOffset, 5, 20); // Back leg
                 
                 // Body/shirt
                 ctx.fillStyle = shirtColor;
-                ctx.fillRect(x - 10, bodyY, 20, 20);
+                ctx.fillRect(x - 8, bodyY, 16, 20);
                 
                 // Head
                 ctx.fillStyle = skinColor;
@@ -2059,29 +2090,34 @@ class GameEngine {
                 // Hair
                 ctx.fillStyle = hairColor;
                 ctx.beginPath();
-                ctx.arc(x - 2, headY - 3, 9, Math.PI, Math.PI * 2);
+                ctx.arc(x - 2, headY - 3, 10, Math.PI, Math.PI * 2);
                 ctx.fill();
                 
-                // Face
+                // Face - Sierra-style profile
                 ctx.fillStyle = '#000000';
-                ctx.beginPath();
-                ctx.arc(x - 6, headY, 1, 0, Math.PI * 2); // Left eye
-                ctx.fill();
+                ctx.fillRect(x - 6, headY - 1, 2, 2); // Eye
                 
                 // Arm
                 ctx.fillStyle = shirtColor;
-                ctx.fillRect(x - 12, bodyY + 5, 5, 15);
+                if (this.isWalking) {
+                    // Arm animation for walking
+                    ctx.fillRect(x - 10, bodyY + 5, 5, 12 + walkOffset);
+                } else {
+                    // Static arm
+                    ctx.fillRect(x - 10, bodyY + 5, 5, 15);
+                }
                 break;
                 
             case 'right':
-                // Draw right profile
-                // Leg
+                // Draw right profile (Sierra-style)
+                // Legs
                 ctx.fillStyle = pantsColor;
-                ctx.fillRect(x - 5, legsY, 10, 20);
+                ctx.fillRect(x + 1, legsY - walkOffset, 5, 20); // Front leg
+                ctx.fillRect(x - 4, legsY + walkOffset, 5, 20); // Back leg
                 
                 // Body/shirt
                 ctx.fillStyle = shirtColor;
-                ctx.fillRect(x - 10, bodyY, 20, 20);
+                ctx.fillRect(x - 8, bodyY, 16, 20);
                 
                 // Head
                 ctx.fillStyle = skinColor;
@@ -2092,25 +2128,29 @@ class GameEngine {
                 // Hair
                 ctx.fillStyle = hairColor;
                 ctx.beginPath();
-                ctx.arc(x + 2, headY - 3, 9, Math.PI, Math.PI * 2);
+                ctx.arc(x + 2, headY - 3, 10, Math.PI, Math.PI * 2);
                 ctx.fill();
                 
-                // Face
+                // Face - Sierra-style profile
                 ctx.fillStyle = '#000000';
-                ctx.beginPath();
-                ctx.arc(x + 6, headY, 1, 0, Math.PI * 2); // Right eye
-                ctx.fill();
+                ctx.fillRect(x + 4, headY - 1, 2, 2); // Eye
                 
                 // Arm
                 ctx.fillStyle = shirtColor;
-                ctx.fillRect(x + 7, bodyY + 5, 5, 15);
+                if (this.isWalking) {
+                    // Arm animation for walking
+                    ctx.fillRect(x + 5, bodyY + 5, 5, 12 + walkOffset);
+                } else {
+                    // Static arm
+                    ctx.fillRect(x + 5, bodyY + 5, 5, 15);
+                }
                 break;
         }
         
-        // Add shadow under character
+        // Sierra-style character shadow (oval)
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.beginPath();
-        ctx.ellipse(x, y + 20, 15, 6, 0, 0, Math.PI * 2);
+        ctx.ellipse(x, y + 20, 12, 4, 0, 0, Math.PI * 2);
         ctx.fill();
         
         ctx.restore();

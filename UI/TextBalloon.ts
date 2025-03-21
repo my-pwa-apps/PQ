@@ -1,117 +1,165 @@
-interface TextBalloonOptions {
-    backgroundColor: string;
-    borderColor: string;
-    padding: string;
-    borderRadius: string;
-    boxShadow: string;
-    textShadow: string;
-}
-
-class TextBalloon {
-    private id: string;
-    private text: string;
-    private isVisible: boolean = false;
-    private element: HTMLElement | null = null;
-    private static zIndex: number = 9000; // Increased base z-index to ensure always on top
-    private options: TextBalloonOptions;
-
-    constructor(id: string, text: string = '', options: Partial<TextBalloonOptions> = {}) {
-        this.id = id;
-        this.text = text;
-        this.options = {
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            borderColor: '#333',
-            padding: '8px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
-            textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
-            ...options
-        };
-        // Element is created lazily when needed
-    }
-
-    private createBalloonElement() {
-        if (this.element) return;
-        
+/**
+ * TextBalloon.ts
+ * Sierra-style text balloon for character dialogue
+ */
+export class TextBalloon {
+    private element: HTMLElement;
+    private textElement: HTMLElement;
+    private arrowElement: HTMLElement;
+    private currentTimeout: number | null = null;
+    
+    constructor() {
+        // Create main container
         this.element = document.createElement('div');
-        this.element.id = this.id;
-        this.element.className = 'text-balloon';
-        this.element.style.position = 'absolute';
+        this.element.id = 'sierra-text-balloon';
         this.element.style.display = 'none';
-        this.element.style.padding = this.options.padding;
-        this.element.style.backgroundColor = this.options.backgroundColor;
-        this.element.style.border = `1px solid ${this.options.borderColor}`;
-        this.element.style.borderRadius = this.options.borderRadius;
-        this.element.style.pointerEvents = 'none'; // Make sure it doesn't interfere with clicking
-        this.element.style.boxShadow = this.options.boxShadow;
-        this.element.style.textShadow = this.options.textShadow;
+        
+        // Create the arrow that points to the character
+        this.arrowElement = document.createElement('div');
+        this.arrowElement.id = 'sierra-text-balloon-arrow';
+        this.element.appendChild(this.arrowElement);
+        
+        // Create text container with Sierra styling
+        this.textElement = document.createElement('div');
+        this.textElement.id = 'sierra-text-balloon-text';
+        this.element.appendChild(this.textElement);
+        
+        // Apply Sierra-style styling
+        this.applyStyles();
+        
+        // Add to document
         document.body.appendChild(this.element);
     }
-
-    setText(text: string): void {
-        this.text = text;
-        if (this.element && this.isVisible) {
-            this.element.textContent = this.text;
-        }
+    
+    /**
+     * Apply Sierra-style CSS to the text balloon
+     */
+    private applyStyles(): void {
+        // Sierra text balloon container
+        this.element.style.position = 'absolute';
+        this.element.style.maxWidth = '300px';
+        this.element.style.backgroundColor = '#000080'; // Sierra blue background
+        this.element.style.border = '2px solid #FFFFFF'; // White border (Sierra style)
+        this.element.style.borderRadius = '3px';
+        this.element.style.padding = '10px';
+        this.element.style.zIndex = '1000';
+        this.element.style.transition = 'opacity 0.2s ease-in-out';
+        this.element.style.opacity = '0';
+        this.element.style.pointerEvents = 'none'; // Don't interfere with clicks
+        
+        // Sierra-style arrow
+        this.arrowElement.style.position = 'absolute';
+        this.arrowElement.style.bottom = '-10px';
+        this.arrowElement.style.left = '50%';
+        this.arrowElement.style.marginLeft = '-10px';
+        this.arrowElement.style.width = '0';
+        this.arrowElement.style.height = '0';
+        this.arrowElement.style.borderLeft = '10px solid transparent';
+        this.arrowElement.style.borderRight = '10px solid transparent';
+        this.arrowElement.style.borderTop = '10px solid #FFFFFF'; // White border arrow
+        
+        // Sierra-style text
+        this.textElement.style.color = '#FFFFFF'; // Sierra white text
+        this.textElement.style.fontFamily = "'Press Start 2P', 'Courier New', monospace"; // Sierra-like font
+        this.textElement.style.fontSize = '14px';
+        this.textElement.style.lineHeight = '1.5';
+        this.textElement.style.textAlign = 'left';
+        this.textElement.style.margin = '0';
     }
-
-    show(x: number, y: number, text?: string, offsetX: number = 0, offsetY: number = 0) {
-        this.createBalloonElement(); // Lazy creation
-        if (!this.element) return;
-        
-        if (text !== undefined) {
-            this.text = text;
+    
+    /**
+     * Show a text balloon above a character
+     * @param targetElement - The character element to attach the balloon to
+     * @param text - The text to display in Sierra style
+     * @param duration - How long to show the text (ms)
+     */
+    public show(targetElement: HTMLElement, text: string, duration: number = 3000): void {
+        // Clear any existing timeout
+        if (this.currentTimeout !== null) {
+            window.clearTimeout(this.currentTimeout);
+            this.currentTimeout = null;
         }
         
-        this.element.textContent = this.text;
-        this.updatePosition(x + offsetX, y + offsetY);
+        // Set the text with Sierra-style typewriter effect
+        this.textElement.textContent = '';
         this.element.style.display = 'block';
-        this.element.style.zIndex = (++TextBalloon.zIndex).toString();
-        this.isVisible = true;
-    }
-
-    hide() {
-        if (this.element) {
-            this.element.style.display = 'none';
-            this.isVisible = false;
-        }
-    }
-
-    updatePosition(x: number, y: number) {
-        if (!this.element) this.createBalloonElement();
-        if (!this.element || !this.isVisible) return;
         
-        this.element.style.left = `${x}px`;
-        this.element.style.top = `${y}px`;
-    }
-
-    getText(): string {
-        return this.text;
-    }
-
-    isShowing(): boolean {
-        return this.isVisible;
+        // Position above the character in Sierra style
+        const targetRect = targetElement.getBoundingClientRect();
+        const balloonWidth = Math.min(300, Math.max(150, text.length * 8)); // Size based on text length
+        
+        this.element.style.width = `${balloonWidth}px`;
+        
+        // Position balloon above character's head (Sierra style)
+        const left = targetRect.left + (targetRect.width / 2) - (balloonWidth / 2);
+        const top = targetRect.top - 20 - this.element.offsetHeight;
+        
+        // Keep on screen (Sierra would do this)
+        const finalLeft = Math.max(10, Math.min(left, window.innerWidth - balloonWidth - 10));
+        const finalTop = Math.max(10, top);
+        
+        this.element.style.left = `${finalLeft}px`;
+        this.element.style.top = `${finalTop}px`;
+        
+        // Position arrow to point at character
+        const arrowLeft = Math.min(balloonWidth - 20, Math.max(10, (targetRect.left + targetRect.width / 2) - finalLeft));
+        this.arrowElement.style.left = `${arrowLeft}px`;
+        this.arrowElement.style.marginLeft = '0';
+        
+        // Sierra-style typing effect
+        let charIndex = 0;
+        const typeInterval = setInterval(() => {
+            if (charIndex < text.length) {
+                this.textElement.textContent += text.charAt(charIndex);
+                charIndex++;
+            } else {
+                clearInterval(typeInterval);
+                
+                // Auto-hide after duration
+                this.currentTimeout = window.setTimeout(() => {
+                    this.hide();
+                }, duration);
+            }
+        }, 30); // Sierra typing speed
+        
+        // Show with fade-in
+        setTimeout(() => {
+            this.element.style.opacity = '1';
+        }, 10);
     }
     
-    destroy(): void {
-        if (this.element) {
-            document.body.removeChild(this.element);
-            this.element = null;
-            this.isVisible = false;
+    /**
+     * Hide the text balloon with Sierra-style animation
+     */
+    public hide(): void {
+        // Fade out
+        this.element.style.opacity = '0';
+        
+        // Hide after transition
+        setTimeout(() => {
+            this.element.style.display = 'none';
+        }, 200);
+        
+        // Clear timeout
+        if (this.currentTimeout !== null) {
+            window.clearTimeout(this.currentTimeout);
+            this.currentTimeout = null;
         }
     }
     
-    updateOptions(options: Partial<TextBalloonOptions>): void {
-        this.options = { ...this.options, ...options };
-        if (this.element) {
-            this.element.style.backgroundColor = this.options.backgroundColor;
-            this.element.style.border = `1px solid ${this.options.borderColor}`;
-            this.element.style.padding = this.options.padding;
-            this.element.style.borderRadius = this.options.borderRadius;
-            this.element.style.boxShadow = this.options.boxShadow;
-            this.element.style.textShadow = this.options.textShadow;
+    /**
+     * Clean up resources
+     */
+    public dispose(): void {
+        if (this.currentTimeout !== null) {
+            window.clearTimeout(this.currentTimeout);
+        }
+        
+        if (this.element.parentNode) {
+            this.element.parentNode.removeChild(this.element);
         }
     }
 }
 
-export { TextBalloon, TextBalloonOptions };
+// Export a singleton instance
+export const textBalloon = new TextBalloon();
