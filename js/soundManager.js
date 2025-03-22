@@ -189,33 +189,39 @@ class SoundManager {
         }
 
         try {
-            const buffer = await this.generateSoundBuffer(name);
+            let buffer;
+            switch(name) {
+                case 'click':
+                    buffer = await this.generateClickSound();
+                    break;
+                case 'typing':
+                    buffer = await this.generateTypingSound();
+                    break;
+                case 'door':
+                    buffer = await this.generateDoorSound();
+                    break;
+                case 'success':
+                    buffer = await this.generateSuccessSound();
+                    break;
+                case 'error':
+                    buffer = await this.generateErrorSound();
+                    break;
+                case 'radio':
+                    buffer = await this.generateRadioSound();
+                    break;
+                case 'footstep':
+                    buffer = await this.generateFootstepSound();
+                    break;
+                default:
+                    buffer = this.createSilentBuffer(0.5);
+            }
+            
             this.sounds.set(name, buffer);
             return buffer;
         } catch (error) {
             this.logError(`Error generating sound "${name}":`, error);
             return this.createSilentBuffer(0.5);
         }
-    }
-
-    async generateSoundBuffer(name) {
-        const sampleRate = this.audioContext.sampleRate;
-        const buffer = this.audioContext.createBuffer(1, sampleRate * 0.5, sampleRate);
-        const data = buffer.getChannelData(0);
-
-        const generators = {
-            click: () => this.generateClickData(data, sampleRate),
-            typing: () => this.generateTypingData(data, sampleRate),
-            door: () => this.generateDoorData(data, sampleRate),
-            // ...other sound generators
-        };
-
-        if (generators[name]) {
-            await generators[name]();
-            return buffer;
-        }
-
-        return this.createSilentBuffer(0.5);
     }
     
     /**
@@ -845,25 +851,7 @@ class SoundManager {
             const buffer = this.sounds.get(name);
             if (!buffer) return null;
 
-            // Limit concurrent sounds using object pool
-            if (this.activeSounds.size >= this.maxConcurrentSounds) {
-                const oldestId = Array.from(this.activeSounds.keys())[0];
-                this.stopSound(oldestId);
-            }
-
-            const source = this.createSoundSource(buffer, volume, pan);
-            const id = `${name}_${Date.now()}_${Math.random()}`;
-            
-            this.activeSounds.set(id, { source, name });
-            source.onended = () => this.activeSounds.delete(id);
-
-            return { id, stop: () => this.stopSound(id) };
-        } catch (error) {
-            this.logError(`Error playing sound:`, error);
-            return null;
-        }
-    }
-    
+            // Limit concurrent sounds
             if (this.activeSounds.size >= this.maxConcurrentSounds) {
                 // Find and stop the oldest sound
                 const oldestSound = Array.from(this.activeSounds.entries())[0];
@@ -1243,48 +1231,88 @@ class SoundManager {
         console.error('[SoundManager]', ...args);
     }
 
+    /**
+     * Generate a chord using additive synthesis
+     * @param {string[]} notes - Array of note names
+     * @param {number} time - Current time in seconds
+     * @param {number} duration - Note duration
+     * @returns {number} Combined waveform value
+     */
     generateChord(notes, time, duration = 0.8) {
         if (!Array.isArray(notes) || notes.length === 0) return 0;
         
         let sample = 0;
         notes.forEach(note => {
-            const freq = this.getNoteFrequency(note);
-            if (freq) {
-                // Basic envelope for chord
-                const envelope = Math.min(1, time * 4) * Math.exp(-time / duration);
-                sample += Math.sin(2 * Math.PI * freq * time) * 0.3 * envelope;
-            }
+            const freqs = Array.isArray(this.getNoteFrequency(note)) ? 
+                         this.getNoteFrequency(note) : 
+                         [this.getNoteFrequency(note)];
+            
+            freqs.forEach(freq => {
+                if (freq) {
+                    const envelope = Math.min(1, time * 4) * Math.exp(-time / duration);
+                    sample += Math.sin(2 * Math.PI * freq * time) * 0.3 * envelope;
+                }
+            });
         });
         
-        return sample;
+        return sample / notes.length; // Normalize output
     }
 
+    /**
+     * Generate a bassline with rich harmonics
+     * @param {number} freq - Base frequency
+     * @param {number} time - Current time in seconds
+     * @param {number} beatPosition - Position in the current beat
+     * @returns {number} Combined waveform value
+     */
     generateBassline(freq, time, beatPosition) {
         if (!freq) return 0;
         
-        // Create a punchy bass sound
         const attack = Math.min(1, time * 20);
         const decay = Math.exp(-time * 8);
         const envelope = attack * decay;
         
-        // Mix sine and square waves for richer bass
+        // Mix different waveforms for richer bass sound
         const sine = Math.sin(2 * Math.PI * freq * time);
         const square = Math.sign(Math.sin(2 * Math.PI * freq * time));
+        const sub = Math.sin(Math.PI * freq * time); // Sub-oscillator
         
-        return (sine * 0.7 + square * 0.3) * envelope * 0.4;
+        // Add slight overdrive for warmth
+        const bassSound = (sine * 0.5 + square * 0.3 + sub * 0.2);
+        const distortion = Math.tanh(bassSound * 2) * 0.5;
+        
+        return (bassSound + distortion) * envelope * 0.4;
     }
 
+    /**
+     * Generate a melodic line with expression
+     * @param {string} note - Note name or frequency
+     * @param {number} time - Current time in seconds
+     * @returns {number} Waveform value
+     */
     generateMelody(note, time) {
         const freq = this.getNoteFrequency(note);
         if (!freq) return 0;
         
-        // Create a melodic sound with vibrato
+        // Add vibrato and expression
         const vibrato = Math.sin(2 * Math.PI * 5 * time) * 0.02;
         const envelope = Math.min(1, time * 8) * Math.exp(-time * 4);
         
-        return Math.sin(2 * Math.PI * freq * (1 + vibrato) * time) * envelope * 0.3;
+        // Use multiple harmonics for richer tone
+        const fundamental = Math.sin(2 * Math.PI * freq * (1 + vibrato) * time);
+        const harmonic1 = Math.sin(4 * Math.PI * freq * (1 + vibrato) * time) * 0.3;
+        const harmonic2 = Math.sin(6 * Math.PI * freq * (1 + vibrato) * time) * 0.1;
+        
+        return (fundamental + harmonic1 + harmonic2) * envelope * 0.3;
     }
 
+    /**
+     * Generate arpeggiated patterns from chords
+     * @param {string[]} notes - Array of notes
+     * @param {number} time - Current time in seconds
+     * @param {number} samplesPerBeat - Samples per beat
+     * @returns {number} Waveform value
+     */
     generateArpeggio(notes, time, samplesPerBeat) {
         if (!Array.isArray(notes) || notes.length === 0) return 0;
         
@@ -1294,36 +1322,80 @@ class SoundManager {
         
         if (!freq) return 0;
         
-        const envelope = Math.exp(-time * 8);
-        return Math.sin(2 * Math.PI * freq * time) * envelope * 0.2;
+        const envelope = Math.exp(-time * 8) * Math.min(1, time * 30);
+        const mainOsc = Math.sin(2 * Math.PI * freq * time);
+        const subOsc = Math.sin(2 * Math.PI * freq * 2 * time) * 0.3;
+        
+        return (mainOsc + subOsc) * envelope * 0.2;
     }
 
+    /**
+     * Generate percussive elements
+     * @param {number} beatPosition - Position in the current beat
+     * @returns {number} Combined percussion waveform value
+     */
     generatePercussion(beatPosition) {
-        // Kick drum on beats 1 and 3
-        const kick = beatPosition % 4 < 0.1 || (beatPosition + 2) % 4 < 0.1 ? 
-            Math.sin(2 * Math.PI * 60 * Math.exp(-beatPosition * 40)) * 0.5 : 0;
+        let sample = 0;
         
-        // Hi-hat on offbeats
-        const hihat = (beatPosition + 0.5) % 1 < 0.1 ? 
-            (Math.random() * 2 - 1) * Math.exp(-beatPosition * 50) * 0.2 : 0;
+        // Kick drum
+        if (beatPosition % 4 < 0.1 || (beatPosition + 2) % 4 < 0.1) {
+            const kickFreq = 60 * Math.exp(-beatPosition * 40);
+            sample += Math.sin(2 * Math.PI * kickFreq) * 0.5;
+        }
         
-        return kick + hihat;
+        // Hi-hat
+        if ((beatPosition + 0.5) % 1 < 0.1) {
+            const noise = (Math.random() * 2 - 1) * Math.exp(-beatPosition * 50);
+            sample += noise * 0.2;
+        }
+        
+        // Snare on 2 and 4
+        if ((beatPosition + 1) % 2 < 0.1) {
+            const noise = (Math.random() * 2 - 1) * Math.exp(-beatPosition * 20);
+            const tone = Math.sin(2 * Math.PI * 200) * Math.exp(-beatPosition * 30);
+            sample += (noise * 0.3 + tone * 0.2);
+        }
+        
+        return sample;
     }
 
+    /**
+     * Generate a low drone sound
+     * @param {number} time - Current time in seconds
+     * @returns {number} Waveform value
+     */
     generateDrone(time) {
         const baseFreq = 55; // Low A
         const modulation = Math.sin(2 * Math.PI * 0.1 * time) * 0.02;
         
-        return Math.sin(2 * Math.PI * baseFreq * (1 + modulation) * time) * 0.15;
+        const mainOsc = Math.sin(2 * Math.PI * baseFreq * (1 + modulation) * time);
+        const subOsc = Math.sin(2 * Math.PI * baseFreq * 0.5 * (1 + modulation) * time);
+        const harmony = Math.sin(2 * Math.PI * baseFreq * 1.5 * (1 + modulation) * time);
+        
+        return (mainOsc * 0.5 + subOsc * 0.3 + harmony * 0.2) * 0.15;
     }
 
+    /**
+     * Generate bird chirp sound
+     * @param {number} time - Current time in seconds
+     * @returns {number} Waveform value
+     */
     generateBirdChirp(time) {
         const chirpFreq = 2000 + Math.sin(2 * Math.PI * 10 * time) * 500;
         const envelope = Math.exp(-time * 20);
         
-        return Math.sin(2 * Math.PI * chirpFreq * time) * envelope * 0.1;
+        const mainChirp = Math.sin(2 * Math.PI * chirpFreq * time);
+        const harmonics = Math.sin(2 * Math.PI * chirpFreq * 1.5 * time) * 0.3;
+        
+        return (mainChirp + harmonics) * envelope * 0.1;
     }
 
+    /**
+     * Apply simple reverb effect to audio data
+     * @param {Float32Array} data - Audio buffer data
+     * @param {number} sampleRate - Sample rate of audio
+     * @param {number} amount - Reverb amount (0-1)
+     */
     applyReverb(data, sampleRate, amount) {
         const delayTime = 0.1; // 100ms delay
         const delaySamples = Math.floor(delayTime * sampleRate);
@@ -1348,6 +1420,11 @@ class SoundManager {
         }
     }
 
+    /**
+     * Get frequency for a note name or return the input if already numeric
+     * @param {string|number} note - Note name (e.g., 'A4') or frequency
+     * @returns {number|number[]} Frequency in Hz or array of frequencies for chords
+     */
     getNoteFrequency(note) {
         // Handle numeric frequency
         if (typeof note === 'number') return note;
@@ -1372,7 +1449,7 @@ class SoundManager {
             'C5': 523.25, 'C#5': 554.37, 'D5': 587.33, 'D#5': 622.25,
             'E5': 659.25, 'F5': 698.46, 'F#5': 739.99, 'G5': 783.99,
             'G#5': 830.61, 'A5': 880.00, 'A#5': 932.33, 'B5': 987.77,
-            // Add minor chords
+            // Minor chords
             'Cm3': [130.81, 155.56, 196.00],
             'Dm3': [146.83, 174.61, 220.00],
             'Em3': [164.81, 196.00, 246.94],
@@ -1382,7 +1459,7 @@ class SoundManager {
             'Bm3': [246.94, 293.66, 369.99]
         };
         
-        // For chord notation (e.g., 'Cm3'), return array of frequencies
+        // For chord notation, return array of frequencies
         if (Array.isArray(noteMap[note])) {
             return noteMap[note];
         }
