@@ -37,6 +37,7 @@ class GameEngine {
         this.collisionObjects = [];
 
         // Initialize color palette immediately to avoid null references
+        this.setupColorPalette = this.setupColorPalette.bind(this); // Explicitly bind 'this'
         this.colors = this.setupColorPalette();
         
         // Set floor level constraints
