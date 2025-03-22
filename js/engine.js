@@ -134,6 +134,29 @@ class GameEngine {
                 throw error;
             }
         };
+
+        // Add performance optimization properties
+        this.frameRequestId = null;
+        this.lastFrameTime = performance.now();
+        this.frameInterval = 1000 / 60; // Target 60 FPS
+        this.accumulatedTime = 0;
+        this.boundGameLoop = this.gameLoop.bind(this);
+        
+        // Add resource tracking
+        this.resources = new Map();
+        this.pendingResources = new Set();
+        
+        // Add rendering optimizations
+        this.dirtyRegions = new Set();
+        this.screenBuffer = document.createElement('canvas');
+        this.screenBufferCtx = this.screenBuffer.getContext('2d');
+        
+        // Add error tracking
+        this.errorCount = 0;
+        this.maxErrors = 10;
+        
+        // Add cleanup tracking
+        this.cleanupTasks = new Set();
     }
 
     setupCanvas() {
@@ -3425,4 +3448,131 @@ drawCurrentScene() {
     } catch (error) {
         console.error("Error drawing scene:", error);
     }
+}
+
+startGameLoop() {
+    if (this.isRunning) return;
+
+    this.isRunning = true;
+    this.lastFrameTime = performance.now();
+    this.accumulator = 0;
+
+    // Use requestAnimationFrame with proper timing
+    const loop = (timestamp) => {
+        if (!this.isRunning) return;
+
+        const deltaTime = Math.min(timestamp - this.lastFrameTime, 32); // Cap at ~30 FPS
+        this.accumulator += deltaTime;
+        this.lastFrameTime = timestamp;
+
+        // Fixed time step updates
+        while (this.accumulator >= this.frameInterval) {
+            this.update(this.frameInterval / 1000);
+            this.accumulator -= this.frameInterval;
+        }
+
+        // Draw at display refresh rate
+        this.drawCurrentScene();
+        this.requestID = requestAnimationFrame(loop);
+    };
+
+    this.requestID = requestAnimationFrame(loop);
+}
+
+handleError(error) {
+    console.error('Game engine error:', error);
+    this.errorCount++;
+    
+    if (this.errorCount >= this.maxErrors) {
+        this.emergencyStop();
+    }
+}
+
+emergencyStop() {
+    this.isRunning = false;
+    if (this.frameRequestId) {
+        cancelAnimationFrame(this.frameRequestId);
+        this.frameRequestId = null;
+    }
+    this.cleanup();
+    console.error('Game engine emergency stopped due to too many errors');
+}
+
+// Add proper cleanup method
+cleanup() {
+    // ...existing code...
+    
+    // Clean up resources
+    this.resources.clear();
+    this.pendingResources.clear();
+    this.dirtyRegions.clear();
+    
+    // Run registered cleanup tasks
+    for (const task of this.cleanupTasks) {
+        try {
+            task();
+        } catch (error) {
+            console.error('Cleanup task error:', error);
+        }
+    }
+    this.cleanupTasks.clear();
+}
+
+// Optimize rendering
+render(interpolation) {
+    if (!this.ctx || !this.screenBufferCtx) return;
+
+    // Only redraw dirty regions
+    if (this.dirtyRegions.size === 0) return;
+
+    // Clear screen buffer
+    this.screenBufferCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Draw current scene to buffer
+    this.drawCurrentScene(this.screenBufferCtx, interpolation);
+
+    // Draw buffer to main canvas
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.drawImage(this.screenBuffer, 0, 0);
+
+    // Clear dirty regions
+    this.dirtyRegions.clear();
+}
+
+// Add resource management
+loadResource(id, url) {
+    if (this.resources.has(id)) {
+        return Promise.resolve(this.resources.get(id));
+    }
+
+    if (this.pendingResources.has(id)) {
+        return new Promise((resolve, reject) => {
+            const checkResource = () => {
+                if (this.resources.has(id)) {
+                    resolve(this.resources.get(id));
+                } else if (!this.pendingResources.has(id)) {
+                    reject(new Error(`Failed to load resource: ${id}`));
+                } else {
+                    setTimeout(checkResource, 100);
+                }
+            };
+            checkResource();
+        });
+    }
+
+    this.pendingResources.add(id);
+
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            this.resources.set(id, img);
+            this.pendingResources.delete(id);
+            resolve(img);
+        };
+        img.onerror = () => {
+            this.pendingResources.delete(id);
+            reject(new Error(`Failed to load image: ${url}`));
+        };
+        img.src = url;
+    });
 }

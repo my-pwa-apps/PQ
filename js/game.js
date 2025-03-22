@@ -497,32 +497,178 @@ class Game {
         // Performance optimization
         this.lastFrameTime = 0;
         this.frameCount = 0;
+
+        // Add error boundary
+        this.errorBoundary = {
+            hasError: false,
+            error: null,
+            errorInfo: null
+        };
+        
+        // Add state management optimization
+        this.state = {
+            currentScene: 'policeStation',
+            inventory: [],
+            flags: new Map(),
+            dirty: new Set()
+        };
+        
+        // Add performance monitoring
+        this.metrics = {
+            fps: 0,
+            frameTime: 0,
+            updateTime: 0,
+            renderTime: 0
+        };
+        
+        // Add resource management
+        this.loadedAssets = new Map();
+        this.pendingAssets = new Set();
+        
+        // Add cleanup registry
+        this.cleanupTasks = new Set();
     }
 
     async initGame() {
         try {
-            // Initialize core systems in parallel
-            const [soundInit, engineInit] = await Promise.all([
-                this.initializeSound(),
-                this.initializeEngine()
-            ]);
-
-            if (!soundInit || !engineInit) {
-                throw new Error('Failed to initialize core systems');
-            }
-
-            // Cache DOM elements once
-            this.cacheUIElements();
+            console.log('Initializing game...');
             
-            // Set up game state
-            this.setupUI();
-            await this.startGame();
-
+            // Show loading screen
+            this.showLoadingScreen();
+            
+            // Initialize systems in parallel
+            await Promise.all([
+                this.initEngine(),
+                this.initSoundSystem(),
+                this.preloadAssets()
+            ]);
+            
+            // Set up error handlers
+            this.setupErrorHandlers();
+            
+            // Initialize game state
+            this.initializeGameState();
+            
+            // Start performance monitoring
+            this.startPerformanceMonitoring();
+            
+            console.log('Game initialized successfully');
+            this.hideLoadingScreen();
             return true;
         } catch (error) {
-            console.error('Failed to initialize game:', error);
+            this.handleInitError(error);
             return false;
         }
+    }
+
+    handleInitError(error) {
+        console.error('Failed to initialize game:', error);
+        this.errorBoundary.hasError = true;
+        this.errorBoundary.error = error;
+        this.showErrorScreen(error);
+    }
+
+    // Add optimized asset preloading
+    async preloadAssets() {
+        const assetPromises = [];
+        
+        // Preload critical assets first
+        const criticalAssets = [
+            'player',
+            'ui_elements',
+            'background_main'
+        ];
+        
+        for (const assetId of criticalAssets) {
+            if (!this.loadedAssets.has(assetId)) {
+                assetPromises.push(this.loadAsset(assetId));
+            }
+        }
+        
+        // Load remaining assets in background
+        setTimeout(() => {
+            this.loadNonCriticalAssets();
+        }, 100);
+        
+        return Promise.all(assetPromises);
+    }
+
+    // Add state management optimization
+    updateGameState(changes) {
+        for (const [key, value] of Object.entries(changes)) {
+            if (this.state[key] !== value) {
+                this.state[key] = value;
+                this.state.dirty.add(key);
+            }
+        }
+        
+        // Schedule UI update
+        if (this.state.dirty.size > 0) {
+            requestAnimationFrame(() => this.updateUI());
+        }
+    }
+
+    // Add optimized UI updates
+    updateUI() {
+        if (this.state.dirty.size === 0) return;
+        
+        const updates = {
+            currentScene: () => this.updateSceneUI(),
+            inventory: () => this.updateInventoryUI(),
+            flags: () => this.updateFlagsUI()
+        };
+        
+        for (const key of this.state.dirty) {
+            if (updates[key]) {
+                updates[key]();
+            }
+        }
+        
+        this.state.dirty.clear();
+    }
+
+    // Add performance monitoring
+    updatePerformanceMetrics(frameTime) {
+        const now = performance.now();
+        
+        this.metrics.frameTime = frameTime;
+        this.metrics.fps = 1000 / frameTime;
+        
+        if (this.engine?.debugMode) {
+            console.log(
+                `FPS: ${Math.round(this.metrics.fps)}, ` +
+                `Frame: ${Math.round(this.metrics.frameTime)}ms, ` +
+                `Update: ${Math.round(this.metrics.updateTime)}ms, ` +
+                `Render: ${Math.round(this.metrics.renderTime)}ms`
+            );
+        }
+    }
+
+    // Add proper cleanup
+    dispose() {
+        // Stop game loop
+        if (this.engine) {
+            this.engine.stopGameLoop();
+        }
+        
+        // Clear assets
+        this.loadedAssets.clear();
+        this.pendingAssets.clear();
+        
+        // Run cleanup tasks
+        for (const task of this.cleanupTasks) {
+            try {
+                task();
+            } catch (error) {
+                console.error('Cleanup task error:', error);
+            }
+        }
+        
+        // Clear state
+        this.state.dirty.clear();
+        this.cleanupTasks.clear();
+        
+        console.log('Game disposed');
     }
 
     async initializeSound() {
