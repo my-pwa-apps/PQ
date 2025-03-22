@@ -1,7 +1,7 @@
 /**
  * SoundManager.js
  * Audio management system for Police Quest
- * Handles background music and sound effects
+ * Uses Web Audio API for sound generation and playback
  */
 class SoundManager {
     constructor() {
@@ -61,10 +61,10 @@ class SoundManager {
             this.sfxGain.connect(this.masterGain);
             this.masterGain.connect(this.audioContext.destination);
             
-            // Load sound effects
-            await this.loadSoundEffects();
+            // Generate sound effects using Web Audio API
+            await this.generateSoundEffects();
             
-            // Load music tracks
+            // Load music tracks (still using audio files for music)
             await this.loadMusicTracks();
             
             // Set up mobile audio unlocking
@@ -151,32 +151,274 @@ class SoundManager {
     }
 
     /**
-     * Load all sound effects
+     * Generate all sound effects using Web Audio API
+     * This replaces loading WAV files with programmatic sound generation
      */
-    async loadSoundEffects() {
+    async generateSoundEffects() {
         try {
-            const soundEffects = [
-                { name: 'click', url: 'sounds/click.wav' },
-                { name: 'typing', url: 'sounds/typing.wav' },
-                { name: 'door', url: 'sounds/door.wav' },
-                { name: 'success', url: 'sounds/success.wav' },
-                { name: 'error', url: 'sounds/error.wav' },
-                { name: 'radio', url: 'sounds/radio.wav' },
-                { name: 'footstep', url: 'sounds/footstep.wav' }
+            // Define the sound effects to generate
+            const soundsToGenerate = [
+                'click', 'typing', 'door', 'success', 'error', 'radio', 'footstep'
             ];
             
-            // Load each sound effect
-            const loadPromises = soundEffects.map(sound => {
-                return this.loadSound(sound.name, sound.url);
+            // Generate each sound effect
+            const generatePromises = soundsToGenerate.map(name => {
+                return this.generateSound(name);
             });
             
-            // Wait for all sounds to load
-            await Promise.all(loadPromises);
+            // Wait for all sounds to be generated
+            await Promise.all(generatePromises);
             return true;
         } catch (error) {
-            this.logError("Error loading sound effects:", error);
+            this.logError("Error generating sound effects:", error);
             return false;
         }
+    }
+    
+    /**
+     * Generate a single sound effect using Web Audio API
+     * @param {string} name - Name of the sound to generate
+     * @returns {Promise<AudioBuffer>} The generated sound buffer
+     */
+    async generateSound(name) {
+        if (!this.audioContext) return Promise.reject('Audio context not initialized');
+        
+        try {
+            let audioBuffer;
+            
+            switch (name) {
+                case 'click':
+                    audioBuffer = await this.generateClickSound();
+                    break;
+                case 'typing':
+                    audioBuffer = await this.generateTypingSound();
+                    break;
+                case 'door':
+                    audioBuffer = await this.generateDoorSound();
+                    break;
+                case 'success':
+                    audioBuffer = await this.generateSuccessSound();
+                    break;
+                case 'error':
+                    audioBuffer = await this.generateErrorSound();
+                    break;
+                case 'radio':
+                    audioBuffer = await this.generateRadioSound();
+                    break;
+                case 'footstep':
+                    audioBuffer = await this.generateFootstepSound();
+                    break;
+                default:
+                    audioBuffer = this.createSilentBuffer(0.5);
+                    break;
+            }
+            
+            this.sounds.set(name, audioBuffer);
+            this.log(`Generated sound: ${name}`);
+            return audioBuffer;
+        } catch (error) {
+            this.logError(`Error generating sound "${name}":`, error);
+            
+            // Create a silent buffer as fallback
+            const fallbackBuffer = this.createSilentBuffer(0.5);
+            this.sounds.set(name, fallbackBuffer);
+            
+            return fallbackBuffer;
+        }
+    }
+    
+    /**
+     * Generate a click sound using Web Audio API
+     * @returns {Promise<AudioBuffer>} The generated sound buffer
+     */
+    async generateClickSound() {
+        const duration = 0.1;
+        const sampleRate = this.audioContext.sampleRate;
+        const buffer = this.audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        // Generate a short click sound
+        for (let i = 0; i < buffer.length; i++) {
+            if (i < 0.01 * sampleRate) {
+                // Quick attack
+                data[i] = 0.8 * Math.sin(i * 0.3) * Math.exp(-i / (0.01 * sampleRate));
+            } else {
+                // Fast decay
+                data[i] = 0.2 * Math.sin(i * 0.3) * Math.exp(-i / (0.03 * sampleRate));
+            }
+        }
+        
+        return buffer;
+    }
+    
+    /**
+     * Generate a typing sound using Web Audio API
+     * @returns {Promise<AudioBuffer>} The generated sound buffer
+     */
+    async generateTypingSound() {
+        const duration = 0.05;
+        const sampleRate = this.audioContext.sampleRate;
+        const buffer = this.audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        // Generate a short tap sound resembling keyboard typing
+        for (let i = 0; i < buffer.length; i++) {
+            // Mix of high and low frequencies
+            const noise = Math.random() * 2 - 1;
+            const decay = Math.exp(-i / (0.02 * sampleRate));
+            
+            data[i] = 0.6 * noise * decay;
+        }
+        
+        return buffer;
+    }
+    
+    /**
+     * Generate a door sound using Web Audio API
+     * @returns {Promise<AudioBuffer>} The generated sound buffer
+     */
+    async generateDoorSound() {
+        const duration = 0.5;
+        const sampleRate = this.audioContext.sampleRate;
+        const buffer = this.audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        // Generate a creaking door sound
+        for (let i = 0; i < buffer.length; i++) {
+            const t = i / sampleRate;
+            const frequency = 100 + 50 * Math.sin(t * 10);
+            const noise = Math.random() * 0.2;
+            
+            // Generate creak with frequency modulation
+            if (t < 0.3) {
+                // Door opening
+                data[i] = (0.5 * Math.sin(2 * Math.PI * frequency * t) + noise) * 
+                           Math.min(1, t * 10) * Math.exp(-t / 0.3);
+            } else {
+                // Door closing
+                data[i] = (0.3 * Math.sin(2 * Math.PI * (frequency - 30) * t) + noise) * 
+                           Math.exp(-(t - 0.3) / 0.2);
+            }
+        }
+        
+        return buffer;
+    }
+    
+    /**
+     * Generate a success sound using Web Audio API
+     * @returns {Promise<AudioBuffer>} The generated sound buffer
+     */
+    async generateSuccessSound() {
+        const duration = 0.6;
+        const sampleRate = this.audioContext.sampleRate;
+        const buffer = this.audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        // Create a melodic success sound (ascending arpeggio)
+        const frequencies = [440, 554.37, 659.25, 880]; // A4, C#5, E5, A5 notes
+        
+        for (let i = 0; i < buffer.length; i++) {
+            const t = i / sampleRate;
+            let sample = 0;
+            
+            // Play each note in sequence
+            for (let j = 0; j < frequencies.length; j++) {
+                const startTime = j * 0.12;
+                const noteLength = 0.15;
+                
+                if (t >= startTime && t < startTime + noteLength) {
+                    const freq = frequencies[j];
+                    // Envelope for each note
+                    const envelope = Math.min(1, (t - startTime) * 30) * 
+                                    Math.max(0, 1 - ((t - startTime) / noteLength) * 2);
+                    sample += 0.3 * Math.sin(2 * Math.PI * freq * t) * envelope;
+                }
+            }
+            
+            data[i] = sample;
+        }
+        
+        return buffer;
+    }
+    
+    /**
+     * Generate an error sound using Web Audio API
+     * @returns {Promise<AudioBuffer>} The generated sound buffer
+     */
+    async generateErrorSound() {
+        const duration = 0.4;
+        const sampleRate = this.audioContext.sampleRate;
+        const buffer = this.audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        // Create a descending buzz sound for errors
+        const baseFreq = 400;
+        
+        for (let i = 0; i < buffer.length; i++) {
+            const t = i / sampleRate;
+            // Decreasing frequency with wobble
+            const freq = baseFreq - (t * 100) + 30 * Math.sin(t * 30);
+            // Add some noise for harshness
+            const noise = Math.random() * 0.1;
+            const envelope = Math.min(1, t * 10) * Math.exp(-t / 0.2);
+            
+            data[i] = (0.3 * Math.sin(2 * Math.PI * freq * t) + noise) * envelope;
+        }
+        
+        return buffer;
+    }
+    
+    /**
+     * Generate a radio sound using Web Audio API
+     * @returns {Promise<AudioBuffer>} The generated sound buffer
+     */
+    async generateRadioSound() {
+        const duration = 0.8;
+        const sampleRate = this.audioContext.sampleRate;
+        const buffer = this.audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        // Create a staticky radio sound with voice effect
+        for (let i = 0; i < buffer.length; i++) {
+            const t = i / sampleRate;
+            // Static noise
+            const staticNoise = Math.random() * 0.5 - 0.25;
+            // Voice-like modulation
+            const voiceTone = 0.2 * Math.sin(2 * Math.PI * 240 * t) * 
+                              Math.sin(2 * Math.PI * 3 * t); 
+            // Radio beep
+            const beep = (t > 0.2 && t < 0.3) ? 0.15 * Math.sin(2 * Math.PI * 800 * t) : 0;
+            // Combine with envelope
+            const envelope = Math.min(1, t * 5) * Math.exp(-t / 0.6);
+            
+            data[i] = (staticNoise + voiceTone + beep) * envelope;
+        }
+        
+        return buffer;
+    }
+    
+    /**
+     * Generate a footstep sound using Web Audio API
+     * @returns {Promise<AudioBuffer>} The generated sound buffer
+     */
+    async generateFootstepSound() {
+        const duration = 0.2;
+        const sampleRate = this.audioContext.sampleRate;
+        const buffer = this.audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        // Create a footstep sound
+        for (let i = 0; i < buffer.length; i++) {
+            const t = i / sampleRate;
+            // Low frequency thump with noise
+            const thump = 0.3 * Math.sin(2 * Math.PI * 80 * t) * Math.exp(-t / 0.05);
+            // Shoe friction sound (white noise with envelope)
+            const friction = (Math.random() * 2 - 1) * 0.1 * Math.exp(-t / 0.1);
+            
+            data[i] = thump + (t > 0.05 ? friction : 0);
+        }
+        
+        return buffer;
     }
     
     /**
@@ -203,39 +445,6 @@ class SoundManager {
         } catch (error) {
             this.logError("Error loading music tracks:", error);
             return false;
-        }
-    }
-    
-    /**
-     * Load a single sound effect
-     * @param {string} name - Identifier for the sound
-     * @param {string} url - URL to the sound file
-     * @returns {Promise} Resolves when the sound is loaded
-     */
-    async loadSound(name, url) {
-        if (!this.audioContext) return Promise.reject('Audio context not initialized');
-        
-        try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch sound: ${response.status} ${response.statusText}`);
-            }
-            
-            const arrayBuffer = await response.arrayBuffer();
-            const audioBuffer = await this.decodeAudioData(arrayBuffer);
-            
-            this.sounds.set(name, audioBuffer);
-            this.log(`Loaded sound: ${name}`);
-            return audioBuffer;
-        } catch (error) {
-            this.logError(`Error loading sound "${name}" from ${url}:`, error);
-            
-            // Create a silent buffer as fallback
-            const fallbackBuffer = this.createSilentBuffer(0.5);
-            this.sounds.set(name, fallbackBuffer);
-            
-            // Don't reject - allow the game to continue with a silent sound
-            return fallbackBuffer;
         }
     }
     
@@ -314,6 +523,35 @@ class SoundManager {
                 decodePromise.catch(reject);
             }
         });
+    }
+
+    /**
+     * Helper to convert time-domain data to frequency-domain data
+     * @param {Float32Array} timeData - Time domain data
+     * @returns {Float32Array} Frequency domain data
+     */
+    timeToFrequency(timeData) {
+        // Simple FFT implementation for sound generation
+        const len = timeData.length;
+        const freqData = new Float32Array(len);
+        
+        for (let k = 0; k < len; k++) {
+            let real = 0;
+            let imag = 0;
+            
+            for (let n = 0; n < len; n++) {
+                const phi = (2 * Math.PI * k * n) / len;
+                real += timeData[n] * Math.cos(phi);
+                imag -= timeData[n] * Math.sin(phi);
+            }
+            
+            real /= len;
+            imag /= len;
+            
+            freqData[k] = Math.sqrt(real * real + imag * imag);
+        }
+        
+        return freqData;
     }
 
     /**
@@ -529,6 +767,23 @@ class SoundManager {
             this.currentMusic = null;
             this.activeMusicSource = null;
         }
+    }
+    
+    /**
+     * Handle user interaction to start audio (for browsers that require it)
+     */
+    handleUserInteraction() {
+        if (!this.audioContext) return;
+        
+        // Resume audio context if it's suspended
+        if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume().then(() => {
+                this.log('Audio context resumed after user interaction');
+            });
+        }
+        
+        // Make sure mobile audio is enabled
+        this.initMobileAudio();
     }
     
     /**
