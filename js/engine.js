@@ -22,6 +22,15 @@ class GameEngine {
             typingNPC: { active: false, x: 0, y: 0 }
         };
         
+        // Enable debug mode during development (set to false for production)
+        this.debugMode = false;
+        
+        // Game state persistence
+        this.savedGames = {};
+        this.currentSaveSlot = 'autosave';
+        this.autoSaveInterval = 60000; // Autosave every minute
+        this.lastAutoSave = Date.now();
+        
         // Initialize npcs with an empty object to prevent undefined errors
         this.npcs = {};
         this.roomBoundaries = {};
@@ -65,12 +74,31 @@ class GameEngine {
         // Animation frame counter
         this.animationFrame = 0;
         
+        // FPS tracking
+        this.fpsValues = [];
+        this.currentFPS = 60;
+        this.lastFpsUpdate = 0;
+        
+        // Performance optimization
+        this.lastFrameTime = 0;
+        this.targetFPS = 60;
+        this.frameDuration = 1000 / this.targetFPS;
+        this.accumulatedTime = 0;
+        
+        // Minimap settings
+        this.showMinimap = false;
+        this.minimapSize = 150;
+        this.minimapPosition = { x: 20, y: 20 };
+        
         // Initialize immediately if document is ready
         if (document.readyState === 'complete') {
             this.init();
         } else {
             window.addEventListener('DOMContentLoaded', () => this.init());
         }
+        
+        // Set up keyboard shortcuts for commands
+        this.setupCommandShortcuts();
     }
 
     init() {
@@ -183,20 +211,39 @@ class GameEngine {
 
         // Calculate delta time and maintain consistent frame rate
         const deltaTime = timestamp - this.lastFrameTime;
-        this.accumulator += deltaTime;
+        this.accumulatedTime += deltaTime;
         
         // Update animation frame counter
         this.animationFrame++;
-
-        while (this.accumulator >= this.frameInterval) {
+        
+        // Track FPS
+        this.updateFPS(deltaTime);
+        
+        // Process as many updates as needed based on accumulated time
+        let updatesCount = 0;
+        while (this.accumulatedTime >= this.frameDuration && updatesCount < 5) {
             // Update game state with proper delta time
-            this.update(this.frameInterval / 1000);
-            this.accumulator -= this.frameInterval;
+            this.update(this.frameDuration / 1000);
+            this.accumulatedTime -= this.frameDuration;
+            updatesCount++;
+            
+            // Check for autosave
+            this.checkAutosave();
         }
 
         // Render to offscreen canvas
         this.offscreenCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.drawCurrentScene();
+        
+        // Draw minimap if enabled
+        if (this.showMinimap) {
+            this.drawMinimap();
+        }
+        
+        // Draw debug info if enabled
+        if (this.debugMode) {
+            this.drawDebugInfo(this.offscreenCtx);
+        }
 
         // Swap buffers
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -2910,6 +2957,299 @@ class GameEngine {
             }
         }
     };
+
+    setupCommandShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Skip if input fields are focused
+            if (document.activeElement.tagName === 'INPUT' || 
+                document.activeElement.tagName === 'TEXTAREA') {
+                return;
+            }
+            
+            switch(e.key.toLowerCase()) {
+                case 'l':
+                    this.setActiveCommand('look');
+                    break;
+                case 't':
+                    this.setActiveCommand('talk');
+                    break;
+                case 'u':
+                    this.setActiveCommand('use');
+                    break;
+                case 'g':
+                    this.setActiveCommand('take'); // g for "get" item
+                    break;
+                case 'm':
+                    this.setActiveCommand('move');
+                    break;
+                case 'i':
+                    this.toggleInventory();
+                    break;
+                case 'p':
+                    this.toggleMinimap();
+                    break;
+                case 'f12':
+                    this.toggleDebugMode();
+                    break;
+                case 'f5':
+                    this.quickSaveGame();
+                    break;
+                case 'f9':
+                    this.quickLoadGame();
+                    break;
+            }
+        });
+    }
+    
+    setActiveCommand(command) {
+        document.querySelectorAll('.cmd-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.action === command) {
+                btn.classList.add('active');
+            }
+        });
+        this.activeCommand = command;
+        soundManager.playSound('click');
+        this.updateCursor();
+        
+        // Show feedback
+        this.showDialog(`Command: ${command}`);
+    }
+    
+    toggleInventory() {
+        const inventoryPanel = document.getElementById('inventoryPanel');
+        if (inventoryPanel) {
+            const isVisible = inventoryPanel.style.display !== 'none';
+            inventoryPanel.style.display = isVisible ? 'none' : 'block';
+            soundManager.playSound('click');
+        }
+    }
+    
+    toggleMinimap() {
+        this.showMinimap = !this.showMinimap;
+        soundManager.playSound('click');
+        this.showDialog(this.showMinimap ? 'Minimap enabled' : 'Minimap disabled');
+    }
+    
+    toggleDebugMode() {
+        this.debugMode = !this.debugMode;
+        console.log(`Debug mode: ${this.debugMode ? 'enabled' : 'disabled'}`);
+        this.showDialog(`Debug mode: ${this.debugMode ? 'enabled' : 'disabled'}`);
+    }
+    
+    saveGame(slotName = this.currentSaveSlot) {
+        try {
+            // Create save data object
+            const saveData = {
+                playerPosition: this.playerPosition,
+                playerFacing: this.playerFacing,
+                currentScene: this.currentScene,
+                inventory: window.GAME_DATA ? window.GAME_DATA.inventory : [],
+                gameState: window.game ? window.game.gameState : {},
+                timestamp: Date.now()
+            };
+            
+            // Store in memory
+            this.savedGames[slotName] = saveData;
+            
+            // Store in localStorage (with error handling)
+            try {
+                localStorage.setItem(`pqsave_${slotName}`, JSON.stringify(saveData));
+            } catch (storageError) {
+                console.warn('Could not save to localStorage:', storageError);
+            }
+            
+            this.showDialog(`Game saved to slot: ${slotName}`);
+            return true;
+        } catch (error) {
+            console.error('Error saving game:', error);
+            this.showDialog('Failed to save game');
+            return false;
+        }
+    }
+    
+    loadGame(slotName = this.currentSaveSlot) {
+        try {
+            // Try to load from memory first
+            let saveData = this.savedGames[slotName];
+            
+            // If not in memory, try localStorage
+            if (!saveData) {
+                const savedString = localStorage.getItem(`pqsave_${slotName}`);
+                if (savedString) {
+                    saveData = JSON.parse(savedString);
+                    this.savedGames[slotName] = saveData; // Cache it
+                }
+            }
+            
+            if (!saveData) {
+                this.showDialog(`No saved game found in slot: ${slotName}`);
+                return false;
+            }
+            
+            // Restore game state
+            this.playerPosition = saveData.playerPosition;
+            this.playerFacing = saveData.playerFacing;
+            
+            // Only change scene if it's different
+            if (this.currentScene !== saveData.currentScene) {
+                this.currentScene = saveData.currentScene;
+                this.loadScene(this.currentScene);
+            }
+            
+            // Restore inventory and game state if available
+            if (window.GAME_DATA) {
+                window.GAME_DATA.inventory = saveData.inventory || [];
+            }
+            
+            if (window.game && saveData.gameState) {
+                window.game.gameState = saveData.gameState;
+                
+                // Update UI if needed
+                if (typeof this.updateInventoryUI === 'function') {
+                    this.updateInventoryUI();
+                }
+                if (typeof this.updateCaseInfo === 'function') {
+                    this.updateCaseInfo();
+                }
+            }
+            
+            this.showDialog(`Game loaded from slot: ${slotName}`);
+            return true;
+        } catch (error) {
+            console.error('Error loading game:', error);
+            this.showDialog('Failed to load game');
+            return false;
+        }
+    }
+    
+    quickSaveGame() {
+        this.saveGame('quicksave');
+        soundManager.playSound('click');
+    }
+    
+    quickLoadGame() {
+        if (this.loadGame('quicksave')) {
+            soundManager.playSound('success');
+        } else {
+            soundManager.playSound('error');
+        }
+    }
+    
+    // Check if it's time to autosave
+    checkAutosave() {
+        const now = Date.now();
+        if (now - this.lastAutoSave > this.autoSaveInterval) {
+            this.saveGame('autosave');
+            this.lastAutoSave = now;
+        }
+    }
+    
+    updateFPS(deltaTime) {
+        this.fpsValues.push(1000 / deltaTime);
+        if (this.fpsValues.length > 60) {
+            this.fpsValues.shift();
+        }
+        
+        // Update FPS display every 500ms
+        const now = Date.now();
+        if (now - this.lastFpsUpdate > 500) {
+            const sum = this.fpsValues.reduce((a, b) => a + b, 0);
+            this.currentFPS = Math.round(sum / this.fpsValues.length);
+            this.lastFpsUpdate = now;
+        }
+    }
+    
+    drawDebugInfo(ctx) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(10, 10, 200, 120);
+        
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px monospace';
+        ctx.fillText(`FPS: ${this.currentFPS}`, 20, 30);
+        ctx.fillText(`Scene: ${this.currentScene}`, 20, 50);
+        ctx.fillText(`Position: ${Math.round(this.playerPosition.x)},${Math.round(this.playerPosition.y)}`, 20, 70);
+        ctx.fillText(`NPCs: ${this.npcs[this.currentScene]?.length || 0}`, 20, 90);
+        ctx.fillText(`Collisions: ${this.collisionObjects.length}`, 20, 110);
+    }
+    
+    drawMinimap() {
+        const ctx = this.offscreenCtx;
+        const mapSize = this.minimapSize;
+        const { x, y } = this.minimapPosition;
+        
+        // Draw background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(x, y, mapSize, mapSize);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, mapSize, mapSize);
+        
+        // Scale factors
+        const scaleX = mapSize / this.canvas.width;
+        const scaleY = mapSize / this.canvas.height;
+        
+        // Draw room shape
+        ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+        ctx.fillRect(x, y + mapSize * 0.5, mapSize, mapSize * 0.5);
+        
+        // Draw doors
+        const doors = this.collisionObjects.filter(obj => obj.type === 'door');
+        doors.forEach(door => {
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.7)';
+            ctx.fillRect(
+                x + door.x * scaleX,
+                y + door.y * scaleY,
+                door.width * scaleX,
+                door.height * scaleY
+            );
+        });
+        
+        // Draw NPCs
+        if (this.npcs[this.currentScene]) {
+            this.npcs[this.currentScene].forEach(npc => {
+                ctx.fillStyle = 'rgba(0, 0, 255, 0.7)';
+                ctx.beginPath();
+                ctx.arc(
+                    x + npc.x * scaleX, 
+                    y + npc.y * scaleY, 
+                    3, 0, Math.PI * 2
+                );
+                ctx.fill();
+            });
+        }
+        
+        // Draw player position
+        ctx.fillStyle = 'rgba(255, 255, 0, 0.9)';
+        ctx.beginPath();
+        ctx.arc(
+            x + this.playerPosition.x * scaleX, 
+            y + this.playerPosition.y * scaleY, 
+            4, 0, Math.PI * 2
+        );
+        ctx.fill();
+        
+        // Draw facing direction
+        ctx.beginPath();
+        ctx.moveTo(x + this.playerPosition.x * scaleX, y + this.playerPosition.y * scaleY);
+        let dirX = 0, dirY = 0;
+        switch(this.playerFacing) {
+            case 'up': dirY = -8; break;
+            case 'right': dirX = 8; break;
+            case 'down': dirY = 8; break;
+            case 'left': dirX = -8; break;
+        }
+        ctx.lineTo(
+            x + this.playerPosition.x * scaleX + dirX, 
+            y + this.playerPosition.y * scaleY + dirY
+        );
+        ctx.stroke();
+        
+        // Draw legend
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px monospace';
+        ctx.fillText(`${this.currentScene}`, x + 5, y + 15);
+    }
 }
 
 // Add functionality to handle interactions with hotspots
