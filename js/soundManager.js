@@ -50,10 +50,15 @@ class SoundManager {
                 return false;
             }
 
-            // Create AudioContext on initialization but in suspended state
+            // Create AudioContext but don't use it until user interaction
             this.audioContext = new AudioContext();
             
-            // Create audio nodes
+            // Suspend it immediately
+            if (this.audioContext.state !== 'suspended') {
+                await this.audioContext.suspend();
+            }
+            
+            // Set up nodes
             this.masterGain = this.audioContext.createGain();
             this.masterGain.connect(this.audioContext.destination);
             
@@ -178,16 +183,24 @@ class SoundManager {
      * Initialize audio for mobile devices
      */
     async initMobileAudio() {
+        if (!this.audioContext) {
+            await this.initialize();
+        }
+        
         // Create a short silent buffer
         const silentBuffer = this.createSilentBuffer(0.1);
+        if (!silentBuffer) return;
         
         // Play the silent buffer to unlock audio
         const source = this.audioContext.createBufferSource();
         source.buffer = silentBuffer;
         source.connect(this.audioContext.destination);
-        source.start(0);
         
-        // Set the flag
+        // Only start if we have user interaction
+        if (this.audioContext.state === 'running') {
+            source.start(0);
+        }
+        
         this.mobileAudioEnabled = true;
         this.log("Mobile audio initialized");
     }

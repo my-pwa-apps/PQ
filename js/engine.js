@@ -3581,3 +3581,81 @@ loadResource(id, url) {
 if (typeof window !== 'undefined') {
     window.GameEngine = GameEngine;
 }
+
+class GameEngine {
+    // ...existing code...
+
+    constructor() {
+        this.initialized = false;
+        this.isRunning = false;
+        this.canvas = null;
+        this.ctx = null;
+        this.offscreenCanvas = null;
+        this.offscreenCtx = null;
+        this.requestID = null;
+        this.frameInterval = 1000 / 60;
+        this.lastFrameTime = 0;
+        this.accumulator = 0;
+        
+        // Add asset loading system
+        this.assets = new Map();
+        this.loadingAssets = new Set();
+    }
+
+    async loadAsset(id, url) {
+        if (this.assets.has(id)) {
+            return this.assets.get(id);
+        }
+
+        if (this.loadingAssets.has(id)) {
+            return new Promise((resolve, reject) => {
+                const checkLoaded = setInterval(() => {
+                    if (this.assets.has(id)) {
+                        clearInterval(checkLoaded);
+                        resolve(this.assets.get(id));
+                    }
+                }, 100);
+            });
+        }
+
+        this.loadingAssets.add(id);
+
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const image = await createImageBitmap(blob);
+            this.assets.set(id, image);
+            this.loadingAssets.delete(id);
+            return image;
+        } catch (error) {
+            this.loadingAssets.delete(id);
+            throw error;
+        }
+    }
+
+    // Fix the syntax error by properly defining class methods
+    async init() {
+        try {
+            this.setupCanvas();
+            this.setupBufferCanvas();
+            this.setupEventListeners();
+            await this.loadScene(this.currentScene);
+            this.initializeNPCsForScene(this.currentScene);
+            this.startGameLoop();
+            
+            this.initialized = true;
+            console.log("Game engine initialized successfully");
+            return true;
+        } catch (error) {
+            console.error("Failed to initialize game engine:", error);
+            return false;
+        }
+    }
+
+    // ...existing code...
+}
+
+// Export the class properly
+if (typeof window !== 'undefined') {
+    window.GameEngine = GameEngine;
+}

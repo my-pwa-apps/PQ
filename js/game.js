@@ -568,17 +568,18 @@ class Game {
             
             this.showLoadingScreen();
             
-            // Initialize systems in parallel
-            const [engineInit, soundInit, assetsInit] = await Promise.all([
-                this.initEngine(),
+            // Initialize engine first
+            const engineInit = await this.initEngine();
+            if (!engineInit) {
+                throw new Error('Failed to initialize game engine');
+            }
+
+            // Then initialize other systems
+            const [soundInit, assetsInit] = await Promise.all([
                 this.initSoundSystem(),
                 this.preloadAssets()
             ]);
 
-            if (!engineInit || !soundInit) {
-                throw new Error('Failed to initialize core systems');
-            }
-            
             this.setupErrorHandlers();
             this.initializeGameState();
             this.startPerformanceMonitoring();
@@ -603,23 +604,23 @@ class Game {
     async preloadAssets() {
         const assetPromises = [];
         
-        // Preload critical assets first
-        const criticalAssets = [
-            'player',
-            'ui_elements',
-            'background_main'
-        ];
+        // Define asset locations
+        const assets = {
+            'player': 'assets/player.png',
+            'ui_elements': 'assets/ui.png',
+            'background_main': 'assets/background.png'
+        };
         
-        for (const assetId of criticalAssets) {
-            if (!this.loadedAssets.has(assetId)) {
-                assetPromises.push(this.loadAsset(assetId));
+        // Load critical assets through game engine
+        for (const [id, url] of Object.entries(assets)) {
+            if (this.engine && !this.engine.assets.has(id)) {
+                try {
+                    assetPromises.push(this.engine.loadAsset(id, url));
+                } catch (error) {
+                    console.error(`Failed to load asset ${id}:`, error);
+                }
             }
         }
-        
-        // Load remaining assets in background
-        setTimeout(() => {
-            this.loadNonCriticalAssets();
-        }, 100);
         
         return Promise.all(assetPromises);
     }
