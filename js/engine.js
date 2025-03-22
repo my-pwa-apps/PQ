@@ -185,7 +185,9 @@ class GameEngine {
             brightRed: '#FF5555',
             brightMagenta: '#FF55FF',
             yellow: '#FFFF55',
-            white: '#FFFFFF'
+            white: '#FFFFFF',
+            skin: '#FFD8B1',
+            darkBlue: '#000066'
         };
     }
 
