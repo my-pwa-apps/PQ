@@ -263,16 +263,16 @@ class GameEngine {
         this.isRunning = false;
     }
 
-    addAnimation = (id, frames, duration) => {
+    addAnimation(id, frames, duration) {
         this.animations.set(id, {
             frames,
             duration,
             currentFrame: 0,
             elapsed: 0
         });
-    };
+    }
 
-    updateAnimations = (deltaTime) => {
+    updateAnimations(deltaTime) {
         for (const [id, anim] of this.animations) {
             anim.elapsed += deltaTime;
             if (anim.elapsed >= anim.duration) {
@@ -280,9 +280,9 @@ class GameEngine {
                 anim.elapsed = 0;
             }
         }
-    };
+    }
 
-    update = (deltaTime = 1/60) => {
+    update(deltaTime = 1/60) {
         // Handle player walking animation and movement
         if (this.isWalking && this.walkTarget) {
             // Calculate direction and distance
@@ -318,9 +318,9 @@ class GameEngine {
         
         // Update NPCs for the current scene
         this.updateNPCs(deltaTime);
-    };
+    }
     
-    updateNPCs = (deltaTime = 1/60) => {
+    updateNPCs(deltaTime = 1/60) {
         const currentSceneNPCs = this.npcs[this.currentScene];
         if (!currentSceneNPCs) return;
 
@@ -391,9 +391,9 @@ class GameEngine {
             // Check for NPC conversations - if NPCs are close to each other, they might start talking
             this.checkNPCConversations(npc, currentSceneNPCs);
         });
-    };
+    }
 
-    render = (interpolation) => {
+    render(interpolation) {
         // Clear back buffer
         this.backContext.clearRect(0, 0, this.backBuffer.width, this.backBuffer.height);
         
@@ -408,17 +408,17 @@ class GameEngine {
         // Flip buffers
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.drawImage(this.backBuffer, 0, 0);
-    };
+    }
 
-    drawDebugInfo = (ctx) => {
+    drawDebugInfo(ctx) {
         ctx.fillStyle = '#fff';
         ctx.font = '12px monospace';
         ctx.fillText(`FPS: ${this.currentFPS}`, 10, 20);
         ctx.fillText(`Objects: ${this.game.gameObjects.length}`, 10, 40);
         ctx.fillText(`Draw calls: ${this.drawCallCount}`, 10, 60);
-    };
+    }
 
-    drawCurrentScene = () => {
+    drawCurrentScene() {
         try {
             const ctx = this.offscreenCtx || this.ctx;
             ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -543,9 +543,9 @@ class GameEngine {
         } catch (error) {
             console.error("Error drawing scene:", error);
         }
-    };
+    }
 
-    setupEventListeners = () => {
+    setupEventListeners() {
         // Command buttons
         document.querySelectorAll('.cmd-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -632,14 +632,14 @@ class GameEngine {
                 this.updateCursor(); // Use action-specific cursor
             }
         });
-    };
+    }
 
-    updateCursor = () => {
+    updateCursor() {
         const cursorStyle = this.activeCommand ? 'pointer' : 'default';
         this.canvas.style.cursor = cursorStyle;
-    };
+    }
 
-    handleInteraction = (x, y) => {
+    handleInteraction(x, y) {
         if (this.activeCommand === 'move') {
             // Move character to clicked location
             const rect = this.canvas.getBoundingClientRect();
@@ -659,9 +659,9 @@ class GameEngine {
         if (clickedObject) {
             this.processInteraction(clickedObject);
         }
-    };
+    }
 
-    handleMovement = (direction) => {
+    handleMovement(direction) {
         const moveSpeed = 5;
         const oldX = this.playerPosition.x;
         const oldY = this.playerPosition.y;
@@ -707,9 +707,9 @@ class GameEngine {
             this.isWalking = false;
             this.drawCurrentScene();
         }, 100);
-    };
+    }
 
-    drawPoliceStation = (ctx) => {
+    drawPoliceStation(ctx) {
         ctx = ctx || this.ctx; // Use provided context or default to main context
         
         // Use the stored color palette for consistency
@@ -788,10 +788,10 @@ class GameEngine {
         
         // Update collision objects for this scene
         this.updateCollisionObjects();
-    };
+    }
 
     // New method to draw window view with a tree
-    drawWindowViewWithTree = (x, y, width, height, ctx) => {
+    drawWindowViewWithTree(x, y, width, height, ctx) {
         ctx = ctx || this.ctx;
         
         // Sky background
@@ -843,9 +843,9 @@ class GameEngine {
         ctx.arc(x + 35 + (this.animationFrame % 150), y + 25, 12, 0, Math.PI * 2);
         ctx.arc(x + 50 + (this.animationFrame % 150), y + 30, 10, 0, Math.PI * 2);
         ctx.fill();
-    };
+    }
 
-    drawOfficeArea = (ctx) => {
+    drawOfficeArea(ctx) {
         const colors = this.colors;
         ctx = ctx || this.ctx; // Use provided context or default to main context
         
@@ -896,9 +896,9 @@ class GameEngine {
         
         // Update collision objects
         this.updateCollisionObjects();
-    };
+    }
 
-    drawDowntown = (ctx) => {
+    drawDowntown(ctx) {
         ctx = ctx || this.ctx; // Use provided context or default to main context
         
         // Use the stored color palette for consistency
@@ -959,9 +959,9 @@ class GameEngine {
         this.drawArrowIndicator('right', 'Park');
         this.drawArrowIndicator('left', 'Station');
         this.drawArrowIndicator('down', 'Park');
-    };
+    }
 
-    drawPark = (ctx) => {
+    drawPark(ctx) {
         ctx = ctx || this.ctx; // Use provided context or default to main context
         
         // Use the stored color palette for consistency
@@ -1018,9 +1018,9 @@ class GameEngine {
         // Arrow indicators for keyboard navigation
         this.drawArrowIndicator('up', 'Downtown');
         this.drawArrowIndicator('left', 'Downtown');
-    };
+    }
 
-    getCharacterSprite = (uniformColor, badgeColor, facing, isWalking, isNPC, isFemale) => {
+    getCharacterSprite(uniformColor, badgeColor, facing, isWalking, isNPC, isFemale) {
         const key = `${uniformColor}_${badgeColor}_${facing}_${isWalking}_${isNPC}_${isFemale}`;
         if (!this.spriteCache.has(key)) {
             const spriteCanvas = document.createElement('canvas');
@@ -1031,9 +1031,9 @@ class GameEngine {
             this.spriteCache.set(key, spriteCanvas);
         }
         return this.spriteCache.get(key);
-    };
+    }
 
-    drawPixelCharacterToContext = (ctx, x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false, isFemale = false) => {
+    drawPixelCharacterToContext(ctx, x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false, isFemale = false) {
         const pixels = 4;
         const drawPixel = (px, py, color) => {
             ctx.fillStyle = color;
@@ -1203,9 +1203,9 @@ class GameEngine {
             drawPixel(xOffset + 4, yOffset + 3, '#000000'); // Right eye
             drawPixel(xOffset + 4, yOffset + 4, '#000000'); // Mouth
         }
-    };
+    }
 
-    drawPixelCharacter = (x, y, bodyColor, badgeColor = '#FFD700', facing = 'down', walking = false, isNPC = false, isFemale = false) => {
+    drawPixelCharacter(x, y, bodyColor, badgeColor = '#FFD700', facing = 'down', walking = false, isNPC = false, isFemale = false) {
         const ctx = this.offscreenCtx || this.ctx;
         const frame = Math.floor(this.animationFrame / 10) % 2;
         const legOffset = walking ? (frame === 0 ? -3 : 3) : 0;
@@ -1351,9 +1351,9 @@ class GameEngine {
             ctx.fillRect(x + 2 * scale, y - 28 * scale, 2 * scale, 2 * scale); // One eye
             ctx.fillRect(x + 3 * scale, y - 22 * scale, 3 * scale, 1 * scale); // Mouth
         }
-    };
+    }
 
-    drawSheriffsOffice = (ctx) => {
+    drawSheriffsOffice(ctx) {
         ctx = ctx || this.ctx; // Use provided context or default to main context
         
         const colors = this.colors;
@@ -1422,9 +1422,9 @@ class GameEngine {
         // Navigation arrows
         this.drawArrowIndicator('down', 'Station');
         this.drawArrowIndicator('right', 'Briefing');
-    };
+    }
 
-    drawBriefingRoom = (ctx) => {
+    drawBriefingRoom(ctx) {
         ctx = ctx || this.ctx; // Use provided context or default to main context
         
         const colors = this.colors;
@@ -1490,9 +1490,9 @@ class GameEngine {
         // Navigation arrows
         this.drawArrowIndicator('down', 'Station');
         this.drawArrowIndicator('left', 'Sheriff');
-    };
+    }
 
-    checkCollision = (x, y) => {
+    checkCollision(x, y) {
         // Check desk collisions first
         const desks = this.collisionObjects.filter(obj => obj.type === 'desk');
         for (const desk of desks) {
@@ -1523,9 +1523,9 @@ class GameEngine {
         }
 
         return null;
-    };
+    }
 
-    processInteraction = (hitObject) => {
+    processInteraction(hitObject) {
         if (!this.activeCommand) {
             this.showDialog("Select an action first (Look, Talk, Use, Take, Move)");
             return;
@@ -1592,9 +1592,9 @@ class GameEngine {
             this.showDialog(`You can't ${this.activeCommand} that.`);
             soundManager.playSound('error');
         }
-    };
+    }
 
-    updateInventoryUI = () => {
+    updateInventoryUI() {
         try {
             // Clear existing inventory display
             this.inventoryPanel.innerHTML = '';
@@ -1614,9 +1614,9 @@ class GameEngine {
         } catch (error) {
             console.error("Error updating inventory UI:", error);
         }
-    };
+    }
 
-    updateCaseInfo = () => {
+    updateCaseInfo() {
         try {
             if (!game.currentCase) return;
             
@@ -1634,9 +1634,9 @@ class GameEngine {
         } catch (error) {
             console.error("Error updating case info:", error);
         }
-    };
+    }
 
-    showDialog = (text) => {
+    showDialog(text) {
         if (!text) return;
         
         // Find dialog box if not already cached
@@ -1651,9 +1651,9 @@ class GameEngine {
             // Fallback to console if no dialog box element exists
             console.log(`Dialog: ${text}`);
         }
-    };
+    }
 
-    loadScene = (sceneId) => {
+    loadScene(sceneId) {
         try {
             // Validate scene ID
             if (!sceneId) {
@@ -1714,9 +1714,9 @@ class GameEngine {
             console.error("Stack trace:", error.stack);
             this.showDialog("Error loading scene. Please try again.");
         }
-    };
+    }
 
-    initializeNPCsForScene = (sceneId) => {
+    initializeNPCsForScene(sceneId) {
         // Clear existing NPCs for this scene
         this.npcs[sceneId] = [];
         
@@ -1809,9 +1809,9 @@ class GameEngine {
                 });
                 break;
         }
-    };
+    }
 
-    updateNPCs = (deltaTime = 1/60) => {
+    updateNPCs(deltaTime = 1/60) {
         const currentSceneNPCs = this.npcs[this.currentScene];
         if (!currentSceneNPCs) return;
 
@@ -1878,9 +1878,9 @@ class GameEngine {
             // Check for conversations with nearby NPCs
             this.checkNPCConversations(npc, currentSceneNPCs);
         });
-    };
+    }
 
-    drawRoomBoundaries = () => {
+    drawRoomBoundaries() {
         const boundaries = this.roomBoundaries[this.currentScene];
         if (!boundaries) return;
         
@@ -1897,9 +1897,9 @@ class GameEngine {
         boundaries.doors.forEach(door => {
             this.ctx.strokeRect(door.x, door.y, door.width, door.height);
         });
-    };
+    }
     
-    drawExitDoor = (x, y, label, ctx) => {
+    drawExitDoor(x, y, label, ctx) {
         ctx = ctx || this.ctx;
         
         // Door frame with exit sign above
@@ -1934,9 +1934,9 @@ class GameEngine {
                 talk: "It's a door. It doesn't talk back."
             }
         });
-    };
+    }
     
-    addExitSign = (x, y, destination, ctx) => {
+    addExitSign(x, y, destination, ctx) {
         ctx = ctx || this.ctx;
         
         if (!destination || typeof x !== 'number' || typeof y !== 'number') {
@@ -1962,12 +1962,12 @@ class GameEngine {
         ctx.textAlign = 'center';
         ctx.fillText(destination, x, y - TEXT_OFFSET);
         ctx.textAlign = 'left'; // Reset to default
-    };
+    }
 
     // Memoized color adjustment for better performance
     #colorCache = new Map();
     
-    adjustColor = (color, amount) => {
+    adjustColor(color, amount) {
         const cacheKey = `${color}_${amount}`;
         if (this.#colorCache.has(cacheKey)) {
             return this.#colorCache.get(cacheKey);
@@ -1991,27 +1991,27 @@ class GameEngine {
             console.warn('Error adjusting color:', error);
             return color; // Return original color if adjustment fails
         }
-    };
+    }
 
-    startBackgroundMusic = () => {
+    startBackgroundMusic() {
         const sceneMusic = this.currentScene?.music || 'station_theme';
         window.soundManager.playBackgroundMusic(sceneMusic);
-    };
+    }
 
-    stopBackgroundMusic = () => {
+    stopBackgroundMusic() {
         window.soundManager.stopBackgroundMusic();
-    };
+    }
 
     // Optimized color handling
-    getCachedColor = (r, g, b, a = 1) => {
+    getCachedColor(r, g, b, a = 1) {
         const key = `${r},${g},${b},${a}`;
         if (!this.colorCache.has(key)) {
             this.colorCache.set(key, `rgba(${r},${g},${b},${a})`);
         }
         return this.colorCache.get(key);
-    };
+    }
 
-    draw = (ctx) => {
+    draw(ctx) {
         // Batch similar draw operations
         const drawBatch = new Map();
         
@@ -2032,28 +2032,28 @@ class GameEngine {
             }
             ctx.restore();
         }
-    };
+    }
 
     // Optimized pixel operations using TypedArrays
-    createPixelBuffer = () => {
+    createPixelBuffer() {
         const buffer = new ArrayBuffer(this.canvas.width * this.canvas.height * 4);
         return new Uint8ClampedArray(buffer);
-    };
+    }
 
-    setPixel = (buffer, x, y, r, g, b, a = 255) => {
+    setPixel(buffer, x, y, r, g, b, a = 255) {
         const index = (y * this.canvas.width + x) * 4;
         buffer[index] = r;
         buffer[index + 1] = g;
         buffer[index + 2] = b;
         buffer[index + 3] = a;
-    };
+    }
 
-    updateCanvas = (buffer) => {
+    updateCanvas(buffer) {
         const imageData = new ImageData(buffer, this.canvas.width, this.canvas.height);
         this.offscreenCtx.putImageData(imageData, 0, 0);
-    };
+    }
 
-    renderScene = () => {
+    renderScene() {
         // Draw background and base elements first
         // ...existing code...
 
@@ -2064,9 +2064,9 @@ class GameEngine {
                 // ...existing code...
             });
         }
-    };
+    }
 
-    drawOfficeChair = (x, y, facing = 'left', ctx) => {
+    drawOfficeChair(x, y, facing = 'left', ctx) {
         ctx = ctx || this.ctx;
         
         // Make chair bigger to match desk scale
@@ -2107,7 +2107,7 @@ class GameEngine {
         } else {
             ctx.fillRect(x + 12 * scale, y - 25 * scale, 3 * scale, 10 * scale);
         }
-    };
+    }
 
     // Method to check for NPC conversations
     checkNPCConversations(npc, allNpcs) {
@@ -2152,7 +2152,7 @@ class GameEngine {
     }
     
     // Random dialogue based on NPC type
-    getRandomDialogue = (npcType) => {
+    getRandomDialogue(npcType) {
         const dialogues = {
             officer: [
                 "Any leads on that case?",
@@ -2187,10 +2187,10 @@ class GameEngine {
         // Default to officer dialogue if type not found
         const typeDialogues = dialogues[npcType] || dialogues.officer;
         return typeDialogues[Math.floor(Math.random() * typeDialogues.length)];
-    };
+    }
     
     // Random responses
-    getRandomResponse = (npcType) => {
+    getRandomResponse(npcType) {
         const responses = [
             "I hear you.",
             "Good point.",
@@ -2203,10 +2203,10 @@ class GameEngine {
         ];
         
         return responses[Math.floor(Math.random() * responses.length)];
-    };
+    }
     
     // Draw conversation bubble with text
-    drawConversationBubble = (x, y, text, ctx) => {
+    drawConversationBubble(x, y, text, ctx) {
         if (!text) return; // Skip if no text to show
         
         ctx = ctx || this.offscreenCtx || this.ctx;
@@ -2272,10 +2272,10 @@ class GameEngine {
         ctx.fillText(text, x, y - bubbleHeight/2 - pointerHeight);
         ctx.textAlign = 'left'; // Reset to default
         ctx.textBaseline = 'alphabetic'; // Reset to default
-    };
+    }
     
     // Helper method for drawing rounded rectangles
-    drawRoundedRect = (ctx, x, y, width, height, radius) => {
+    drawRoundedRect(ctx, x, y, width, height, radius) {
         ctx.beginPath();
         ctx.moveTo(x + radius, y);
         ctx.lineTo(x + width - radius, y);
@@ -2288,10 +2288,10 @@ class GameEngine {
         ctx.quadraticCurveTo(x, y, x + radius, y);
         ctx.closePath();
         ctx.fill();
-    };
+    }
 
     // Random dialogue for receptionist working at desk
-    getRandomWorkingDialogue = () => {
+    getRandomWorkingDialogue() {
         const workingDialogues = [
             "Filing these reports...",
             "Updating the system...",
@@ -2303,9 +2303,9 @@ class GameEngine {
             "Need to finish this form."
         ];
         return workingDialogues[Math.floor(Math.random() * workingDialogues.length)];
-    };
+    }
 
-    setupAmbientAnimations = (scene) => {
+    setupAmbientAnimations(scene) {
         // Reset all animations
         Object.keys(this.ambientAnimations).forEach(key => {
             this.ambientAnimations[key].active = false;
@@ -2333,9 +2333,9 @@ class GameEngine {
                 this.ambientAnimations.coffeeSteam.active = true;
                 break;
         }
-    };
+    }
 
-    updateCollisionObjects = () => {
+    updateCollisionObjects() {
         this.collisionObjects = [];
         
         switch(this.currentScene) {
@@ -2497,9 +2497,9 @@ class GameEngine {
                 });
                 break;
         }
-    };
+    }
 
-    drawFloorGrid = (x, y, width, height) => {
+    drawFloorGrid(x, y, width, height) {
         const ctx = this.ctx;
         ctx.strokeStyle = 'rgba(0,0,0,0.2)';
         ctx.lineWidth = 1;
@@ -2528,9 +2528,9 @@ class GameEngine {
             ctx.lineTo(endX, endY);
             ctx.stroke();
         }
-    };
+    }
 
-    draw3DWall = (x, y, width, height, color, ctx) => {
+    draw3DWall(x, y, width, height, color, ctx) {
         ctx = ctx || this.ctx;
         
         // Calculate perspective points
@@ -2566,9 +2566,9 @@ class GameEngine {
         
         ctx.fillStyle = vGradient;
         ctx.fillRect(x, y, width, height);
-    };
+    }
 
-    drawBulletinNotices = (x, y, width, height, ctx) => {
+    drawBulletinNotices(x, y, width, height, ctx) {
         ctx = ctx || this.ctx;
         const notices = [
             { title: "WANTED", color: "#FF9999" },
@@ -2600,9 +2600,9 @@ class GameEngine {
                 ctx.fillRect(xPos + 5, yPos + 20 + j * 4, 35, 1);
             }
         });
-    };
+    }
 
-    draw3DDesk = (x, y, width, height, ctx) => {
+    draw3DDesk(x, y, width, height, ctx) {
         ctx = ctx || this.ctx;
         
         // Desk top
@@ -2627,9 +2627,9 @@ class GameEngine {
         gradient.addColorStop(1, 'rgba(139, 69, 19, 0)');
         ctx.fillStyle = gradient;
         ctx.fillRect(x, y, width, height);
-    };
+    }
 
-    drawDeskItems = (x, y, width, height, ctx) => {
+    drawDeskItems(x, y, width, height, ctx) {
         ctx = ctx || this.ctx;
         
         // Computer monitor
@@ -2650,9 +2650,9 @@ class GameEngine {
         // Coffee mug
         ctx.fillStyle = '#CC6600';
         ctx.fillRect(x + width - 90, y + 15, 10, 12);
-    };
+    }
 
-    drawDoorWithFrame = (x, y, facing, label, ctx) => {
+    drawDoorWithFrame(x, y, facing, label, ctx) {
         ctx = ctx || this.ctx;
         
         // Door frame
@@ -2679,9 +2679,9 @@ class GameEngine {
             ctx.fillText(label, x + 30, y - 10);
             ctx.textAlign = 'left'; // Reset to default
         }
-    };
+    }
 
-    drawWallDecorations = (ctx) => {
+    drawWallDecorations(ctx) {
         ctx = ctx || this.ctx;
         const colors = this.colors;
         
@@ -2761,9 +2761,9 @@ class GameEngine {
         ctx.fillStyle = colors.black;
         ctx.fillText("JUSTICE", 125, 90);
         ctx.fillText("SERVES ALL", 120, 105);
-    };
+    }
 
-    drawAmbientAnimations = () => {
+    drawAmbientAnimations() {
         const ctx = this.offscreenCtx || this.ctx;
         
         // Draw typing animation
@@ -2806,10 +2806,10 @@ class GameEngine {
                 ctx.fill();
             }
         }
-    };
+    }
 
     // Draw a star shape with the specified number of points
-    drawStar = (x, y, points, outerRadius, innerRadius) => {
+    drawStar(x, y, points, outerRadius, innerRadius) {
         const ctx = this.offscreenCtx || this.ctx;
         let step = Math.PI / points;
         
@@ -2831,9 +2831,9 @@ class GameEngine {
         }
         
         ctx.closePath();
-    };
+    }
 
-    drawWallDecorations = (ctx) => {
+    drawWallDecorations(ctx) {
         ctx = ctx || this.ctx;
         const colors = this.colors;
         
@@ -2913,9 +2913,9 @@ class GameEngine {
         ctx.fillStyle = colors.black;
         ctx.fillText("JUSTICE", 125, 90);
         ctx.fillText("SERVES ALL", 120, 105);
-    };
+    }
 
-    drawAmbientAnimations = () => {
+    drawAmbientAnimations() {
         const ctx = this.offscreenCtx || this.ctx;
         
         // Draw typing animation
@@ -2958,7 +2958,7 @@ class GameEngine {
                 ctx.fill();
             }
         }
-    };
+    }
 
     setupCommandShortcuts() {
         document.addEventListener('keydown', (e) => {
