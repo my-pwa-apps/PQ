@@ -5,23 +5,31 @@
 if (typeof window.DialogManager === 'undefined') {
     class DialogManager {
         constructor() {
+            // Cache DOM elements for better performance
             this.dialogElement = document.getElementById('dialog-text');
             this.dialogContainer = document.getElementById('dialog-box');
             this.optionsContainer = document.createElement('div');
             this.optionsContainer.id = 'dialog-options';
             this.dialogContainer.appendChild(this.optionsContainer);
             
+            // Dialog state management
             this.currentDialogQueue = [];
             this.typingSpeed = 30; // ms per character, Sierra-style typing speed
             this.isTyping = false;
             this.currentTimeout = null;
             this.parser = null;
-            
             this.currentDialogTree = null;
             this.currentDialogId = null;
             
+            // Initialize components
             this.initializeParser();
             this.createDialogClickListener();
+            
+            // Create a document fragment for batch DOM updates
+            this.domFragment = document.createDocumentFragment();
+            
+            // Track event listeners for proper cleanup
+            this.eventListeners = [];
         }
 
         initializeParser() {
@@ -41,12 +49,17 @@ if (typeof window.DialogManager === 'undefined') {
                     parserInput.type = 'text';
                     parserInput.className = 'parser-input';
                     parserInput.placeholder = 'Enter command: (e.g., "look badge" or "talk to officer")';
-                    parserInput.addEventListener('keydown', (e) => {
+                    
+                    // Store reference to event listener for potential cleanup
+                    const parseCommandHandler = (e) => {
                         if (e.key === 'Enter') {
                             this.parseCommand(e.target.value);
                             e.target.value = '';
                         }
-                    });
+                    };
+                    
+                    parserInput.addEventListener('keydown', parseCommandHandler);
+                    this.eventListeners.push({ element: parserInput, type: 'keydown', handler: parseCommandHandler });
                     
                     // Add it to the UI container
                     uiContainer.appendChild(parserInput);
@@ -57,7 +70,7 @@ if (typeof window.DialogManager === 'undefined') {
         createDialogClickListener() {
             // Allow clicking on dialog to advance text, Sierra style
             if (this.dialogContainer) {
-                this.dialogContainer.addEventListener('click', () => {
+                const dialogClickHandler = () => {
                     if (this.isTyping) {
                         // Skip typing animation and show full text
                         if (this.currentTimeout) {
@@ -79,7 +92,10 @@ if (typeof window.DialogManager === 'undefined') {
                         // Show next dialog in queue
                         this.showNextDialog();
                     }
-                });
+                };
+                
+                this.dialogContainer.addEventListener('click', dialogClickHandler);
+                this.eventListeners.push({ element: this.dialogContainer, type: 'click', handler: dialogClickHandler });
             }
         }
 
@@ -153,7 +169,7 @@ if (typeof window.DialogManager === 'undefined') {
             // Clear previous options
             this.optionsContainer.innerHTML = '';
             
-            // Create a container for the options
+            // Create options in a document fragment for better performance
             const optionsDiv = document.createElement('div');
             optionsDiv.className = 'dialog-options-container';
             
@@ -166,8 +182,11 @@ if (typeof window.DialogManager === 'undefined') {
                 optionButton.className = 'dialog-option';
                 optionButton.textContent = option.text;
                 
+                // Store the option's next node to avoid closure issues
+                const nextNode = option.next;
+                
                 // Add click handler
-                optionButton.addEventListener('click', () => {
+                const optionClickHandler = () => {
                     // Hide options
                     this.optionsContainer.innerHTML = '';
                     
@@ -176,9 +195,12 @@ if (typeof window.DialogManager === 'undefined') {
                     
                     // Go to the next node in this option path
                     this.waitForDialogCompletion(() => {
-                        this.showDialogNode(option.next);
+                        this.showDialogNode(nextNode);
                     });
-                });
+                };
+                
+                optionButton.addEventListener('click', optionClickHandler);
+                this.eventListeners.push({ element: optionButton, type: 'click', handler: optionClickHandler });
                 
                 optionsDiv.appendChild(optionButton);
             });
@@ -248,18 +270,21 @@ if (typeof window.DialogManager === 'undefined') {
             
             let charIndex = 0;
             
-            // Sierra-style typing effect
+            // Sierra-style typing effect - optimized with fewer DOM updates
             const typeNextChar = () => {
                 if (charIndex < text.length) {
-                    this.dialogElement.textContent += text.charAt(charIndex);
-                    charIndex++;
+                    // Calculate how many characters to add this frame (batch updates)
+                    const charsToAdd = Math.min(3, text.length - charIndex);
+                    const textToAdd = text.substring(charIndex, charIndex + charsToAdd);
+                    this.dialogElement.textContent += textToAdd;
+                    charIndex += charsToAdd;
                     
                     // Play typing sound every few characters for authentic feel
-                    if (charIndex % 3 === 0 && window.soundManager) {
+                    if (window.soundManager && charIndex % 3 === 0) {
                         window.soundManager.playSound('typing', 0.2);
                     }
                     
-                    // Schedule next character
+                    // Schedule next character(s)
                     this.currentTimeout = setTimeout(typeNextChar, this.typingSpeed);
                 } else {
                     // Finished typing this message
@@ -322,31 +347,36 @@ if (typeof window.DialogManager === 'undefined') {
             let preposition = null;
             let secondNoun = null;
             
-            // Parse the command
-            for (const word of words) {
-                if (!verb && this.parser.verbs.includes(word)) {
-                    verb = word;
-                } else if (!noun && this.parser.nouns.includes(word)) {
-                    noun = word;
-                } else if (!preposition && this.parser.prepositions.includes(word)) {
-                    preposition = word;
-                } else if (noun && preposition && !secondNoun && this.parser.nouns.includes(word)) {
-                    secondNoun = word;
+            try {
+                // Parse the command
+                for (const word of words) {
+                    if (!verb && this.parser.verbs.includes(word)) {
+                        verb = word;
+                    } else if (!noun && this.parser.nouns.includes(word)) {
+                        noun = word;
+                    } else if (!preposition && this.parser.prepositions.includes(word)) {
+                        preposition = word;
+                    } else if (noun && preposition && !secondNoun && this.parser.nouns.includes(word)) {
+                        secondNoun = word;
+                    }
                 }
-            }
-            
-            // Handle the command
-            if (verb) {
-                if (noun) {
-                    // Full command with verb and noun
-                    this.handleCommand(verb, noun, preposition, secondNoun);
+                
+                // Handle the command
+                if (verb) {
+                    if (noun) {
+                        // Full command with verb and noun
+                        this.handleCommand(verb, noun, preposition, secondNoun);
+                    } else {
+                        // Just a verb
+                        this.showDialog(`What do you want to ${verb}?`);
+                    }
                 } else {
-                    // Just a verb
-                    this.showDialog(`What do you want to ${verb}?`);
+                    // Could not parse
+                    this.showDialog("I don't understand that command.");
                 }
-            } else {
-                // Could not parse
-                this.showDialog("I don't understand that command.");
+            } catch (error) {
+                console.error("Error parsing command:", error);
+                this.showDialog("Sorry, I couldn't process that command.");
             }
         }
 
@@ -373,7 +403,8 @@ if (typeof window.DialogManager === 'undefined') {
             
             // Check NPCs if no static object found
             if (!targetObject && engine.npcs && engine.npcs[engine.currentScene]) {
-                targetObject = engine.npcs[engine.currentScene].find(npc => npc.id === noun || npc.name.toLowerCase().includes(noun));
+                targetObject = engine.npcs[engine.currentScene].find(npc => npc.id === noun || 
+                    (npc.name && npc.name.toLowerCase().includes(noun)));
             }
             
             // Special handler for "talk to" commands
@@ -387,7 +418,12 @@ if (typeof window.DialogManager === 'undefined') {
             
             // Check inventory if applicable
             if (!targetObject && verb === 'use' && window.GAME_DATA && window.GAME_DATA.inventory) {
-                const inventoryItem = window.GAME_DATA.inventory.find(item => item.toLowerCase().includes(noun));
+                // Handle inventory consistently whether it's an array or a set
+                let inventoryItems = Array.isArray(window.GAME_DATA.inventory) 
+                    ? window.GAME_DATA.inventory 
+                    : Array.from(window.GAME_DATA.inventory);
+                    
+                const inventoryItem = inventoryItems.find(item => item.toLowerCase().includes(noun));
                 if (inventoryItem) {
                     this.showDialog(`You are holding the ${inventoryItem}.`);
                     
@@ -403,7 +439,7 @@ if (typeof window.DialogManager === 'undefined') {
                         // Check NPCs if no static object found
                         if (!secondObject && engine.npcs && engine.npcs[engine.currentScene]) {
                             secondObject = engine.npcs[engine.currentScene].find(npc => 
-                                npc.id === secondNoun || npc.name.toLowerCase().includes(secondNoun));
+                                npc.id === secondNoun || (npc.name && npc.name.toLowerCase().includes(secondNoun)));
                         }
                         
                         if (secondObject) {
@@ -442,14 +478,19 @@ if (typeof window.DialogManager === 'undefined') {
                 return;
             }
             
-            if (window.GAME_DATA.inventory.length === 0) {
+            // Handle inventory consistently whether it's an array or a set
+            let inventoryItems = Array.isArray(window.GAME_DATA.inventory) 
+                ? window.GAME_DATA.inventory 
+                : Array.from(window.GAME_DATA.inventory);
+                
+            if (inventoryItems.length === 0) {
                 this.showDialog("You are not carrying anything.");
                 return;
             }
             
             // Format inventory items Sierra-style
             let inventoryText = "You are carrying:\n";
-            window.GAME_DATA.inventory.forEach(item => {
+            inventoryItems.forEach(item => {
                 inventoryText += `- ${item}\n`;
             });
             
@@ -469,16 +510,24 @@ if (typeof window.DialogManager === 'undefined') {
             // Clear existing items
             inventoryPanel.innerHTML = '';
             
+            // Use document fragment for better performance
+            const fragment = document.createDocumentFragment();
+            
             // Add each inventory item
             if (window.GAME_DATA && window.GAME_DATA.inventory) {
-                window.GAME_DATA.inventory.forEach(item => {
+                // Handle inventory consistently whether it's an array or a set
+                let inventoryItems = Array.isArray(window.GAME_DATA.inventory) 
+                    ? window.GAME_DATA.inventory 
+                    : Array.from(window.GAME_DATA.inventory);
+                    
+                inventoryItems.forEach(item => {
                     const itemElement = document.createElement('div');
                     itemElement.className = 'inventory-item';
                     itemElement.textContent = item;
                     itemElement.dataset.item = item;
                     
                     // Add click handler for item
-                    itemElement.addEventListener('click', () => {
+                    const itemClickHandler = () => {
                         // Select the item
                         document.querySelectorAll('.inventory-item').forEach(el => {
                             el.classList.remove('selected');
@@ -492,11 +541,45 @@ if (typeof window.DialogManager === 'undefined') {
                         
                         // Show dialog about the item
                         this.showDialog(`Examining: ${item}`);
-                    });
+                    };
                     
-                    inventoryPanel.appendChild(itemElement);
+                    itemElement.addEventListener('click', itemClickHandler);
+                    this.eventListeners.push({ element: itemElement, type: 'click', handler: itemClickHandler });
+                    
+                    fragment.appendChild(itemElement);
                 });
             }
+            
+            // Append all items at once
+            inventoryPanel.appendChild(fragment);
+        }
+        
+        /**
+         * Clean up resources - remove event listeners
+         */
+        dispose() {
+            // Clear any pending timeouts
+            if (this.currentTimeout) {
+                clearTimeout(this.currentTimeout);
+                this.currentTimeout = null;
+            }
+            
+            // Remove all registered event listeners
+            this.eventListeners.forEach(({ element, type, handler }) => {
+                if (element && element.removeEventListener) {
+                    element.removeEventListener(type, handler);
+                }
+            });
+            
+            // Clear the event listeners array
+            this.eventListeners = [];
+            
+            // Clear current dialog state
+            this.currentDialogQueue = [];
+            this.currentDialogTree = null;
+            this.isTyping = false;
+            
+            console.log("DialogManager disposed");
         }
     }
 
@@ -505,4 +588,4 @@ if (typeof window.DialogManager === 'undefined') {
 }
 
 // Create global instance
-window.dialogManager = new DialogManager();
+window.dialogManager = window.dialogManager || new DialogManager();

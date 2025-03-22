@@ -396,6 +396,7 @@ const GAME_DATA = {
     }
 };
 
+// Utility classes - optimized and streamlined
 class SpatialGrid {
     constructor(width, height, cellSize) {
         this.cellSize = cellSize;
@@ -407,6 +408,7 @@ class SpatialGrid {
     getCell(x, y) {
         const col = Math.floor(x / this.cellSize);
         const row = Math.floor(y / this.cellSize);
+        if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return null;
         return this.grid[row * this.cols + col];
     }
 
@@ -425,12 +427,16 @@ class SpatialGrid {
         for (let row = startRow; row <= endRow; row++) {
             for (let col = startCol; col <= endCol; col++) {
                 const cell = this.grid[row * this.cols + col];
-                for (const obj of cell) {
-                    nearby.add(obj);
-                }
+                cell.forEach(obj => nearby.add(obj));
             }
         }
         return nearby;
+    }
+    
+    clear() {
+        for (let i = 0; i < this.grid.length; i++) {
+            this.grid[i].clear();
+        }
     }
 }
 
@@ -459,19 +465,38 @@ class ObjectPool {
             poolItem.active = false;
         }
     }
+    
+    reset() {
+        this.pool.forEach(item => {
+            item.active = false;
+        });
+    }
 }
 
-// First define the Game class
+// Game class with improved consistency and optimization
 class Game {
     constructor() {
         this.engine = null;
         this.soundManager = null;
         this.score = 0;
+        
+        // Consistently use arrays for inventory
         this.gameState = {
-            inventory: new Set(),
+            inventory: [],
             currentCase: GAME_DATA.cases.case1 // Start with first case
         };
-        this.currentScene = 'officeArea'; // Changed from policeStation to officeArea
+        this.currentScene = 'officeArea';
+        
+        // Use object pooling where appropriate
+        this.particlePool = null;
+        this.spatialGrid = null;
+        
+        // Dialog element caching for better performance
+        this.dialogBox = null;
+        
+        // Performance optimization
+        this.lastFrameTime = 0;
+        this.frameCount = 0;
     }
 
     async initGame() {
@@ -493,6 +518,15 @@ class Game {
             this.engine = new window.GameEngine();
             window.gameEngine = this.engine;
             
+            // Initialize utility components if needed
+            this.spatialGrid = new SpatialGrid(800, 600, 100);
+            this.particlePool = new ObjectPool(() => ({ x: 0, y: 0, vx: 0, vy: 0, life: 0 }), 100);
+            
+            // Cache DOM elements
+            this.dialogBox = document.getElementById('dialog-box');
+            this.caseInfoPanel = document.getElementById('case-info');
+            this.inventoryPanel = document.getElementById('inventory-panel');
+            
             // Setup UI elements
             this.setupUI();
             
@@ -510,6 +544,15 @@ class Game {
         this.updateCaseInfo();
         this.updateInventoryUI();
         this.showDialog("Welcome to Police Quest. You're a detective investigating a series of burglaries.");
+        
+        // Initialize performance monitoring
+        this.lastFrameTime = performance.now();
+        this.frameCount = 0;
+        
+        // Performance monitor
+        if (this.engine.debugMode) {
+            setInterval(() => this.updatePerformanceStats(), 1000);
+        }
     }
 
     startGame() {
@@ -528,8 +571,7 @@ class Game {
     }
 
     updateCaseInfo() {
-        const caseInfoPanel = document.getElementById('case-info');
-        if (!caseInfoPanel || !this.gameState.currentCase) return;
+        if (!this.caseInfoPanel || !this.gameState.currentCase) return;
 
         let caseHTML = `<h3>${this.gameState.currentCase.title}</h3>`;
         caseHTML += '<p>Case stages:</p>';
@@ -540,15 +582,17 @@ class Game {
         });
         
         caseHTML += '</ul>';
-        caseInfoPanel.innerHTML = caseHTML;
+        this.caseInfoPanel.innerHTML = caseHTML;
     }
 
     updateInventoryUI() {
-        const inventoryPanel = document.getElementById('inventory-panel');
-        if (!inventoryPanel) return;
+        if (!this.inventoryPanel) return;
         
         // Clear existing inventory display
-        inventoryPanel.innerHTML = '';
+        this.inventoryPanel.innerHTML = '';
+        
+        // Create document fragment for batch DOM operations
+        const fragment = document.createDocumentFragment();
         
         // Add each inventory item
         this.gameState.inventory.forEach(item => {
@@ -558,18 +602,25 @@ class Game {
             itemElement.title = item;
             itemElement.addEventListener('click', () => {
                 this.showDialog(`Selected item: ${item}`);
-                this.soundManager?.playSound('click');
+                if (this.soundManager) this.soundManager.playSound('click');
             });
-            inventoryPanel.appendChild(itemElement);
+            fragment.appendChild(itemElement);
         });
+        
+        // Add all items to DOM at once
+        this.inventoryPanel.appendChild(fragment);
     }
 
     showDialog(text) {
-        const dialogBox = document.getElementById('dialog-box');
-        if (!dialogBox || !text) return;
+        if (!this.dialogBox || !text) return;
         
-        dialogBox.innerText = text;
-        dialogBox.classList.add('visible');
+        this.dialogBox.innerText = text;
+        this.dialogBox.style.display = 'block';
+        
+        // Auto-hide dialog after 5 seconds
+        setTimeout(() => {
+            this.dialogBox.style.display = 'none';
+        }, 5000);
     }
 
     checkCaseSolved() {
@@ -587,34 +638,28 @@ class Game {
     }
 
     addToInventory(item) {
-        if (!this.gameState.inventory) {
-            this.gameState.inventory = new Set();
+        if (!item) return;
+        
+        // Only add if it doesn't already exist
+        if (!this.gameState.inventory.includes(item)) {
+            this.gameState.inventory.push(item);
+            this.updateInventoryUI();
         }
-        this.gameState.inventory.add(item);
-        this.updateInventoryUI();
     }
 
     collectEvidence(evidence) {
+        if (!evidence) return;
+        
         if (!this.gameState.currentCase.evidence) {
             this.gameState.currentCase.evidence = [];
         }
-        this.gameState.currentCase.evidence.push(evidence);
+        
+        if (!this.gameState.currentCase.evidence.includes(evidence)) {
+            this.gameState.currentCase.evidence.push(evidence);
+        }
     }
 
-    showDialog(text) {
-        const dialogBox = document.getElementById('dialog-box');
-        if (!dialogBox || !text) return;
-        
-        dialogBox.innerText = text;
-        dialogBox.style.display = 'block';
-        
-        // Auto-hide dialog after 5 seconds
-        setTimeout(() => {
-            dialogBox.style.display = 'none';
-        }, 5000);
-    }
-
-    // Add police procedure system
+    // Police procedure system
     policeProcedures = {
         arrestProtocol: {
             steps: [
@@ -648,12 +693,12 @@ class Game {
 
     // Method to start a procedure
     startProcedure(procedureType) {
-        if (this.policeProcedures[procedureType]) {
-            this.policeProcedures[procedureType].active = true;
-            this.policeProcedures[procedureType].steps.forEach(step => step.completed = false);
-            this.updateProcedureUI(procedureType);
-            this.showDialog(`You must follow proper ${procedureType.replace(/([A-Z])/g, ' $1').toLowerCase()} procedure.`);
-        }
+        if (!this.policeProcedures[procedureType]) return;
+        
+        this.policeProcedures[procedureType].active = true;
+        this.policeProcedures[procedureType].steps.forEach(step => step.completed = false);
+        this.updateProcedureUI(procedureType);
+        this.showDialog(`You must follow proper ${procedureType.replace(/([A-Z])/g, ' $1').toLowerCase()} procedure.`);
     }
 
     // Method to complete a procedure step
@@ -679,17 +724,17 @@ class Game {
 
     // Method to mark a procedure as complete
     completeProcedure(procedureType) {
-        if (this.policeProcedures[procedureType]) {
-            this.policeProcedures[procedureType].active = false;
-            this.showDialog(`You have successfully completed the ${procedureType.replace(/([A-Z])/g, ' $1').toLowerCase()} procedure!`);
-            
-            // Award points or progress in the game
-            this.addScore(50);
-            
-            // Clear the procedure UI
-            const procedurePanel = document.getElementById('procedure-panel');
-            if (procedurePanel) procedurePanel.style.display = 'none';
-        }
+        if (!this.policeProcedures[procedureType]) return;
+        
+        this.policeProcedures[procedureType].active = false;
+        this.showDialog(`You have successfully completed the ${procedureType.replace(/([A-Z])/g, ' $1').toLowerCase()} procedure!`);
+        
+        // Award points or progress in the game
+        this.addScore(50);
+        
+        // Clear the procedure UI
+        const procedurePanel = document.getElementById('procedure-panel');
+        if (procedurePanel) procedurePanel.style.display = 'none';
     }
 
     // Update the procedure UI
@@ -705,15 +750,27 @@ class Game {
         
         procedurePanel.style.display = 'block';
         
-        let html = `<h3>${procedureType.replace(/([A-Z])/g, ' $1').trim()} Procedure</h3>`;
-        html += '<ul class="procedure-steps">';
+        // Create document fragment for better performance
+        const fragment = document.createDocumentFragment();
+        const titleElement = document.createElement('h3');
+        titleElement.textContent = procedureType.replace(/([A-Z])/g, ' $1').trim() + ' Procedure';
+        fragment.appendChild(titleElement);
+        
+        const stepsList = document.createElement('ul');
+        stepsList.className = 'procedure-steps';
         
         procedure.steps.forEach(step => {
-            html += `<li class="${step.completed ? 'completed' : ''}">${step.description}</li>`;
+            const stepItem = document.createElement('li');
+            stepItem.className = step.completed ? 'completed' : '';
+            stepItem.textContent = step.description;
+            stepsList.appendChild(stepItem);
         });
         
-        html += '</ul>';
-        procedurePanel.innerHTML = html;
+        fragment.appendChild(stepsList);
+        
+        // Clear and update in one operation
+        procedurePanel.innerHTML = '';
+        procedurePanel.appendChild(fragment);
     }
 
     // Validate if a player action follows procedure
@@ -736,8 +793,6 @@ class Game {
     }
 
     // Add score tracking
-    score = 0;
-    
     addScore(points) {
         this.score += points;
         this.updateScoreUI();
@@ -749,42 +804,117 @@ class Game {
             scoreElement.textContent = `Score: ${this.score}`;
         }
     }
-}
-
-// Add logic to process interactions and update game state
-function processInteraction(sceneName, hotspotName) {
-    const scene = window.GAME_DATA.scenes[sceneName];
-    const hotspot = scene.hotspots.find(h => h.name === hotspotName);
-
-    if (hotspot) {
-        const result = window.GameEngine.handleInteraction(hotspot, window.GAME_DATA.inventory);
-        if (result && hotspot.interaction === 'search') {
-            // Example: Add found item to inventory
-            if (result.includes('key')) {
-                window.GameEngine.addToInventory('key');
-            }
-        }
-    } else {
-        console.log('Hotspot not found.');
+    
+    // Performance monitoring
+    updatePerformanceStats() {
+        const now = performance.now();
+        const elapsed = now - this.lastFrameTime;
+        const fps = Math.round((this.frameCount * 1000) / elapsed);
+        
+        console.log(`FPS: ${fps}, Objects: ${this.engine.collisionObjects?.length || 0}`);
+        
+        this.frameCount = 0;
+        this.lastFrameTime = now;
+    }
+    
+    // Scene transition with optimization
+    changeScene(sceneName, playerX = 400, playerY = 350) {
+        if (!this.engine || !GAME_DATA.scenes[sceneName]) return;
+        
+        // Save current scene state if needed
+        // this.saveSceneState(this.currentScene);
+        
+        // Clear any existing objects
+        this.spatialGrid.clear();
+        
+        // Reset object pools
+        this.particlePool.reset();
+        
+        // Load new scene
+        this.currentScene = sceneName;
+        this.engine.loadScene(sceneName);
+        
+        // Position player
+        this.engine.playerPosition = { x: playerX, y: playerY };
+        
+        // Update UI if needed
+        this.updateCaseInfo();
+    }
+    
+    // Resource cleanup
+    dispose() {
+        // Clear any references or timers
+        this.engine = null;
+        this.spatialGrid = null;
+        this.particlePool = null;
+        
+        // Clear DOM references
+        this.dialogBox = null;
+        this.caseInfoPanel = null;
+        this.inventoryPanel = null;
+        
+        console.log("Game resources disposed");
     }
 }
 
-// Export the new function
+// Process interaction function - optimized
+function processInteraction(sceneName, hotspotName) {
+    const scene = window.GAME_DATA?.scenes[sceneName];
+    if (!scene) return false;
+    
+    const hotspot = scene.hotspots.find(h => h.name === hotspotName);
+    if (!hotspot) {
+        console.log('Hotspot not found.');
+        return false;
+    }
+
+    const result = window.GameEngine.handleInteraction(hotspot, window.GAME_DATA.inventory);
+    if (result && hotspot.interaction === 'search') {
+        // Example: Add found item to inventory
+        if (result.includes('key')) {
+            window.GameEngine.addToInventory('key');
+        }
+    }
+    
+    return true;
+}
+
+// Export the process interaction function
 window.Game = {
     ...window.Game,
     processInteraction
 };
 
-// Then handle DOM content loaded
+// Initialize game when DOM is loaded
 window.addEventListener('DOMContentLoaded', () => {
     console.log("DOM fully loaded");
-    const game = new Game();
-    game.initGame();
-    window.game = game; // Make game instance globally available
+    try {
+        const game = new Game();
+        game.initGame();
+        window.game = game; // Make game instance globally available
+    } catch (error) {
+        console.error("Failed to initialize game:", error);
+    }
 });
 
-// Error handling
+// Enhanced error handling
 window.onerror = function(msg, url, lineNo, columnNo, error) {
-    console.error('Error: ' + msg + '\nURL: ' + url + '\nLine: ' + lineNo + '\nColumn: ' + columnNo + '\nError object: ' + JSON.stringify(error));
+    const errorDetails = {
+        message: msg,
+        url: url,
+        line: lineNo,
+        column: columnNo,
+        stack: error?.stack || 'No stack trace'
+    };
+    
+    console.error('Game error:', errorDetails);
+    
+    // Display user-friendly error message
+    const dialogBox = document.getElementById('dialog-box');
+    if (dialogBox) {
+        dialogBox.innerText = "Sorry, an error occurred. Please try refreshing the page.";
+        dialogBox.style.display = 'block';
+    }
+    
     return false;
 };
