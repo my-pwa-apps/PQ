@@ -539,7 +539,7 @@ class Game {
             if (!window.GameEngine) {
                 throw new Error('GameEngine not found');
             }
-            this.engine = new window.GameEngine();
+            this.engine = new window.GameEngine(); // Ensure GameEngine is accessed from the global scope
             await this.engine.init();
             return true;
         } catch (error) {
