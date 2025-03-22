@@ -1,4 +1,5 @@
-import GameEngine from './engine.js';
+// Remove the import statement as the engine is defined as a global class
+// import GameEngine from './engine.js'; <- This line causes the error
 
 const GAME_DATA = {
     scenes: {
@@ -482,8 +483,14 @@ class Game {
             await this.soundManager.initialize();
             window.soundManager = this.soundManager;
 
-            // Initialize game engine
-            this.engine = new GameEngine();
+            // Initialize game engine - using global GameEngine class
+            // Wait to make sure the GameEngine class is available
+            if (typeof window.GameEngine === 'undefined') {
+                console.error('GameEngine not found! Make sure engine.js is loaded before game.js');
+                throw new Error('GameEngine not found');
+            }
+            
+            this.engine = new window.GameEngine();
             window.gameEngine = this.engine;
             
             // Setup UI elements
