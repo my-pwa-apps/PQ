@@ -3267,3 +3267,162 @@ window.GameEngine = {
 
 // Make GameEngine available in the global scope
 window.GameEngine = GameEngine;
+
+async init() {
+    try {
+        // Setup canvas
+        this.setupCanvas();
+        this.setupBufferCanvas();
+        
+        // Setup input handlers
+        this.setupEventListeners();
+        
+        // Set initial scene
+        await this.loadScene(this.currentScene);
+        
+        // Initialize NPCs for the current scene
+        this.initializeNPCsForScene(this.currentScene);
+        
+        // Start the game loop once everything is ready
+        this.startGameLoop();
+        
+        this.initialized = true;
+        console.log("Game engine initialized successfully");
+        return true;
+    } catch (error) {
+        console.error("Failed to initialize game engine:", error);
+        return false;
+    }
+}
+
+startGameLoop() {
+    if (this.isRunning) return;
+
+    console.log("Starting game loop");
+    this.isRunning = true;
+    this.lastFrameTime = performance.now();
+    this.accumulator = 0;
+    this.frameInterval = 1000 / 60; // Target 60 FPS
+    
+    // Start the game loop
+    const loop = (timestamp) => {
+        if (!this.isRunning) return;
+
+        const deltaTime = timestamp - this.lastFrameTime;
+        this.accumulator += deltaTime;
+        this.lastFrameTime = timestamp;
+
+        // Update game state
+        while (this.accumulator >= this.frameInterval) {
+            this.update(this.frameInterval / 1000);
+            this.accumulator -= this.frameInterval;
+        }
+
+        // Draw current frame
+        this.drawCurrentScene();
+
+        // Request next frame
+        this.requestID = requestAnimationFrame(loop);
+    };
+
+    // Start the loop
+    this.requestID = requestAnimationFrame(loop);
+}
+
+async loadScene(sceneName) {
+    if (!sceneName || !GAME_DATA.scenes[sceneName]) {
+        console.error("Invalid scene name:", sceneName);
+        return false;
+    }
+
+    try {
+        console.log(`Loading scene: ${sceneName}`);
+        this.currentScene = sceneName;
+
+        // Initialize NPCs
+        this.initializeNPCsForScene(sceneName);
+
+        // Update collision objects
+        this.updateCollisionObjects();
+
+        // Setup ambient animations
+        this.setupAmbientAnimations(sceneName);
+
+        // Start scene music
+        if (window.soundManager) {
+            window.soundManager.playBackgroundMusic(GAME_DATA.scenes[sceneName].music);
+        }
+
+        // Force initial draw
+        this.drawCurrentScene();
+
+        return true;
+    } catch (error) {
+        console.error("Error loading scene:", error);
+        return false;
+    }
+}
+
+drawCurrentScene() {
+    if (!this.ctx || !this.currentScene) return;
+
+    try {
+        // Clear the canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Draw scene based on current location
+        switch(this.currentScene) {
+            case 'policeStation':
+                this.drawPoliceStation(this.ctx);
+                break;
+            case 'downtown':
+                this.drawDowntown(this.ctx);
+                break;
+            case 'park':
+                this.drawPark(this.ctx);
+                break;
+            case 'sheriffsOffice':
+                this.drawSheriffsOffice(this.ctx);
+                break;
+            case 'briefingRoom':
+                this.drawBriefingRoom(this.ctx);
+                break;
+            default:
+                console.error("Unknown scene:", this.currentScene);
+                break;
+        }
+
+        // Draw NPCs
+        if (this.npcs && this.npcs[this.currentScene]) {
+            this.npcs[this.currentScene].forEach(npc => {
+                this.drawPixelCharacter(
+                    npc.x,
+                    npc.y,
+                    this.colors.blue,
+                    this.colors.yellow,
+                    npc.facing || 'down',
+                    npc.isWalking,
+                    true,
+                    npc.isFemale
+                );
+            });
+        }
+
+        // Draw the player
+        this.drawPixelCharacter(
+            this.playerPosition.x,
+            this.playerPosition.y,
+            this.colors.blue,
+            this.colors.yellow,
+            this.playerFacing,
+            this.isWalking
+        );
+
+        // Draw debug information if enabled
+        if (this.debugMode) {
+            this.drawDebugInfo(this.ctx);
+        }
+    } catch (error) {
+        console.error("Error drawing scene:", error);
+    }
+}
