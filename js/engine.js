@@ -99,66 +99,41 @@ class GameEngine {
         
         // Set up keyboard shortcuts for commands
         this.setupCommandShortcuts();
-    }
 
-    init() {
-        try {
-            if (this.initialized) return;
-            console.log('Initializing game engine...');
-            
-            // Setup core components
-            this.setupCanvas();
-            this.setupBufferCanvas();
-            
-            // Make absolutely sure colors are initialized without calling setupColorPalette
-            if (!this.colors) {
-                // Fall back to direct creation if somehow colors weren't initialized in constructor
-                this.colors = {
-                    black: '#000000',
-                    blue: '#0000AA',
-                    green: '#00AA00',
-                    cyan: '#00AAAA',
-                    red: '#AA0000',
-                    magenta: '#AA00AA',
-                    brown: '#AA5500',
-                    lightGray: '#AAAAAA',
-                    darkGray: '#555555',
-                    brightBlue: '#5555FF',
-                    brightGreen: '#55FF55',
-                    brightCyan: '#55FFFF',
-                    brightRed: '#FF5555',
-                    brightMagenta: '#FF55FF',
-                    yellow: '#FFFF55',
-                    white: '#FFFFFF',
-                    skin: '#FFD8B1',
-                    darkBlue: '#000066'
-                };
-                console.log('Colors initialized directly in init()');
+        // Redefine init method directly within the class
+        this.init = () => {
+            try {
+                if (this.initialized) return;
+                console.log('Initializing game engine...');
+
+                // Setup core components
+                this.setupCanvas();
+                this.setupBufferCanvas();
+
+                this.setupEventListeners();
+
+                // Set initial game state
+                this.keyboardEnabled = true;
+                this.isRunning = true;
+                this.lastFrameTime = performance.now();
+                this.accumulator = 0;
+                this.frameInterval = 1000 / 60;
+
+                this.initialized = true;
+                console.log('Game engine initialized successfully');
+
+                // Load initial scene and start game loop
+                this.loadScene(this.currentScene);
+                this.startGameLoop();
+
+                // Dispatch initialization event
+                document.dispatchEvent(new Event('gameEngineInitialized'));
+            } catch (error) {
+                console.error('Failed to initialize game engine:', error);
+                console.error('Stack trace:', error.stack);
+                throw error;
             }
-            
-            this.setupEventListeners();
-            
-            // Set initial game state
-            this.keyboardEnabled = true;
-            this.isRunning = true;
-            this.lastFrameTime = performance.now();
-            this.accumulator = 0;
-            this.frameInterval = 1000 / 60;
-            
-            this.initialized = true;
-            console.log('Game engine initialized successfully');
-            
-            // Load initial scene and start game loop
-            this.loadScene(this.currentScene);
-            this.startGameLoop();
-            
-            // Dispatch initialization event
-            document.dispatchEvent(new Event('gameEngineInitialized'));
-        } catch (error) {
-            console.error('Failed to initialize game engine:', error);
-            console.error('Stack trace:', error.stack);
-            throw error;
-        }
+        };
     }
 
     setupCanvas() {
