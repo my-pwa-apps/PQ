@@ -2110,38 +2110,37 @@ class GameEngine {
     };
 
     // Method to check for NPC conversations
-    checkNPCConversations = (npc, allNpcs) => {
+    checkNPCConversations(npc, allNpcs) {
         // Don't start conversations if already talking
         if (npc.conversationTime > 0 || npc.waitTime > 0) return;
         
-        // Find nearby NPCs to talk to
+        // Find NPCs nearby
         const nearbyNpcs = allNpcs.filter(otherNpc => {
             if (otherNpc === npc) return false;
-            if (otherNpc.conversationTime > 0) return false;
+            if (otherNpc.conversationTime > 0 || otherNpc.waitTime > 0) return false;
             
-            // Check if they're close enough
             const dx = otherNpc.x - npc.x;
             const dy = otherNpc.y - npc.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            return distance < 60; // Close enough to talk
+            return distance < 50; // Within talking distance
         });
         
-        // If we found a nearby NPC and it's relatively random (10% chance)
+        // Random chance to start a conversation
         if (nearbyNpcs.length > 0 && Math.random() < 0.1) {
             const talkingPartner = nearbyNpcs[0];
             
-            // Start conversation for both NPCs
+            // Set conversation time
             npc.conversationTime = 3 + Math.random() * 2;
             npc.dialogue = this.getRandomDialogue(npc.type);
             npc.isWalking = false;
             
-            // Setup the other NPC to respond
+            // Set partner's conversation state
             talkingPartner.conversationTime = 3 + Math.random() * 2;
             talkingPartner.dialogue = this.getRandomResponse(talkingPartner.type);
             talkingPartner.isWalking = false;
             
-            // Turn to face each other
+            // Face each other
             if (npc.x < talkingPartner.x) {
                 npc.facing = 'right';
                 talkingPartner.facing = 'left';
@@ -2150,7 +2149,7 @@ class GameEngine {
                 talkingPartner.facing = 'right';
             }
         }
-    };
+    }
     
     // Random dialogue based on NPC type
     getRandomDialogue = (npcType) => {
@@ -3633,7 +3632,7 @@ class GameEngine {
         }
     }
 
-    // Fix the syntax error by properly defining class methods
+    // Fix the syntax error by converting the arrow function to a standard method
     async init() {
         try {
             this.setupCanvas();
