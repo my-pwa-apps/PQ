@@ -500,43 +500,53 @@ class Game {
     }
 
     async initGame() {
-        console.log('Initializing game...');
-        
         try {
-            // Initialize sound first and wait for it
-            this.soundManager = new SoundManager();
-            await this.soundManager.initialize();
-            window.soundManager = this.soundManager;
+            // Initialize core systems in parallel
+            const [soundInit, engineInit] = await Promise.all([
+                this.initializeSound(),
+                this.initializeEngine()
+            ]);
 
-            // Initialize game engine - using global GameEngine class
-            // Wait to make sure the GameEngine class is available
-            if (typeof window.GameEngine === 'undefined') {
-                console.error('GameEngine not found! Make sure engine.js is loaded before game.js');
-                throw new Error('GameEngine not found');
+            if (!soundInit || !engineInit) {
+                throw new Error('Failed to initialize core systems');
             }
+
+            // Cache DOM elements once
+            this.cacheUIElements();
             
-            this.engine = new window.GameEngine();
-            window.gameEngine = this.engine;
-            
-            // Initialize utility components if needed
-            this.spatialGrid = new SpatialGrid(800, 600, 100);
-            this.particlePool = new ObjectPool(() => ({ x: 0, y: 0, vx: 0, vy: 0, life: 0 }), 100);
-            
-            // Cache DOM elements
-            this.dialogBox = document.getElementById('dialog-box');
-            this.caseInfoPanel = document.getElementById('case-info');
-            this.inventoryPanel = document.getElementById('inventory-panel');
-            
-            // Setup UI elements
+            // Set up game state
             this.setupUI();
-            
-            console.log('Game engine ready, starting game...');
-            this.startGame();
-            
+            await this.startGame();
+
+            return true;
         } catch (error) {
             console.error('Failed to initialize game:', error);
-            throw error;
+            return false;
         }
+    }
+
+    async initializeSound() {
+        this.soundManager = new SoundManager();
+        const success = await this.soundManager.initialize();
+        window.soundManager = this.soundManager;
+        return success;
+    }
+
+    async initializeEngine() {
+        if (typeof window.GameEngine === 'undefined') {
+            throw new Error('GameEngine not found');
+        }
+        
+        this.engine = new window.GameEngine();
+        window.gameEngine = this.engine;
+        return true;
+    }
+
+    cacheUIElements() {
+        this.dialogBox = document.getElementById('dialog-box');
+        this.caseInfoPanel = document.getElementById('case-info');
+        this.inventoryPanel = document.getElementById('inventory-panel');
+        // Cache other frequently accessed elements
     }
 
     setupUI() {

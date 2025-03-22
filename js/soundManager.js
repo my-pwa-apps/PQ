@@ -182,49 +182,40 @@ class SoundManager {
      */
     async generateSound(name) {
         if (!this.audioContext) return Promise.reject('Audio context not initialized');
-        
+
+        // Use cached sound if available
+        if (this.sounds.has(name)) {
+            return this.sounds.get(name);
+        }
+
         try {
-            let audioBuffer;
-            
-            switch (name) {
-                case 'click':
-                    audioBuffer = await this.generateClickSound();
-                    break;
-                case 'typing':
-                    audioBuffer = await this.generateTypingSound();
-                    break;
-                case 'door':
-                    audioBuffer = await this.generateDoorSound();
-                    break;
-                case 'success':
-                    audioBuffer = await this.generateSuccessSound();
-                    break;
-                case 'error':
-                    audioBuffer = await this.generateErrorSound();
-                    break;
-                case 'radio':
-                    audioBuffer = await this.generateRadioSound();
-                    break;
-                case 'footstep':
-                    audioBuffer = await this.generateFootstepSound();
-                    break;
-                default:
-                    audioBuffer = this.createSilentBuffer(0.5);
-                    break;
-            }
-            
-            this.sounds.set(name, audioBuffer);
-            this.log(`Generated sound: ${name}`);
-            return audioBuffer;
+            const buffer = await this.generateSoundBuffer(name);
+            this.sounds.set(name, buffer);
+            return buffer;
         } catch (error) {
             this.logError(`Error generating sound "${name}":`, error);
-            
-            // Create a silent buffer as fallback
-            const fallbackBuffer = this.createSilentBuffer(0.5);
-            this.sounds.set(name, fallbackBuffer);
-            
-            return fallbackBuffer;
+            return this.createSilentBuffer(0.5);
         }
+    }
+
+    async generateSoundBuffer(name) {
+        const sampleRate = this.audioContext.sampleRate;
+        const buffer = this.audioContext.createBuffer(1, sampleRate * 0.5, sampleRate);
+        const data = buffer.getChannelData(0);
+
+        const generators = {
+            click: () => this.generateClickData(data, sampleRate),
+            typing: () => this.generateTypingData(data, sampleRate),
+            door: () => this.generateDoorData(data, sampleRate),
+            // ...other sound generators
+        };
+
+        if (generators[name]) {
+            await generators[name]();
+            return buffer;
+        }
+
+        return this.createSilentBuffer(0.5);
     }
     
     /**
@@ -849,21 +840,30 @@ class SoundManager {
      */
     playSound(name, volume = 1, pan = 0) {
         if (!this.audioContext || this.isMuted) return null;
-        
+
         try {
-            // Ensure the audio context is running
-            if (this.audioContext.state === 'suspended') {
-                this.audioContext.resume();
-            }
-            
-            // Get the audio buffer
             const buffer = this.sounds.get(name);
-            if (!buffer) {
-                this.logError(`Sound "${name}" not found.`);
-                return null;
+            if (!buffer) return null;
+
+            // Limit concurrent sounds using object pool
+            if (this.activeSounds.size >= this.maxConcurrentSounds) {
+                const oldestId = Array.from(this.activeSounds.keys())[0];
+                this.stopSound(oldestId);
             }
+
+            const source = this.createSoundSource(buffer, volume, pan);
+            const id = `${name}_${Date.now()}_${Math.random()}`;
             
-            // Limit concurrent sounds
+            this.activeSounds.set(id, { source, name });
+            source.onended = () => this.activeSounds.delete(id);
+
+            return { id, stop: () => this.stopSound(id) };
+        } catch (error) {
+            this.logError(`Error playing sound:`, error);
+            return null;
+        }
+    }
+    
             if (this.activeSounds.size >= this.maxConcurrentSounds) {
                 // Find and stop the oldest sound
                 const oldestSound = Array.from(this.activeSounds.entries())[0];

@@ -178,36 +178,36 @@ class GameEngine {
     }
 
     startGameLoop() {
-        console.log("Starting game loop");
+        if (this.isRunning) return;
+
         this.isRunning = true;
         this.lastFrameTime = performance.now();
         this.accumulator = 0;
-        this.frameInterval = 1000 / 60; // Target 60 FPS
-        requestAnimationFrame(this.gameLoop.bind(this));
+
+        // Use requestAnimationFrame with proper timing
+        const loop = (timestamp) => {
+            if (!this.isRunning) return;
+
+            const deltaTime = Math.min(timestamp - this.lastFrameTime, 32); // Cap at ~30 FPS
+            this.accumulator += deltaTime;
+            this.lastFrameTime = timestamp;
+
+            // Fixed time step updates
+            while (this.accumulator >= this.frameInterval) {
+                this.update(this.frameInterval / 1000);
+                this.accumulator -= this.frameInterval;
+            }
+
+            // Draw at display refresh rate
+            this.drawCurrentScene();
+            this.requestID = requestAnimationFrame(loop);
+        };
+
+        this.requestID = requestAnimationFrame(loop);
     }
 
     gameLoop(timestamp) {
         if (!this.isRunning) return;
-
-        // Calculate delta time and maintain consistent frame rate
-        const deltaTime = timestamp - this.lastFrameTime;
-        this.accumulatedTime += deltaTime;
-        
-        // Update animation frame counter
-        this.animationFrame++;
-        
-        // Track FPS
-        this.updateFPS(deltaTime);
-        
-        // Process as many updates as needed based on accumulated time
-        let updatesCount = 0;
-        while (this.accumulatedTime >= this.frameDuration && updatesCount < 5) {
-            // Update game state with proper delta time
-            this.update(this.frameDuration / 1000);
-            this.accumulatedTime -= this.frameDuration;
-            updatesCount++;
-            
-            // Check for autosave
             this.checkAutosave();
         }
 
