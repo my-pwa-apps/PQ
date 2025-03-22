@@ -465,6 +465,7 @@ class Game {
     constructor() {
         this.engine = null;
         this.soundManager = null;
+        this.score = 0;
         this.gameState = {
             inventory: new Set(),
             currentCase: GAME_DATA.cases.case1 // Start with first case
