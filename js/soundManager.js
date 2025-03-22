@@ -64,7 +64,7 @@ class SoundManager {
             // Generate sound effects using Web Audio API
             await this.generateSoundEffects();
             
-            // Load music tracks (still using audio files for music)
+            // Generate music tracks procedurally
             await this.loadMusicTracks();
             
             // Set up mobile audio unlocking
@@ -422,64 +422,350 @@ class SoundManager {
     }
     
     /**
-     * Load all music tracks
+     * Generate all music tracks procedurally
      */
     async loadMusicTracks() {
         try {
-            const musicTracks = [
-                { name: 'station_theme', url: 'music/station_theme.mp3' },
-                { name: 'downtown_theme', url: 'music/downtown_theme.mp3' },
-                { name: 'park_theme', url: 'music/park_theme.mp3' },
-                { name: 'suspense', url: 'music/suspense.mp3' },
-                { name: 'action', url: 'music/action.mp3' }
+            // Define the themes to generate
+            const themesToGenerate = [
+                'station_theme',
+                'downtown_theme', 
+                'park_theme',
+                'suspense',
+                'action'
             ];
             
-            // Load each music track
-            const loadPromises = musicTracks.map(track => {
-                return this.loadMusic(track.name, track.url);
+            // Generate each theme
+            const generatePromises = themesToGenerate.map(name => {
+                return this.generateMusicTheme(name);
             });
             
-            // Wait for all music to load
-            await Promise.all(loadPromises);
+            // Wait for all themes to be generated
+            await Promise.all(generatePromises);
             return true;
         } catch (error) {
-            this.logError("Error loading music tracks:", error);
+            this.logError("Error generating music themes:", error);
             return false;
         }
     }
-    
+
     /**
-     * Load a single music track
-     * @param {string} name - Identifier for the music track
-     * @param {string} url - URL to the music file
-     * @returns {Promise} Resolves when the music is loaded
+     * Generate a music theme using Web Audio API
+     * @param {string} name - Name of the theme to generate
+     * @returns {Promise<AudioBuffer>} Generated music buffer
      */
-    async loadMusic(name, url) {
+    async generateMusicTheme(name) {
         if (!this.audioContext) return Promise.reject('Audio context not initialized');
         
         try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch music: ${response.status} ${response.statusText}`);
+            let audioBuffer;
+            
+            switch (name) {
+                case 'station_theme':
+                    audioBuffer = await this.generateStationTheme();
+                    break;
+                case 'downtown_theme':
+                    audioBuffer = await this.generateDowntownTheme();
+                    break;
+                case 'park_theme':
+                    audioBuffer = await this.generateParkTheme();
+                    break;
+                case 'suspense':
+                    audioBuffer = await this.generateSuspenseTheme();
+                    break;
+                case 'action':
+                    audioBuffer = await this.generateActionTheme();
+                    break;
+                default:
+                    audioBuffer = this.createSilentBuffer(30);
+                    break;
             }
             
-            const arrayBuffer = await response.arrayBuffer();
-            const audioBuffer = await this.decodeAudioData(arrayBuffer);
-            
             this.music.set(name, audioBuffer);
-            this.log(`Loaded music track: ${name}`);
+            this.log(`Generated music theme: ${name}`);
             return audioBuffer;
         } catch (error) {
-            this.logError(`Error loading music "${name}" from ${url}:`, error);
-            
-            // Create a silent buffer as fallback
-            const fallbackBuffer = this.createSilentBuffer(30);  // 30 seconds of silence
+            this.logError(`Error generating theme "${name}":`, error);
+            const fallbackBuffer = this.createSilentBuffer(30);
             this.music.set(name, fallbackBuffer);
-            
             return fallbackBuffer;
         }
     }
-    
+
+    /**
+     * Generate the main police station theme
+     * @returns {Promise<AudioBuffer>} Generated music buffer
+     */
+    async generateStationTheme() {
+        const sampleRate = this.audioContext.sampleRate;
+        const duration = 32; // 32 seconds of music
+        const buffer = this.audioContext.createBuffer(2, sampleRate * duration, sampleRate);
+        
+        // Musical parameters
+        const bpm = 85;
+        const baseChordProgression = [
+            ['C3', 'E3', 'G3'], // C major
+            ['F3', 'A3', 'C4'], // F major
+            ['G3', 'B3', 'D4'], // G major
+            ['E3', 'G3', 'B3']  // E minor
+        ];
+        
+        // Fill the stereo channels
+        [0, 1].forEach(channel => {
+            const data = buffer.getChannelData(channel);
+            this.generateMusicData(data, {
+                sampleRate,
+                bpm,
+                chordProgression: baseChordProgression,
+                bassline: ['C2', 'F2', 'G2', 'E2'],
+                melodyNotes: ['E4', 'G4', 'A4', 'G4', 'E4', 'C4'],
+                reverb: 0.2,
+                stereoWidth: channel === 0 ? -0.2 : 0.2
+            });
+        });
+        
+        return buffer;
+    }
+
+    /**
+     * Generate background music for downtown scenes
+     * @returns {Promise<AudioBuffer>} Generated music buffer
+     */
+    async generateDowntownTheme() {
+        const sampleRate = this.audioContext.sampleRate;
+        const duration = 32;
+        const buffer = this.audioContext.createBuffer(2, sampleRate * duration, sampleRate);
+        
+        const bpm = 100;
+        const chordProgression = [
+            ['Gm3', 'Bb3', 'D4'],
+            ['Cm3', 'Eb3', 'G3'],
+            ['F3', 'A3', 'C4'],
+            ['D3', 'F3', 'A3']
+        ];
+        
+        [0, 1].forEach(channel => {
+            const data = buffer.getChannelData(channel);
+            this.generateMusicData(data, {
+                sampleRate,
+                bpm,
+                chordProgression,
+                bassline: ['G2', 'C2', 'F2', 'D2'],
+                melodyNotes: ['D4', 'Eb4', 'D4', 'Bb3', 'C4'],
+                swing: 0.2,
+                stereoWidth: channel === 0 ? -0.3 : 0.3
+            });
+        });
+        
+        return buffer;
+    }
+
+    /**
+     * Generate peaceful park theme music
+     * @returns {Promise<AudioBuffer>} Generated music buffer
+     */
+    async generateParkTheme() {
+        const sampleRate = this.audioContext.sampleRate;
+        const duration = 32;
+        const buffer = this.audioContext.createBuffer(2, sampleRate * duration, sampleRate);
+        
+        const bpm = 72;
+        const chordProgression = [
+            ['D3', 'F#3', 'A3'],
+            ['G3', 'B3', 'D4'],
+            ['Em3', 'G3', 'B3'],
+            ['A3', 'C#4', 'E4']
+        ];
+        
+        [0, 1].forEach(channel => {
+            const data = buffer.getChannelData(channel);
+            this.generateMusicData(data, {
+                sampleRate,
+                bpm,
+                chordProgression,
+                arpeggio: true,
+                reverb: 0.4,
+                stereoWidth: channel === 0 ? -0.4 : 0.4,
+                birdSounds: true
+            });
+        });
+        
+        return buffer;
+    }
+
+    /**
+     * Generate suspenseful music
+     * @returns {Promise<AudioBuffer>} Generated music buffer
+     */
+    async generateSuspenseTheme() {
+        const sampleRate = this.audioContext.sampleRate;
+        const duration = 32;
+        const buffer = this.audioContext.createBuffer(2, sampleRate * duration, sampleRate);
+        
+        const bpm = 60;
+        const chordProgression = [
+            ['Dm3', 'F3', 'A3'],
+            ['Bb2', 'D3', 'F3'],
+            ['C3', 'E3', 'G3'],
+            ['A2', 'C#3', 'E3']
+        ];
+        
+        [0, 1].forEach(channel => {
+            const data = buffer.getChannelData(channel);
+            this.generateMusicData(data, {
+                sampleRate,
+                bpm,
+                chordProgression,
+                dissonance: 0.3,
+                tremolo: 0.2,
+                lowDrone: true,
+                stereoWidth: channel === 0 ? -0.5 : 0.5
+            });
+        });
+        
+        return buffer;
+    }
+
+    /**
+     * Generate action music
+     * @returns {Promise<AudioBuffer>} Generated music buffer
+     */
+    async generateActionTheme() {
+        const sampleRate = this.audioContext.sampleRate;
+        const duration = 32;
+        const buffer = this.audioContext.createBuffer(2, sampleRate * duration, sampleRate);
+        
+        const bpm = 130;
+        const chordProgression = [
+            ['Em3', 'G3', 'B3'],
+            ['C3', 'E3', 'G3'],
+            ['D3', 'F#3', 'A3'],
+            ['B2', 'D3', 'F#3']
+        ];
+        
+        [0, 1].forEach(channel => {
+            const data = buffer.getChannelData(channel);
+            this.generateMusicData(data, {
+                sampleRate,
+                bpm,
+                chordProgression,
+                staccato: true,
+                intensity: 0.8,
+                percussion: true,
+                stereoWidth: channel === 0 ? -0.3 : 0.3
+            });
+        });
+        
+        return buffer;
+    }
+
+    /**
+     * Generate music data based on parameters
+     * @param {Float32Array} data - Audio buffer data to fill
+     * @param {object} params - Music generation parameters
+     */
+    generateMusicData(data, params) {
+        const {
+            sampleRate,
+            bpm,
+            chordProgression,
+            bassline,
+            melodyNotes,
+            reverb = 0,
+            stereoWidth = 0,
+            swing = 0,
+            arpeggio = false,
+            dissonance = 0,
+            tremolo = 0,
+            lowDrone = false,
+            staccato = false,
+            intensity = 0.5,
+            percussion = false,
+            birdSounds = false
+        } = params;
+
+        // Calculate timing parameters
+        const samplesPerBeat = (sampleRate * 60) / bpm;
+        const samplesPerBar = samplesPerBeat * 4;
+        const totalBars = Math.floor(data.length / samplesPerBar);
+
+        // Generate each musical element
+        for (let i = 0; i < data.length; i++) {
+            const timeInSecs = i / sampleRate;
+            const beatPosition = (i % samplesPerBar) / samplesPerBeat;
+            const barNumber = Math.floor(i / samplesPerBar);
+            const chordIndex = barNumber % chordProgression.length;
+            
+            let sample = 0;
+
+            // Add chord progression
+            if (chordProgression) {
+                const chord = chordProgression[chordIndex];
+                sample += this.generateChord(chord, timeInSecs, staccato ? 0.2 : 0.8) * 0.3;
+            }
+
+            // Add bassline
+            if (bassline) {
+                const bassNote = this.getNoteFrequency(bassline[barNumber % bassline.length]);
+                sample += this.generateBassline(bassNote, timeInSecs, beatPosition) * 0.4;
+            }
+
+            // Add melody
+            if (melodyNotes) {
+                const melodyNote = melodyNotes[Math.floor(timeInSecs * 2) % melodyNotes.length];
+                sample += this.generateMelody(melodyNote, timeInSecs) * 0.2;
+            }
+
+            // Add arpeggios
+            if (arpeggio) {
+                const chord = chordProgression[chordIndex];
+                sample += this.generateArpeggio(chord, timeInSecs, samplesPerBeat) * 0.15;
+            }
+
+            // Add percussion
+            if (percussion) {
+                sample += this.generatePercussion(beatPosition) * 0.2;
+            }
+
+            // Add bird sounds for park theme
+            if (birdSounds && Math.random() < 0.001) {
+                sample += this.generateBirdChirp(timeInSecs) * 0.1;
+            }
+
+            // Add low drone for suspense
+            if (lowDrone) {
+                sample += this.generateDrone(timeInSecs) * 0.15;
+            }
+
+            // Apply tremolo
+            if (tremolo > 0) {
+                sample *= 1 - (tremolo * Math.sin(timeInSecs * 6));
+            }
+
+            // Apply stereo width
+            sample *= 1 + (stereoWidth * Math.sin(timeInSecs * 0.5));
+
+            // Apply swing
+            if (swing > 0) {
+                const swingOffset = (beatPosition % 2) * swing;
+                sample *= 1 + swingOffset;
+            }
+
+            // Apply dissonance
+            if (dissonance > 0) {
+                sample += (Math.random() * 2 - 1) * dissonance * 0.1;
+            }
+
+            // Add to buffer with intensity scaling
+            data[i] = sample * intensity;
+        }
+
+        // Apply simple reverb if requested
+        if (reverb > 0) {
+            this.applyReverb(data, sampleRate, reverb);
+        }
+    }
+
     /**
      * Utility to create a silent audio buffer
      * @param {number} duration - Duration in seconds
