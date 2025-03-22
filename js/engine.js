@@ -90,8 +90,7 @@ class GameEngine {
             // Setup core components
             this.setupCanvas();
             this.setupBufferCanvas();
-            // We already initialized colors in the constructor, so we don't need this line:
-            // this.colors = this.setupColorPalette();
+            // DO NOT call setupColorPalette again - colors are already initialized in constructor
             this.setupEventListeners();
             
             // Set initial game state
