@@ -3576,3 +3576,8 @@ loadResource(id, url) {
         img.src = url;
     });
 }
+
+// Export the class properly
+if (typeof window !== 'undefined') {
+    window.GameEngine = GameEngine;
+}

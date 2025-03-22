@@ -534,27 +534,53 @@ class Game {
         this.errorScreen = null;
     }
 
+    async initEngine() {
+        try {
+            if (!window.GameEngine) {
+                throw new Error('GameEngine not found');
+            }
+            this.engine = new window.GameEngine();
+            await this.engine.init();
+            return true;
+        } catch (error) {
+            console.error('Failed to initialize game engine:', error);
+            return false;
+        }
+    }
+
+    async initSoundSystem() {
+        try {
+            if (!window.SoundManager) {
+                throw new Error('SoundManager not found');
+            }
+            this.soundManager = new window.SoundManager();
+            await this.soundManager.initialize();
+            return true;
+        } catch (error) {
+            console.error('Failed to initialize sound system:', error);
+            return false;
+        }
+    }
+
     async initGame() {
         try {
             console.log('Initializing game...');
             
-            // Show loading screen
             this.showLoadingScreen();
             
             // Initialize systems in parallel
-            await Promise.all([
+            const [engineInit, soundInit, assetsInit] = await Promise.all([
                 this.initEngine(),
                 this.initSoundSystem(),
                 this.preloadAssets()
             ]);
+
+            if (!engineInit || !soundInit) {
+                throw new Error('Failed to initialize core systems');
+            }
             
-            // Set up error handlers
             this.setupErrorHandlers();
-            
-            // Initialize game state
             this.initializeGameState();
-            
-            // Start performance monitoring
             this.startPerformanceMonitoring();
             
             console.log('Game initialized successfully');
@@ -1140,6 +1166,21 @@ class Game {
         
         this.errorScreen.style.display = 'flex';
     }
+
+    // Initialize game when DOM is loaded
+    static init() {
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM fully loaded");
+            try {
+                const game = new Game();
+                game.initGame().then(() => {
+                    window.game = game;
+                });
+            } catch (error) {
+                console.error("Failed to initialize game:", error);
+            }
+        });
+    }
 }
 
 // Process interaction function - optimized
@@ -1170,17 +1211,8 @@ window.Game = {
     processInteraction
 };
 
-// Initialize game when DOM is loaded
-window.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM fully loaded");
-    try {
-        const game = new Game();
-        game.initGame();
-        window.game = game; // Make game instance globally available
-    } catch (error) {
-        console.error("Failed to initialize game:", error);
-    }
-});
+// Initialize game
+Game.init();
 
 // Enhanced error handling
 window.onerror = function(msg, url, lineNo, columnNo, error) {

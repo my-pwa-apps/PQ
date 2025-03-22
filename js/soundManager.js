@@ -44,18 +44,27 @@ class SoundManager {
      */
     async initialize() {
         try {
-            // Don't create AudioContext yet, just verify support
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) {
                 console.warn("Web Audio API not supported in this browser");
                 return false;
             }
+
+            // Create AudioContext on initialization but in suspended state
+            this.audioContext = new AudioContext();
             
-            // Create promise for deferred initialization
-            this._audioContextPromise = new Promise((resolve) => {
-                this._resolveAudioContext = resolve;
-            });
+            // Create audio nodes
+            this.masterGain = this.audioContext.createGain();
+            this.masterGain.connect(this.audioContext.destination);
             
+            this.musicGain = this.audioContext.createGain();
+            this.musicGain.gain.value = this.musicVolume;
+            this.musicGain.connect(this.masterGain);
+            
+            this.sfxGain = this.audioContext.createGain();
+            this.sfxGain.gain.value = this.sfxVolume;
+            this.sfxGain.connect(this.masterGain);
+
             // Set up interaction handlers
             this.setupInteractionHandlers();
             
@@ -189,6 +198,7 @@ class SoundManager {
      * @returns {AudioBuffer} Silent audio buffer
      */
     createSilentBuffer(duration) {
+        if (!this.audioContext) return null;
         const sampleRate = this.audioContext.sampleRate;
         const buffer = this.audioContext.createBuffer(1, sampleRate * duration, sampleRate);
         return buffer;
@@ -911,3 +921,8 @@ const userInteractionHandler = () => {
 document.addEventListener('click', userInteractionHandler, { once: true });
 document.addEventListener('keydown', userInteractionHandler, { once: true });
 document.addEventListener('touchstart', userInteractionHandler, { once: true });
+
+// Initialize with proper error handling
+if (typeof window !== 'undefined') {
+    window.SoundManager = SoundManager;
+}
