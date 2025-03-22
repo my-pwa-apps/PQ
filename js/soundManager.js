@@ -33,6 +33,9 @@ class SoundManager {
         
         // Cache for note frequencies to avoid recalculation
         this.noteFrequencyCache = new Map();
+
+        // Defer AudioContext creation until user interaction
+        this._audioContextPromise = null;
     }
     
     /**
@@ -41,40 +44,85 @@ class SoundManager {
      */
     async initialize() {
         try {
-            // Create audio context with fallback for older browsers
+            // Don't create AudioContext yet, just verify support
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) {
                 console.warn("Web Audio API not supported in this browser");
                 return false;
             }
             
-            this.audioContext = new AudioContext();
+            // Create promise for deferred initialization
+            this._audioContextPromise = new Promise((resolve) => {
+                this._resolveAudioContext = resolve;
+            });
             
-            // Create master volume for music and sfx
-            this.masterGain = this.audioContext.createGain();
-            this.masterGain.connect(this.audioContext.destination);
+            // Set up interaction handlers
+            this.setupInteractionHandlers();
             
-            // Create separate channels for music and sound effects
-            this.musicGain = this.audioContext.createGain();
-            this.musicGain.gain.value = this.musicVolume;
-            this.musicGain.connect(this.masterGain);
-            
-            this.sfxGain = this.audioContext.createGain();
-            this.sfxGain.gain.value = this.sfxVolume;
-            this.sfxGain.connect(this.masterGain);
-            
-            // Pregenerate common sound effects
-            await this.pregenerateCommonSounds();
-            
-            // Set up optimized audio processing
-            this.setupAudioProcessing();
-            
-            this.log("Sound system initialized successfully");
             return true;
         } catch (error) {
             console.error("Failed to initialize sound system:", error);
             return false;
         }
+    }
+
+    /**
+     * Set up handlers for user interaction
+     */
+    setupInteractionHandlers() {
+        const initAudio = async () => {
+            if (!this.audioContext) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.audioContext = new AudioContext();
+                
+                // Create audio graph
+                this.masterGain = this.audioContext.createGain();
+                this.masterGain.connect(this.audioContext.destination);
+                
+                this.musicGain = this.audioContext.createGain();
+                this.musicGain.gain.value = this.musicVolume;
+                this.musicGain.connect(this.masterGain);
+                
+                this.sfxGain = this.audioContext.createGain();
+                this.sfxGain.gain.value = this.sfxVolume;
+                this.sfxGain.connect(this.masterGain);
+                
+                // Resolve the initialization promise
+                if (this._resolveAudioContext) {
+                    this._resolveAudioContext(true);
+                }
+                
+                // Pregenerate sounds after context is ready
+                await this.pregenerateCommonSounds();
+            }
+            
+            if (this.audioContext.state === 'suspended') {
+                await this.audioContext.resume();
+            }
+            
+            this.mobileAudioEnabled = true;
+            this.log("Audio context initialized by user interaction");
+        };
+
+        // Remove previous listeners
+        const handlers = ['click', 'touchstart', 'keydown'];
+        handlers.forEach(event => {
+            document.removeEventListener(event, this.handleUserInteraction);
+        });
+
+        // Add new interaction handler
+        this.handleUserInteraction = async () => {
+            await initAudio();
+            // Remove handlers after successful initialization
+            handlers.forEach(event => {
+                document.removeEventListener(event, this.handleUserInteraction);
+            });
+        };
+
+        // Add listeners
+        handlers.forEach(event => {
+            document.addEventListener(event, this.handleUserInteraction, { once: true });
+        });
     }
     
     /**
