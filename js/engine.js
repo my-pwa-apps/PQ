@@ -36,9 +36,27 @@ class GameEngine {
         this.roomBoundaries = {};
         this.collisionObjects = [];
 
-        // Initialize color palette immediately to avoid null references
-        this.setupColorPalette = this.setupColorPalette.bind(this); // Explicitly bind 'this'
-        this.colors = this.setupColorPalette();
+        // Inline color palette definition
+        this.colors = {
+            black: '#000000',
+            blue: '#0000AA',
+            green: '#00AA00',
+            cyan: '#00AAAA',
+            red: '#AA0000',
+            magenta: '#AA00AA',
+            brown: '#AA5500',
+            lightGray: '#AAAAAA',
+            darkGray: '#555555',
+            brightBlue: '#5555FF',
+            brightGreen: '#55FF55',
+            brightCyan: '#55FFFF',
+            brightRed: '#FF5555',
+            brightMagenta: '#FF55FF',
+            yellow: '#FFFF55',
+            white: '#FFFFFF',
+            skin: '#FFD8B1',
+            darkBlue: '#000066'
+        };
         
         // Set floor level constraints
         this.floorLevel = {
@@ -174,30 +192,6 @@ class GameEngine {
         this.offscreenCanvas.width = this.canvas.width;
         this.offscreenCanvas.height = this.canvas.height;
         this.offscreenCtx = this.offscreenCanvas.getContext('2d', { alpha: false });
-    }
-
-    setupColorPalette() {
-        // 16-color palette for consistent use across the app
-        return {
-            black: '#000000',
-            blue: '#0000AA',
-            green: '#00AA00',
-            cyan: '#00AAAA',
-            red: '#AA0000',
-            magenta: '#AA00AA',
-            brown: '#AA5500',
-            lightGray: '#AAAAAA',
-            darkGray: '#555555',
-            brightBlue: '#5555FF',
-            brightGreen: '#55FF55',
-            brightCyan: '#55FFFF',
-            brightRed: '#FF5555',
-            brightMagenta: '#FF55FF',
-            yellow: '#FFFF55',
-            white: '#FFFFFF',
-            skin: '#FFD8B1',
-            darkBlue: '#000066'
-        };
     }
 
     clear() {

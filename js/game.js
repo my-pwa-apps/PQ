@@ -520,9 +520,6 @@ class Game {
 
         console.log('Starting game...');
         
-        // Ensure colors are initialized before calling init
-        this.engine.colors = this.engine.setupColorPalette();
-        
         // Initialize engine and load initial scene
         this.engine.init();
         
