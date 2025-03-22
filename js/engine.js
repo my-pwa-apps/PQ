@@ -37,26 +37,7 @@ class GameEngine {
         this.collisionObjects = [];
 
         // Initialize color palette immediately to avoid null references
-        this.colors = {
-            black: '#000000',
-            blue: '#0000AA',
-            green: '#00AA00',
-            cyan: '#00AAAA',
-            red: '#AA0000',
-            magenta: '#AA00AA',
-            brown: '#AA5500',
-            lightGray: '#AAAAAA',
-            darkGray: '#555555',
-            brightBlue: '#5555FF',
-            brightGreen: '#55FF55',
-            brightCyan: '#55FFFF',
-            brightRed: '#FF5555',
-            brightMagenta: '#FF55FF',
-            yellow: '#FFFF55',
-            white: '#FFFFFF',
-            skin: '#FFD8B1',
-            darkBlue: '#000066'
-        };
+        this.colors = this.setupColorPalette();
         
         // Set floor level constraints
         this.floorLevel = {
@@ -109,7 +90,8 @@ class GameEngine {
             // Setup core components
             this.setupCanvas();
             this.setupBufferCanvas();
-            this.colors = this.setupColorPalette();
+            // We already initialized colors in the constructor, so we don't need this line:
+            // this.colors = this.setupColorPalette();
             this.setupEventListeners();
             
             // Set initial game state
