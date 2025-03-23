@@ -324,11 +324,97 @@ if (typeof window.DialogManager === 'undefined') {
         }
 
         /**
+         * Show a simple dialog message without options or branching
+         * This is the entry point called by the engine for simple messages
+         * @param {string} text - The text to display
+         */
+        showDialog(text) {
+            if (!text) return;
+            
+            // Create dialog box if needed
+            if (!this.dialogElement) {
+                this.ensureDialogElements();
+            }
+            
+            // Show the dialog box container
+            if (this.dialogContainer) {
+                this.dialogContainer.style.display = 'block';
+            }
+            
+            // Use the typewriter effect method
+            this.displayDialogText(text, true);
+        }
+
+        /**
+         * Ensure dialog elements exist in DOM
+         */
+        ensureDialogElements() {
+            // Check if dialog elements already exist
+            this.dialogElement = document.getElementById('dialog-text');
+            this.dialogContainer = document.getElementById('dialog-box');
+            
+            // Create dialog box if it doesn't exist
+            if (!this.dialogContainer) {
+                this.dialogContainer = document.createElement('div');
+                this.dialogContainer.id = 'dialog-box';
+                this.dialogContainer.className = 'game-dialog';
+                
+                // Create dialog text element
+                this.dialogElement = document.createElement('div');
+                this.dialogElement.id = 'dialog-text';
+                this.dialogContainer.appendChild(this.dialogElement);
+                
+                // Add to document
+                document.body.appendChild(this.dialogContainer);
+                
+                // Style the dialog
+                const style = document.createElement('style');
+                style.textContent = `
+                    .game-dialog {
+                        position: absolute;
+                        bottom: 20px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        background-color: rgba(0, 0, 0, 0.7);
+                        color: white;
+                        padding: 15px 20px;
+                        border-radius: 5px;
+                        max-width: 80%;
+                        font-family: monospace;
+                        font-size: 14px;
+                        line-height: 1.4;
+                        z-index: 1000;
+                    }
+                    #dialog-text {
+                        min-height: 2em;
+                    }
+                    .dialog-option {
+                        background-color: rgba(100, 100, 100, 0.5);
+                        border: none;
+                        color: white;
+                        padding: 8px 12px;
+                        margin: 5px 0;
+                        width: 100%;
+                        text-align: left;
+                        cursor: pointer;
+                        border-radius: 3px;
+                    }
+                    .dialog-option:hover {
+                        background-color: rgba(150, 150, 150, 0.5);
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+
+        // Fix naming conflict with overloaded showDialog method
+        // Rename the existing implementation to avoid recursion
+        /**
          * Show dialog text with Sierra-style typewriter effect
          * @param {string} text - The dialog text to display
          * @param {boolean} queue - Whether to queue this dialog if one is already showing
          */
-        showDialog(text, queue = true) {
+        displayDialogText(text, queue = true) {
             if (!text || !this.dialogElement) return;
             
             // Add to queue

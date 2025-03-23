@@ -1326,14 +1326,79 @@ class GameEngine {
     }
 
     showMessage(text) {
-        // Display a message using dialog system if available
-        if (window.dialogManager) {
-            window.dialogManager.showDialog(text);
-        } else if (window.game?.showDialog) {
-            window.game.showDialog(text);
-        } else {
-            console.log("Game message:", text);
+        if (!text) return;
+        
+        // Direct display if no dialog systems are available
+        console.log("Game message:", text);
+        
+        try {
+            // Try to use dialog manager if available
+            if (window.dialogManager) {
+                // First check if the dialog box elements exist
+                const dialogBox = document.getElementById('dialog-box');
+                const dialogText = document.getElementById('dialog-text');
+                
+                if (!dialogBox || !dialogText) {
+                    // Create dialog elements if they don't exist
+                    this.createSimpleDialog(text);
+                    return;
+                }
+                
+                // Check if showDialog function exists
+                if (typeof window.dialogManager.showDialog === 'function') {
+                    window.dialogManager.showDialog(text);
+                } else if (typeof window.dialogManager.displayDialogText === 'function') {
+                    // Try alternative method
+                    window.dialogManager.displayDialogText(text);
+                } else {
+                    // Use simple DOM manipulation as fallback
+                    this.createSimpleDialog(text);
+                }
+            } else if (window.game?.showDialog) {
+                window.game.showDialog(text);
+            } else {
+                // Use simple DOM manipulation as fallback
+                this.createSimpleDialog(text);
+            }
+        } catch (error) {
+            console.error("Error showing message:", error);
+            // Fallback to simple dialog
+            this.createSimpleDialog(text);
         }
+    }
+
+    /**
+     * Create a simple dialog box as fallback
+     * @param {string} text - Text to display
+     */
+    createSimpleDialog(text) {
+        let dialogBox = document.getElementById('simple-dialog');
+        
+        if (!dialogBox) {
+            dialogBox = document.createElement('div');
+            dialogBox.id = 'simple-dialog';
+            dialogBox.style.position = 'absolute';
+            dialogBox.style.bottom = '20px';
+            dialogBox.style.left = '50%';
+            dialogBox.style.transform = 'translateX(-50%)';
+            dialogBox.style.backgroundColor = 'rgba(0,0,0,0.7)';
+            dialogBox.style.color = 'white';
+            dialogBox.style.padding = '15px 20px';
+            dialogBox.style.borderRadius = '5px';
+            dialogBox.style.maxWidth = '80%';
+            dialogBox.style.fontFamily = 'monospace';
+            dialogBox.style.fontSize = '14px';
+            dialogBox.style.zIndex = '1000';
+            document.body.appendChild(dialogBox);
+        }
+        
+        dialogBox.textContent = text;
+        dialogBox.style.display = 'block';
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            dialogBox.style.display = 'none';
+        }, 5000);
     }
 
     processHotspotInteraction(hotspot, action) {
