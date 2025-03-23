@@ -30,10 +30,6 @@ class GameEngine {
 
         this.currentScene = 'policeStation';
         this.debugMode = false;
-
-        this.setupCanvas();
-        this.setupBufferCanvas();
-        this.setupEventListeners();
     }
 
     setupCanvas() {
@@ -67,6 +63,27 @@ class GameEngine {
                 this.handleMovement(directions[e.key]);
             }
         });
+    }
+
+    // Add init method to properly initialize the engine
+    async init() {
+        try {
+            this.setupCanvas();
+            this.setupBufferCanvas();
+            this.setupEventListeners();
+            
+            // Initialize game state
+            this.loadScene(this.currentScene);
+            
+            // Start the game loop
+            this.startGameLoop();
+            
+            console.log("Game engine initialized successfully");
+            return true;
+        } catch (error) {
+            console.error("Failed to initialize game engine:", error);
+            return false;
+        }
     }
 
     startGameLoop() {
@@ -203,6 +220,13 @@ class GameEngine {
         if (data) {
             this.gameState = JSON.parse(data);
         }
+    }
+
+    // Add a loadScene method to handle scene changes
+    loadScene(sceneId) {
+        console.log(`Loading scene: ${sceneId}`);
+        this.currentScene = sceneId;
+        return true;
     }
 
     dispose() {
