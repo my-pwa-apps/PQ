@@ -1224,6 +1224,46 @@ class Game {
         this.errorScreen.style.display = 'flex';
     }
 
+    // Add the missing initializeGameState method
+    initializeGameState() {
+        // Initialize game state with default values
+        this.gameState = this.gameState || {
+            inventory: [],
+            currentCase: GAME_DATA.cases.case1
+        };
+        
+        // Initialize spatial grid for more efficient collision detection
+        this.spatialGrid = new SpatialGrid(800, 600, 50);
+        
+        // Initialize object pool for particles or other frequently created objects
+        this.particlePool = new ObjectPool(() => ({ x: 0, y: 0, active: false }));
+        
+        // Cache UI elements for better performance
+        this.cacheUIElements();
+    }
+
+    // Add the missing startPerformanceMonitoring method
+    startPerformanceMonitoring() {
+        if (!this.engine?.debugMode) return;
+        
+        this.lastFrameTime = performance.now();
+        this.frameCount = 0;
+        
+        // Set up performance monitoring interval
+        setInterval(() => {
+            const now = performance.now();
+            const elapsed = now - this.lastFrameTime;
+            this.metrics.fps = Math.round((this.frameCount * 1000) / elapsed);
+            
+            if (this.frameCount > 0) {
+                console.log(`FPS: ${this.metrics.fps}, Objects: ${this.engine?.collisionObjects?.length || 0}`);
+            }
+            
+            this.frameCount = 0;
+            this.lastFrameTime = now;
+        }, 1000);
+    }
+    
     // Initialize game when DOM is loaded
     static init() {
         window.addEventListener('DOMContentLoaded', () => {
