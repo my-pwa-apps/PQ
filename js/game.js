@@ -6,6 +6,29 @@ const GAME_DATA = {
         policeStation: {
             background: '',
             music: 'station_theme',
+            // Add collision objects
+            collisionObjects: [
+                // Reception desk
+                { type: 'rect', x: 350, y: 280, width: 160, height: 60 },
+                // File cabinets
+                { type: 'rect', x: 50, y: 200, width: 30, height: 80 },
+                { type: 'rect', x: 80, y: 200, width: 30, height: 80 },
+                { type: 'rect', x: 720, y: 200, width: 30, height: 80 },
+                // Detective desks
+                { type: 'rect', x: 200, y: 320, width: 100, height: 60 },
+                { type: 'rect', x: 500, y: 350, width: 100, height: 60 },
+                // Walls
+                { type: 'rect', x: 400, y: 20, width: 800, height: 40 },   // Top wall
+                { type: 'rect', x: 20, y: 300, width: 40, height: 600 },   // Left wall
+                { type: 'rect', x: 780, y: 300, width: 40, height: 600 },  // Right wall
+                // Water cooler
+                { type: 'rect', x: 730, y: 280, width: 24, height: 25 },
+                // Plants
+                { type: 'circle', x: 50, y: 270, radius: 15 },
+                { type: 'circle', x: 750, y: 350, radius: 15 },
+                // Coffee machine
+                { type: 'rect', x: 680, y: 150, width: 30, height: 40 }
+            ],
             hotspots: [
                 {
                     id: 'receptionDesk',
@@ -58,14 +81,15 @@ const GAME_DATA = {
                 {
                     id: 'caseFile',
                     x: 200,
-                    y: 220,
+                    y: 320,
                     width: 30,
                     height: 20,
                     interactions: {
                         look: "Case file for the downtown burglaries. Contains witness statements and initial findings.",
                         use: "You open the case file and begin reviewing the details.",
                         take: "You add the case file to your inventory."
-                    }
+                    },
+                    readable: "CASE FILE #2347\n\nSuspect: Unknown\n\nDescription: Series of burglaries targeting electronics stores downtown. All break-ins occurred between 1-3 AM. Security cameras disabled in all incidents.\n\nEvidence: Shoe print found at latest scene matches size 11 men's boot.\n\nWitnesses: Store owner across the street reported seeing tall individual in dark clothing near the scene around 2 AM."
                 },
                 {
                     id: 'sheriffsOfficeDoor',
@@ -108,6 +132,19 @@ const GAME_DATA = {
         downtown: {
             background: '',
             music: 'downtown_theme',
+            collisionObjects: [
+                // Buildings
+                { type: 'rect', x: 300, y: 200, width: 140, height: 80 },  // Electronics store
+                { type: 'rect', x: 500, y: 200, width: 140, height: 80 },  // Cafe
+                // Lamp posts
+                { type: 'circle', x: 100, y: 280, radius: 5 },
+                { type: 'circle', x: 400, y: 280, radius: 5 },
+                { type: 'circle', x: 700, y: 280, radius: 5 },
+                // Fire hydrant
+                { type: 'circle', x: 150, y: 280, radius: 10 },
+                // Police car
+                { type: 'rect', x: 600, y: 320, width: 60, height: 25 }
+            ],
             hotspots: [
                 {
                     id: 'alley',
@@ -204,6 +241,16 @@ const GAME_DATA = {
         sheriffsOffice: {
             background: '',
             music: 'station_theme',
+            collisionObjects: [
+                // Sheriff's desk
+                { type: 'rect', x: 350, y: 150, width: 250, height: 100 },
+                // Filing cabinet
+                { type: 'rect', x: 50, y: 150, width: 70, height: 120 },
+                // Walls
+                { type: 'rect', x: 400, y: 20, width: 800, height: 40 },   // Top wall
+                { type: 'rect', x: 20, y: 300, width: 40, height: 600 },   // Left wall
+                { type: 'rect', x: 780, y: 300, width: 40, height: 600 }   // Right wall
+            ],
             hotspots: [
                 {
                     id: 'sheriffsDesk',
@@ -246,12 +293,13 @@ const GAME_DATA = {
                     x: 85,
                     y: 180,
                     width: 20,
-                    height: 5,
+                    height: 15,
                     interactions: {
                         look: "A case file from 1985 about a series of electronics store burglaries.",
                         use: "You review the file and notice the burglar used the same entry technique as your current case.",
                         take: "You take the file to compare with your current case."
-                    }
+                    },
+                    readable: "COLD CASE FILE #8547 (1985)\n\nSuspect: James 'Slim Jim' Morrison (never caught)\n\nDescription: Series of 7 burglaries targeting electronics stores. Suspect disabled security systems by cutting power to the buildings before entry.\n\nM.O.: Always entered through back door or roof access. Targeted high-end electronics that were easy to carry and resell.\n\nSuspect was believed to have inside knowledge of the stores' security systems."
                 },
                 {
                     id: 'exitDoor',
@@ -270,6 +318,18 @@ const GAME_DATA = {
         briefingRoom: {
             background: '',
             music: 'station_theme',
+            collisionObjects: [
+                // Conference table
+                { type: 'rect', x: 150, y: 180, width: 500, height: 120 },
+                // Projector screen
+                { type: 'rect', x: 350, y: 30, width: 200, height: 5 },
+                // Coffee machine
+                { type: 'rect', x: 700, y: 200, width: 50, height: 80 },
+                // Walls
+                { type: 'rect', x: 400, y: 20, width: 800, height: 40 },   // Top wall
+                { type: 'rect', x: 20, y: 300, width: 40, height: 600 },   // Left wall
+                { type: 'rect', x: 780, y: 300, width: 40, height: 600 }   // Right wall
+            ],
             hotspots: [
                 {
                     id: 'conferenceTable',

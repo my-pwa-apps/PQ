@@ -34,6 +34,14 @@ class GameEngine {
 
         this.currentScene = 'policeStation';
         this.debugMode = false;
+
+        // Add collision system properties
+        this.collisionObjects = [];
+        this.playerCollisionRadius = 20; // Player collision radius
+        this.interactionDistance = 50; // Distance at which player can interact with objects
+
+        // Add inventory system
+        this.inventory = [];
     }
 
     setupCanvas() {
@@ -138,9 +146,23 @@ class GameEngine {
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if (distance > speed) {
-                this.playerPosition.x += (dx / distance) * speed;
-                this.playerPosition.y += (dy / distance) * speed;
-                this.playerWalkCycle = (this.playerWalkCycle + 1) % 4;
+                // Calculate next position
+                const nextX = this.playerPosition.x + (dx / distance) * speed;
+                const nextY = this.playerPosition.y + (dy / distance) * speed;
+                
+                // Check for collision at next position
+                if (!this.checkCollisionAtPath(nextX, nextY)) {
+                    // No collision, move the player
+                    this.playerPosition.x = nextX;
+                    this.playerPosition.y = nextY;
+                    this.playerWalkCycle = (this.playerWalkCycle + 1) % 4;
+                } else {
+                    // Collision detected, stop walking
+                    this.isWalking = false;
+                    this.targetX = undefined;
+                    this.targetY = undefined;
+                    this.showMessage("Oops, path blocked.");
+                }
             } else {
                 // Player reached destination
                 this.playerPosition.x = this.targetX;
@@ -1020,9 +1042,45 @@ class GameEngine {
 
     // Add a loadScene method to handle scene changes
     loadScene(sceneId) {
+        if (!sceneId || typeof sceneId !== 'string') {
+            console.error('Invalid scene ID provided to loadScene:', sceneId);
+            return false;
+        }
+        
+        // Check if scene exists in GAME_DATA
+        if (!window.GAME_DATA?.scenes?.[sceneId]) {
+            console.error(`Scene '${sceneId}' not found in GAME_DATA`);
+            return false;
+        }
+        
         console.log(`Loading scene: ${sceneId}`);
-        this.currentScene = sceneId;
-        return true;
+        
+        try {
+            // Update current scene
+            this.currentScene = sceneId;
+            
+            // Update game state if needed
+            if (window.game) {
+                window.game.currentScene = sceneId;
+            }
+            
+            // Reset any scene-specific state
+            this.isWalking = false;
+            this.targetX = undefined;
+            this.targetY = undefined;
+            
+            // Play scene music if available
+            const sceneData = window.GAME_DATA.scenes[sceneId];
+            if (sceneData.music && window.soundManager) {
+                window.soundManager.playBackgroundMusic(sceneData.music);
+            }
+            
+            console.log(`Scene '${sceneId}' loaded successfully`);
+            return true;
+        } catch (error) {
+            console.error(`Error loading scene '${sceneId}':`, error);
+            return false;
+        }
     }
 
     // Add missing updateNPCs function
@@ -1240,8 +1298,12 @@ class GameEngine {
             const dx = Math.abs(x - npc.x);
             const dy = Math.abs(y - npc.y);
             
-            if (dx < 30 && dy < 50) {
-                // Player clicked on an NPC
+            // Check if player is close enough to interact with NPC
+            const playerDistance = Math.sqrt((this.playerPosition.x - npc.x) ** 2 + 
+                                             (this.playerPosition.y - npc.y) ** 2);
+            
+            if (dx < 30 && dy < 50 && playerDistance < this.interactionDistance) {
+                // Player clicked on an NPC and is close enough
                 console.log(`Interacting with NPC: ${npc.name}`);
                 
                 // Face towards the NPC
@@ -1255,33 +1317,8 @@ class GameEngine {
                     this.playerFacing = 'up';
                 }
                 
-                // Handle dialog if this NPC has dialog - with safety checks
-                if (npc.dialogId) {
-                    try {
-                        // Ensure dialog manager exists or create one
-                        if (!window._dialogManager && typeof DialogManager === 'function') {
-                            console.log("Creating new dialog manager instance");
-                            window._dialogManager = new DialogManager();
-                        }
-                        
-                        // Access through the getter to ensure initialization
-                        if (window.dialogManager && typeof window.dialogManager.startDialog === 'function') {
-                            window.dialogManager.startDialog(npc.dialogId);
-                        } else {
-                            // Fallback if dialog manager isn't available
-                            this.showMessage(`${npc.name}: "Hello there!"`);
-                            console.warn("Dialog manager not available - using fallback message");
-                        }
-                    } catch (err) {
-                        console.error("Dialog error:", err);
-                        this.showMessage(`${npc.name} wants to speak but there was an error.`);
-                    }
-                } else {
-                    // If no dialog system, use simple message
-                    const dialogText = npc.dialog || `${npc.name} has nothing to say right now.`;
-                    this.showMessage(dialogText);
-                }
-                
+                // Handle dialog
+                this.handleNPCDialog(npc);
                 return; // Stop processing after finding an NPC
             }
         }
@@ -1292,7 +1329,7 @@ class GameEngine {
             const hotspots = scene.hotspots || [];
             
             for (const hotspot of hotspots) {
-                // Debug hitbox calculation - improve precision
+                // Debug hotspot calculation
                 const hotspotX = hotspot.x;
                 const hotspotY = hotspot.y;
                 const hotspotWidth = hotspot.width || 20;
@@ -1304,19 +1341,36 @@ class GameEngine {
                     y >= hotspotY - hotspotHeight/2 && 
                     y <= hotspotY + hotspotHeight/2) {
                     
-                    console.log(`Clicked on hotspot: ${hotspot.id}`, hotspot);
+                    // Check if player is close enough to interact
+                    const playerDistance = Math.sqrt((this.playerPosition.x - hotspotX) ** 2 + 
+                                                    (this.playerPosition.y - hotspotY) ** 2);
                     
-                    // Handle hotspot interaction based on current action
-                    const action = window.game?.activeAction || 'look';
-                    const response = hotspot.interactions?.[action] || `You can't ${action} that.`;
-                    
-                    // Show the response message
-                    this.showMessage(response);
-                    
-                    // Handle special interactions
-                    this.processHotspotInteraction(hotspot, action);
-                    
-                    return; // Stop processing after finding a hotspot
+                    if (playerDistance <= this.interactionDistance) {
+                        console.log(`Interacting with hotspot: ${hotspot.id}`, hotspot);
+                        
+                        // Handle hotspot interaction based on current action
+                        const action = window.game?.activeAction || 'look';
+                        const response = hotspot.interactions?.[action] || `You can't ${action} that.`;
+                        
+                        // Show the response message
+                        this.showMessage(response);
+                        
+                        // Handle special interactions
+                        this.processHotspotInteraction(hotspot, action);
+                        
+                        return; // Stop processing after finding a hotspot
+                    } else {
+                        // Player is too far away
+                        this.showMessage("I need to get closer.");
+                        
+                        // Move player closer to the hotspot
+                        const moveToX = hotspotX + (this.playerPosition.x < hotspotX ? -this.interactionDistance/2 : this.interactionDistance/2);
+                        const moveToY = hotspotY + (this.playerPosition.y < hotspotY ? -this.interactionDistance/2 : this.interactionDistance/2);
+                        
+                        // Move player toward the object
+                        this.movePlayerToPoint(moveToX, moveToY);
+                        return;
+                    }
                 }
             }
         }
@@ -1404,58 +1458,195 @@ class GameEngine {
     processHotspotInteraction(hotspot, action) {
         console.log(`Processing hotspot interaction: ${hotspot.id}, action: ${action}`);
         
-        // Handle scene transitions for doors
+        // Handle inventory items
+        if (action === 'take' && hotspot.interactions?.take?.includes("inventory")) {
+            console.log(`Adding ${hotspot.id} to inventory`);
+            this.addToInventory(hotspot.id);
+            return true;
+        }
+        
+        // Handle readable items
+        if (action === 'look' && hotspot.readable) {
+            console.log(`Reading ${hotspot.id}`);
+            this.showDocument(hotspot.readable);
+            return true;
+        }
+        
+        // Handle scene transitions via doors with improved debugging
         if (action === 'use' && hotspot.id.toLowerCase().includes('door')) {
             let targetScene = null;
             let playerX = 400;
             let playerY = 350;
             
+            console.log(`Attempting to use door: ${hotspot.id} in scene ${this.currentScene}`);
+            
             // Handle specific door transitions
             if (hotspot.id === 'exitDoor' && this.currentScene === 'policeStation') {
-                console.log("Transitioning to downtown scene...");
+                console.log("Should transition to downtown scene");
                 targetScene = 'downtown';
                 playerX = 400;
                 playerY = 500;
             } else if (hotspot.id === 'briefingRoomDoor') {
-                console.log("Transitioning to briefing room...");
+                console.log("Should transition to briefing room");
                 targetScene = 'briefingRoom';
                 playerX = 400;
                 playerY = 450;
             } else if (hotspot.id === 'sheriffsOfficeDoor') {
-                console.log("Transitioning to sheriff's office...");
+                console.log("Should transition to sheriff's office");
                 targetScene = 'sheriffsOffice';
                 playerX = 250;
                 playerY = 400;
             } else if (hotspot.id === 'exitDoor' && this.currentScene !== 'policeStation') {
-                console.log("Returning to police station...");
+                console.log("Should return to police station");
                 targetScene = 'policeStation';
                 playerX = 400;
                 playerY = 450;
             }
             
+            // Custom door transitions from scene data
+            if (hotspot.targetScene) {
+                console.log(`Custom door transition to ${hotspot.targetScene}`);
+                targetScene = hotspot.targetScene;
+                playerX = hotspot.targetX || 400;
+                playerY = hotspot.targetY || 350;
+            }
+            
             // Perform scene transition if target is set
             if (targetScene) {
-                console.log(`Scene transition: ${this.currentScene} -> ${targetScene}`);
-                this.loadScene(targetScene);
-                this.playerPosition.x = playerX;
-                this.playerPosition.y = playerY;
-                return true;
-            }
-        } else if (action === 'take' && hotspot.interactions?.take?.includes("inventory")) {
-            // Handle adding item to inventory
-            const itemName = hotspot.id;
-            if (window.game?.addToInventory) {
-                window.game.addToInventory(itemName);
+                console.log(`Executing scene transition: ${this.currentScene} -> ${targetScene}`);
+                const success = this.loadScene(targetScene);
+                
+                if (success) {
+                    this.playerPosition.x = playerX;
+                    this.playerPosition.y = playerY;
+                    console.log(`Scene changed to ${targetScene} at position ${playerX},${playerY}`);
+                    this.showMessage(`You entered the ${targetScene}.`);
+                    return true;
+                } else {
+                    console.error(`Failed to load scene: ${targetScene}`);
+                    this.showMessage("That door seems to be stuck.");
+                    return false;
+                }
             }
         }
         
         return false;
     }
 
+    showDocument(text) {
+        // Check if we have a custom document viewer
+        const documentViewer = document.getElementById('document-viewer');
+        
+        if (documentViewer) {
+            // Use the existing document viewer
+            const content = document.getElementById('document-content');
+            if (content) content.textContent = text;
+            documentViewer.style.display = 'block';
+            
+            // Add close button functionality if not already set up
+            const closeBtn = document.getElementById('document-close');
+            if (closeBtn && !closeBtn.hasClickHandler) {
+                closeBtn.addEventListener('click', () => {
+                    documentViewer.style.display = 'none';
+                });
+                closeBtn.hasClickHandler = true;
+            }
+        } else {
+            // Create a simple document viewer
+            const viewer = document.createElement('div');
+            viewer.id = 'document-viewer';
+            viewer.style.position = 'absolute';
+            viewer.style.left = '50%';
+            viewer.style.top = '50%';
+            viewer.style.transform = 'translate(-50%, -50%)';
+            viewer.style.width = '60%';
+            viewer.style.maxHeight = '70%';
+            viewer.style.padding = '20px';
+            viewer.style.backgroundColor = '#f5f5dc';  // Paper-like color
+            viewer.style.border = '1px solid #8B4513';
+            viewer.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+            viewer.style.overflow = 'auto';
+            viewer.style.zIndex = '1000';
+            viewer.style.fontFamily = 'monospace';
+            
+            // Create content area
+            const content = document.createElement('div');
+            content.id = 'document-content';
+            content.textContent = text;
+            content.style.margin = '10px 0';
+            
+            // Create close button
+            const closeBtn = document.createElement('button');
+            closeBtn.id = 'document-close';
+            closeBtn.textContent = 'Close';
+            closeBtn.style.display = 'block';
+            closeBtn.style.margin = '10px auto';
+            closeBtn.style.padding = '5px 15px';
+            closeBtn.hasClickHandler = true;
+            
+            closeBtn.addEventListener('click', () => {
+                viewer.style.display = 'none';
+            });
+            
+            // Assemble document viewer
+            viewer.appendChild(content);
+            viewer.appendChild(closeBtn);
+            
+            // Add to document body
+            document.body.appendChild(viewer);
+        }
+    }
+
+    addToInventory(itemId) {
+        if (!itemId) return false;
+        
+        // Check if item already exists in inventory
+        if (this.inventory.includes(itemId)) {
+            this.showMessage(`You already have the ${itemId}.`);
+            return false;
+        }
+        
+        // Add to engine's internal inventory
+        this.inventory.push(itemId);
+        
+        // Update game's inventory if it exists
+        if (window.game && window.game.gameState) {
+            if (!Array.isArray(window.game.gameState.inventory)) {
+                window.game.gameState.inventory = [];
+            }
+            window.game.gameState.inventory.push(itemId);
+            
+            // Update inventory UI if method exists
+            if (typeof window.game.updateInventoryUI === 'function') {
+                window.game.updateInventoryUI();
+            }
+        }
+        
+        // Also update GAME_DATA inventory if it exists
+        if (window.GAME_DATA) {
+            if (!Array.isArray(window.GAME_DATA.inventory)) {
+                window.GAME_DATA.inventory = [];
+            }
+            if (!window.GAME_DATA.inventory.includes(itemId)) {
+                window.GAME_DATA.inventory.push(itemId);
+            }
+        }
+        
+        this.showMessage(`Added ${itemId} to inventory.`);
+        return true;
+    }
+
     movePlayerToPoint(x, y) {
         // Calculate direction to target
         const dx = x - this.playerPosition.x;
         const dy = y - this.playerPosition.y;
+
+        // Don't allow clicking on locations with collision objects
+        if (this.checkCollisionAtPoint(x, y)) {
+            console.log("Can't move there - obstacle in the way");
+            this.showMessage("I can't walk there.");
+            return;
+        }
         
         // Set facing direction based on dominant axis
         if (Math.abs(dx) > Math.abs(dy)) {
@@ -1470,6 +1661,105 @@ class GameEngine {
         // Move player to target over time (in update loop)
         this.targetX = x;
         this.targetY = y;
+    }
+
+    checkCollisionAtPoint(x, y) {
+        // Get collision objects for current scene
+        const sceneCollisions = this.getSceneCollisionObjects();
+        
+        for (const obj of sceneCollisions) {
+            // Handle rectangular collision objects
+            if (obj.type === 'rect') {
+                // Check if point is inside collision rectangle
+                if (x >= obj.x - obj.width/2 && 
+                    x <= obj.x + obj.width/2 && 
+                    y >= obj.y - obj.height/2 && 
+                    y <= obj.y + obj.height/2) {
+                    return true; // Collision detected
+                }
+            } 
+            // Handle circular collision objects
+            else if (obj.type === 'circle') {
+                // Check if point is inside collision circle
+                const distance = Math.sqrt((x - obj.x) ** 2 + (y - obj.y) ** 2);
+                if (distance <= obj.radius) {
+                    return true; // Collision detected
+                }
+            }
+        }
+        
+        return false; // No collision
+    }
+
+    checkCollisionAtPath(nextX, nextY) {
+        // Get collision objects for current scene
+        const sceneCollisions = this.getSceneCollisionObjects();
+        
+        // Check player collision with each object
+        for (const obj of sceneCollisions) {
+            if (obj.type === 'rect') {
+                // Calculate distances
+                const halfWidth = obj.width / 2;
+                const halfHeight = obj.height / 2;
+                
+                // Check overlap between player circle and rectangle
+                if (nextX + this.playerCollisionRadius >= obj.x - halfWidth &&
+                    nextX - this.playerCollisionRadius <= obj.x + halfWidth &&
+                    nextY + this.playerCollisionRadius >= obj.y - halfHeight &&
+                    nextY - this.playerCollisionRadius <= obj.y + halfHeight) {
+                    return true; // Collision detected
+                }
+            } else if (obj.type === 'circle') {
+                // Calculate distance between centers
+                const distance = Math.sqrt((nextX - obj.x) ** 2 + (nextY - obj.y) ** 2);
+                if (distance < obj.radius + this.playerCollisionRadius) {
+                    return true; // Collision detected
+                }
+            }
+        }
+        
+        return false; // No collision
+    }
+
+    getSceneCollisionObjects() {
+        // Ensure GAME_DATA exists
+        if (!window.GAME_DATA || !window.GAME_DATA.scenes || !window.GAME_DATA.scenes[this.currentScene]) {
+            return [];
+        }
+        
+        // Get scene data
+        const scene = window.GAME_DATA.scenes[this.currentScene];
+        
+        // Return collision objects for the scene
+        return scene.collisionObjects || [];
+    }
+
+    handleNPCDialog(npc) {
+        if (npc.dialogId) {
+            try {
+                // Ensure dialog manager exists or create one
+                if (!window._dialogManager && typeof DialogManager === 'function') {
+                    console.log("Creating new dialog manager instance");
+                    window._dialogManager = new DialogManager();
+                }
+                
+                // Access through the getter to ensure initialization
+                if (window.dialogManager && typeof window.dialogManager.startDialog === 'function') {
+                    window.dialogManager.startDialog(npc.dialogId);
+                } else {
+                    // Fallback if dialog manager isn't available
+                    this.showMessage(`${npc.name}: "Hello there!"`);
+                    console.warn("Dialog manager not available - using fallback message");
+                }
+            } catch (err) {
+                console.error("Dialog error:", err);
+                this.showMessage(`${npc.name} wants to speak but there was an error.`);
+            }
+        } else {
+            // If no dialog system, use simple message
+            const dialogText = npc.dialog || `${npc.name} has nothing to say right now.`;
+            this.showMessage(dialogText);
+        }
     }
 
     // Add method to update cursor style based on what's under the mouse
