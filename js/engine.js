@@ -155,16 +155,673 @@ class GameEngine {
 
     drawPoliceStation() {
         const ctx = this.offscreenCtx;
-        ctx.fillStyle = '#AAAAAA';
+        
+        // Sierra-style color palette
+        const colors = {
+            wallBlue: '#5A81AC',
+            wallTrim: '#385D8A',
+            floor: '#997755',
+            floorTiles: '#8B6844',
+            furnitureWood: '#6E4D2A',
+            officeBackground: '#AABBCC',
+            deskColor: '#7E5539',
+            cabinetGray: '#778899',
+            computerScreen: '#000066',
+            computerMonitor: '#444444',
+            doorFrame: '#5D4037',
+            doorColor: '#8D6E63',
+            noticeBoardBg: '#F5F5DC',
+            noticeBoardFrame: '#8B4513'
+        };
+        
+        // Background wall
+        ctx.fillStyle = colors.wallBlue;
+        ctx.fillRect(0, 0, this.canvas.width, 250);
+        
+        // Floor
+        ctx.fillStyle = colors.floor;
         ctx.fillRect(0, 250, this.canvas.width, this.canvas.height - 250);
+        
+        // Floor tiles
+        for (let x = 0; x < this.canvas.width; x += 40) {
+            for (let y = 250; y < this.canvas.height; y += 40) {
+                if ((Math.floor(x/40) + Math.floor(y/40)) % 2 === 0) {
+                    ctx.fillStyle = colors.floorTiles;
+                    ctx.fillRect(x, y, 40, 40);
+                }
+            }
+        }
+        
+        // Wall trim
+        ctx.fillStyle = colors.wallTrim;
+        ctx.fillRect(0, 240, this.canvas.width, 10);
+        
+        // Main reception desk
+        this.drawReceptionDesk(ctx, 350, 280, colors);
+        
+        // Office doors
+        this.drawDoor(ctx, 100, 150, colors, "BRIEFING ROOM");
+        this.drawDoor(ctx, 650, 150, colors, "SHERIFF'S OFFICE");
+        
+        // Exit door
+        this.drawDoor(ctx, 400, 530, colors, "EXIT", true);
+        
+        // File cabinets
+        this.drawFileCabinet(ctx, 50, 200, colors);
+        this.drawFileCabinet(ctx, 80, 200, colors);
+        this.drawFileCabinet(ctx, 720, 200, colors);
+        
+        // Notice board
+        this.drawNoticeBoard(ctx, 500, 100, 140, 90, colors);
+        
+        // Detective desks
+        this.drawDetectiveDesk(ctx, 200, 320, colors, true);  // Computer on
+        this.drawDetectiveDesk(ctx, 500, 350, colors, false); // Computer off
+        
+        // Add some chairs
+        this.drawOfficeChair(ctx, 200, 360, colors);
+        this.drawOfficeChair(ctx, 500, 390, colors);
+        this.drawOfficeChair(ctx, 400, 300, colors);
+        
+        // Add water cooler and plants for atmosphere
+        this.drawWaterCooler(ctx, 730, 280, colors);
+        this.drawOfficePlant(ctx, 50, 270, colors);
+        this.drawOfficePlant(ctx, 750, 350, colors);
+        
+        // Add coffee machine - classic Police Quest element
+        this.drawCoffeeMachine(ctx, 680, 150, colors);
+    }
+
+    drawReceptionDesk(ctx, x, y, colors) {
+        // Main desk body
+        ctx.fillStyle = colors.deskColor;
+        ctx.fillRect(x - 80, y, 160, 60);
+        
+        // Desk front panel
+        ctx.fillStyle = colors.deskColor;
+        ctx.fillRect(x - 80, y + 30, 160, 30);
+        
+        // Desktop items
+        this.drawComputer(ctx, x - 50, y - 10, colors, true);
+        
+        // Counter top edge
+        ctx.fillStyle = '#5D4037';
+        ctx.fillRect(x - 80, y, 160, 5);
+        
+        // Reception sign
+        ctx.fillStyle = '#D4AF37';
+        ctx.fillRect(x - 40, y - 20, 80, 15);
+        ctx.fillStyle = '#000000';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('RECEPTION', x, y - 8);
+    }
+
+    drawDetectiveDesk(ctx, x, y, colors, computerOn) {
+        // Desk top
+        ctx.fillStyle = colors.deskColor;
+        ctx.fillRect(x - 50, y, 100, 60);
+        
+        // Desk legs
+        ctx.fillStyle = '#5D4037';
+        ctx.fillRect(x - 45, y + 60, 10, 20);
+        ctx.fillRect(x + 35, y + 60, 10, 20);
+        
+        // Computer
+        this.drawComputer(ctx, x, y - 10, colors, computerOn);
+        
+        // Papers and folders
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, this.canvas.width, 240);
+        ctx.fillRect(x - 40, y + 15, 30, 20);
+        ctx.fillStyle = '#FFD700';
+        ctx.fillRect(x + 15, y + 20, 25, 15);
+        
+        // Coffee mug
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(x - 30, y + 10, 7, 8);
+        ctx.fillStyle = '#D2B48C';
+        ctx.fillRect(x - 29, y + 7, 5, 3);
+    }
+
+    drawComputer(ctx, x, y, colors, isOn) {
+        // Monitor
+        ctx.fillStyle = colors.computerMonitor;
+        ctx.fillRect(x - 15, y, 30, 25);
+        
+        // Screen
+        ctx.fillStyle = isOn ? '#00AA00' : colors.computerScreen;
+        ctx.fillRect(x - 12, y + 3, 24, 18);
+        
+        // Screen content (if on)
+        if (isOn) {
+            ctx.fillStyle = '#00FF00';
+            ctx.fillRect(x - 10, y + 5, 20, 2);
+            ctx.fillRect(x - 10, y + 9, 15, 2);
+            ctx.fillRect(x - 10, y + 13, 18, 2);
+            ctx.fillRect(x - 10, y + 17, 12, 2);
+        }
+        
+        // Keyboard
+        ctx.fillStyle = '#555555';
+        ctx.fillRect(x - 20, y + 27, 40, 12);
+    }
+
+    drawDoor(ctx, x, y, colors, label, isExit = false) {
+        const width = isExit ? 80 : 60;
+        const height = isExit ? 40 : 120;
+        
+        // Door frame
+        ctx.fillStyle = colors.doorFrame;
+        ctx.fillRect(x - width/2 - 5, y - (isExit ? 0 : 5), width + 10, height + 5);
+        
+        // Door
+        ctx.fillStyle = colors.doorColor;
+        ctx.fillRect(x - width/2, y, width, height);
+        
+        // Door handle
+        ctx.fillStyle = '#FFD700';
+        ctx.fillRect(isExit ? (x + width/4) : (x + width/4), 
+                     isExit ? (y + height/2) : (y + height/2), 5, 5);
+        
+        // Door label
+        if (label) {
+            ctx.fillStyle = isExit ? '#FF0000' : '#FFFFFF';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, x, isExit ? (y + height + 15) : (y - 10));
+        }
+    }
+
+    drawFileCabinet(ctx, x, y, colors) {
+        // Cabinet body
+        ctx.fillStyle = colors.cabinetGray;
+        ctx.fillRect(x, y, 25, 80);
+        
+        // Drawers
+        ctx.fillStyle = '#666666';
+        ctx.fillRect(x + 1, y + 5, 23, 20);
+        ctx.fillRect(x + 1, y + 30, 23, 20);
+        ctx.fillRect(x + 1, y + 55, 23, 20);
+        
+        // Drawer handles
+        ctx.fillStyle = '#AAAAAA';
+        ctx.fillRect(x + 10, y + 15, 5, 3);
+        ctx.fillRect(x + 10, y + 40, 5, 3);
+        ctx.fillRect(x + 10, y + 65, 5, 3);
+    }
+
+    drawNoticeBoard(ctx, x, y, width, height, colors) {
+        // Board background
+        ctx.fillStyle = colors.noticeBoardBg;
+        ctx.fillRect(x, y, width, height);
+        
+        // Board frame
+        ctx.fillStyle = colors.noticeBoardFrame;
+        ctx.fillRect(x - 3, y - 3, width + 6, 3);
+        ctx.fillRect(x - 3, y + height, width + 6, 3);
+        ctx.fillRect(x - 3, y, 3, height);
+        ctx.fillRect(x + width, y, 3, height);
+        
+        // Notices - small colored papers
+        ctx.fillStyle = '#FFFF99'; // yellow note
+        ctx.fillRect(x + 10, y + 10, 30, 20);
+        
+        ctx.fillStyle = '#ADD8E6'; // blue note
+        ctx.fillRect(x + 50, y + 15, 35, 25);
+        
+        ctx.fillStyle = '#FFC0CB'; // pink note
+        ctx.fillRect(x + 20, y + 45, 40, 20);
+        
+        ctx.fillStyle = '#98FB98'; // green note
+        ctx.fillRect(x + 70, y + 50, 30, 25);
+        
+        // Thumbtacks
+        ctx.fillStyle = '#FF0000';
+        ctx.beginPath();
+        ctx.arc(x + 15, y + 12, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#0000FF';
+        ctx.beginPath();
+        ctx.arc(x + 55, y + 18, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#00FF00';
+        ctx.beginPath();
+        ctx.arc(x + 25, y + 47, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#FF00FF';
+        ctx.beginPath();
+        ctx.arc(x + 75, y + 52, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    drawOfficeChair(ctx, x, y, colors) {
+        // Chair seat
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x - 12, y, 24, 8);
+        
+        // Chair back
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x - 10, y - 15, 20, 15);
+        
+        // Chair legs
+        ctx.fillStyle = '#444444';
+        ctx.fillRect(x - 10, y + 8, 3, 12);
+        ctx.fillRect(x + 7, y + 8, 3, 12);
+    }
+
+    drawWaterCooler(ctx, x, y, colors) {
+        // Water bottle
+        ctx.fillStyle = '#ADD8E6';
+        ctx.fillRect(x - 10, y - 30, 20, 30);
+        
+        // Water level
+        ctx.fillStyle = '#87CEEB';
+        ctx.fillRect(x - 8, y - 25, 16, 20);
+        
+        // Dispenser
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(x - 12, y, 24, 25);
+        
+        // Spigot
+        ctx.fillStyle = '#AAAAAA';
+        ctx.fillRect(x - 2, y + 10, 4, 5);
+    }
+
+    drawOfficePlant(ctx, x, y, colors) {
+        // Pot
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(x - 10, y, 20, 15);
+        
+        // Plant
+        ctx.fillStyle = '#006400';
+        ctx.beginPath();
+        ctx.moveTo(x, y - 30);
+        ctx.lineTo(x - 15, y);
+        ctx.lineTo(x + 15, y);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.moveTo(x, y - 40);
+        ctx.lineTo(x - 12, y - 15);
+        ctx.lineTo(x + 12, y - 15);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    drawCoffeeMachine(ctx, x, y, colors) {
+        // Machine body
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(x - 15, y, 30, 40);
+        
+        // Coffee pot
+        ctx.fillStyle = '#777777';
+        ctx.fillRect(x - 10, y + 10, 20, 25);
+        
+        // Coffee
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(x - 8, y + 20, 16, 13);
+        
+        // Buttons
+        ctx.fillStyle = '#FF0000';
+        ctx.beginPath();
+        ctx.arc(x, y + 5, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#00FF00';
+        ctx.beginPath();
+        ctx.arc(x + 8, y + 5, 2, 0, Math.PI * 2);
+        ctx.fill();
     }
 
     drawDowntown() {
         const ctx = this.offscreenCtx;
+        
+        // Sky
+        const skyGradient = ctx.createLinearGradient(0, 0, 0, 150);
+        skyGradient.addColorStop(0, '#4B79A1');
+        skyGradient.addColorStop(1, '#79A1C1');
+        ctx.fillStyle = skyGradient;
+        ctx.fillRect(0, 0, this.canvas.width, 150);
+        
+        // Buildings in background
+        this.drawDowntownBuildings(ctx);
+        
+        // Street
         ctx.fillStyle = '#555555';
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.fillRect(0, 300, this.canvas.width, this.canvas.height - 300);
+        
+        // Sidewalk
+        ctx.fillStyle = '#999999';
+        ctx.fillRect(0, 280, this.canvas.width, 20);
+        
+        // Sidewalk lines
+        ctx.strokeStyle = '#777777';
+        ctx.lineWidth = 1;
+        for (let x = 40; x < this.canvas.width; x += 40) {
+            ctx.beginPath();
+            ctx.moveTo(x, 280);
+            ctx.lineTo(x, 300);
+            ctx.stroke();
+        }
+        
+        // Road markings
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([20, 10]);
+        ctx.beginPath();
+        ctx.moveTo(0, 350);
+        ctx.lineTo(this.canvas.width, 350);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Alley
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(200, 150, 50, 130);
+        
+        // Store fronts
+        this.drawElectronicsStore(ctx, 300, 200);
+        this.drawCafeStorefront(ctx, 500, 200);
+        
+        // Lamp posts
+        this.drawLampPost(ctx, 100, 280);
+        this.drawLampPost(ctx, 400, 280);
+        this.drawLampPost(ctx, 700, 280);
+        
+        // Fire hydrant
+        this.drawFireHydrant(ctx, 150, 280);
+        
+        // Crime scene
+        this.drawCrimeScene(ctx, 350, 290);
+        
+        // Parked police car
+        this.drawPoliceCar(ctx, 600, 320);
+    }
+
+    drawDowntownBuildings(ctx) {
+        // Background buildings
+        for (let i = 0; i < 10; i++) {
+            const buildingX = i * 80;
+            const buildingHeight = 100 + Math.sin(i * 0.7) * 30;
+            const buildingWidth = 80;
+            
+            ctx.fillStyle = i % 2 === 0 ? '#8596A6' : '#6E7A8A';
+            ctx.fillRect(buildingX, 150 - buildingHeight, buildingWidth, buildingHeight);
+            
+            // Windows
+            ctx.fillStyle = '#FFDB58';
+            const windowRows = Math.floor(buildingHeight / 20);
+            const windowCols = Math.floor(buildingWidth / 15);
+            
+            for (let row = 0; row < windowRows; row++) {
+                for (let col = 0; col < windowCols; col++) {
+                    // Don't draw windows on all positions
+                    if (Math.random() > 0.3) {
+                        ctx.fillRect(
+                            buildingX + col * 15 + 3, 
+                            150 - buildingHeight + row * 20 + 3, 
+                            9, 12
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    drawElectronicsStore(ctx, x, y) {
+        // Store front
+        ctx.fillStyle = '#6D6875';
+        ctx.fillRect(x - 70, y, 140, 80);
+        
+        // Window
+        ctx.fillStyle = '#A7C6DA';
+        ctx.fillRect(x - 60, y + 10, 120, 50);
+        
+        // Door
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(x - 15, y + 30, 30, 50);
+        
+        // Door handle
+        ctx.fillStyle = '#FFD700';
+        ctx.fillRect(x + 8, y + 50, 5, 5);
+        
+        // Store name
+        ctx.fillStyle = '#FFD700';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('ELECTRONICS', x, y + 25);
+        
+        // Crime scene tape
+        ctx.fillStyle = '#FFFF00';
+        ctx.fillRect(x - 60, y + 70, 120, 5);
+        
+        // Electronic items in window
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(x - 50, y + 30, 20, 15); // TV
+        ctx.fillRect(x - 20, y + 35, 15, 10); // Radio
+        ctx.fillRect(x + 10, y + 30, 10, 20); // Computer
+        ctx.fillRect(x + 30, y + 40, 20, 5);  // Stereo
+    }
+
+    drawCrimeScene(ctx, x, y) {
+        // Police tape
+        ctx.fillStyle = '#FFFF00';
+        for (let i = 0; i < 5; i++) {
+            ctx.fillRect(x - 40 + i*20, y - 10, 15, 3);
+        }
+        
+        // Evidence markers
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.moveTo(x - 10, y + 5);
+        ctx.lineTo(x - 5, y - 5);
+        ctx.lineTo(x, y + 5);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.moveTo(x + 20, y + 5);
+        ctx.lineTo(x + 25, y - 5);
+        ctx.lineTo(x + 30, y + 5);
+        ctx.fill();
+    }
+
+    drawPoliceCar(ctx, x, y) {
+        // Car body
+        ctx.fillStyle = '#000066';
+        ctx.fillRect(x - 30, y - 15, 60, 15);
+        
+        // Car top
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(x - 20, y - 25, 40, 10);
+        
+        // Windows
+        ctx.fillStyle = '#87CEEB';
+        ctx.fillRect(x - 15, y - 23, 30, 8);
+        
+        // Wheels
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x - 20, y, 10, 10);
+        ctx.fillRect(x + 10, y, 10, 10);
+        
+        // Light bar
+        ctx.fillStyle = '#FF0000';
+        ctx.fillRect(x - 15, y - 30, 10, 5);
+        ctx.fillStyle = '#0000FF';
+        ctx.fillRect(x + 5, y - 30, 10, 5);
+    }
+
+    drawLampPost(ctx, x, y) {
+        // Post
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(x - 2, y - 70, 4, 70);
+        
+        // Light fixture
+        ctx.fillStyle = '#444444';
+        ctx.fillRect(x - 8, y - 85, 16, 15);
+        
+        // Light
+        ctx.fillStyle = '#FFFF77';
+        ctx.fillRect(x - 6, y - 83, 12, 10);
+    }
+
+    drawFireHydrant(ctx, x, y) {
+        // Main body
+        ctx.fillStyle = '#FF0000';
+        ctx.fillRect(x - 5, y - 15, 10, 15);
+        
+        // Top cap
+        ctx.fillStyle = '#AA0000';
+        ctx.fillRect(x - 6, y - 20, 12, 5);
+        
+        // Side nozzles
+        ctx.fillStyle = '#880000';
+        ctx.fillRect(x - 10, y - 10, 5, 5);
+        ctx.fillRect(x + 5, y - 10, 5, 5);
+    }
+
+    drawPark(ctx) {
+        // Sky background
+        const skyGradient = ctx.createLinearGradient(0, 0, 0, 200);
+        skyGradient.addColorStop(0, '#87CEEB');
+        skyGradient.addColorStop(1, '#ADD8E6');
+        ctx.fillStyle = skyGradient;
+        ctx.fillRect(0, 0, this.canvas.width, 200);
+        
+        // Grass
+        ctx.fillStyle = '#5D8C3F';
+        ctx.fillRect(0, 200, this.canvas.width, this.canvas.height - 200);
+        
+        // Path through park
+        ctx.fillStyle = '#C2B280';
+        ctx.fillRect(50, 250, this.canvas.width - 100, 80);
+        
+        // Path border
+        ctx.strokeStyle = '#9B7653';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(50, 250, this.canvas.width - 100, 80);
+        
+        // Trees
+        this.drawTree(ctx, 100, 200, 40, 80);
+        this.drawTree(ctx, 300, 150, 50, 100);
+        this.drawTree(ctx, 600, 180, 45, 90);
+        this.drawTree(ctx, 750, 220, 35, 70);
+        
+        // Park benches
+        this.drawBench(ctx, 200, 300);
+        this.drawBench(ctx, 500, 280);
+        
+        // Fountain in center
+        this.drawFountain(ctx, 400, 180);
+        
+        // Bushes
+        this.drawBush(ctx, 150, 350, 40);
+        this.drawBush(ctx, 650, 330, 30);
+        this.drawBush(ctx, 700, 350, 25);
+    }
+
+    drawTree(ctx, x, y, width, height) {
+        // Tree trunk
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(x - width/6, y, width/3, height);
+        
+        // Tree foliage (layered for more depth)
+        ctx.fillStyle = '#097969'; // Dark green
+        ctx.beginPath();
+        ctx.ellipse(x, y - height*0.2, width/2, height/3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#228B22'; // Medium green
+        ctx.beginPath();
+        ctx.ellipse(x, y - height*0.4, width/2.2, height/3.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#32CD32'; // Light green
+        ctx.beginPath();
+        ctx.ellipse(x, y - height*0.6, width/2.5, height/4, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    drawBench(ctx, x, y) {
+        // Bench seat
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(x - 30, y - 10, 60, 5);
+        
+        // Bench back
+        ctx.fillRect(x - 30, y - 30, 60, 3);
+        
+        // Bench supports
+        for (let i = -25; i <= 25; i += 25) {
+            ctx.fillRect(x + i, y - 30, 3, 30);
+        }
+        
+        // Bench legs
+        ctx.fillStyle = '#5D4037';
+        ctx.fillRect(x - 25, y - 5, 5, 15);
+        ctx.fillRect(x + 20, y - 5, 5, 15);
+    }
+
+    drawFountain(ctx, x, y) {
+        // Fountain base
+        ctx.fillStyle = '#AAAAAA';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 30, 80, 30, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Fountain pool
+        ctx.fillStyle = '#40B0D0';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 30, 70, 25, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Fountain center pillar
+        ctx.fillStyle = '#CCCCCC';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 25, 15, 15, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Fountain water spray
+        if (this.animationFrame % 20 < 10) {
+            ctx.fillStyle = '#80C0FF';
+            ctx.beginPath();
+            ctx.ellipse(x, y, 10, 20, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Water droplets
+            for (let i = 0; i < 8; i++) {
+                const angle = Math.PI * 2 * (i / 8);
+                const dx = Math.cos(angle) * 20;
+                const dy = Math.sin(angle) * 10 - 10;
+                
+                ctx.beginPath();
+                ctx.ellipse(x + dx, y + dy, 3, 3, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else {
+            ctx.fillStyle = '#80C0FF';
+            ctx.beginPath();
+            ctx.ellipse(x, y - 5, 8, 15, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    drawBush(ctx, x, y, size) {
+        ctx.fillStyle = '#097969';
+        ctx.beginPath();
+        ctx.ellipse(x, y, size, size * 0.7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Bush highlights
+        ctx.fillStyle = '#32CD32';
+        ctx.beginPath();
+        ctx.ellipse(x - size/3, y - size/4, size/2, size/3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.ellipse(x + size/4, y - size/6, size/3, size/4, 0, 0, Math.PI * 2);
+        ctx.fill();
     }
 
     drawNPCs() {
@@ -180,113 +837,106 @@ class GameEngine {
 
     drawPixelCharacter(x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false, isFemale = false) {
         const ctx = this.offscreenCtx;
-        const scale = 1.2; // Scale factor for character size
+        
+        // Sierra-style character drawing with fewer pixels for authentic look
+        const pixelSize = 2; // Use larger pixels for Sierra style
         
         // Draw shadow under character
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        ctx.beginPath();
-        ctx.ellipse(x, y + 5, 10 * scale, 5 * scale, 0, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.ellipse(x, y + 3, 12, 4, 0, 0, Math.PI * 2);
         
-        // Body positioning variables
-        const walkCycle = isWalking ? (this.animationFrame % 20) < 10 ? 1 : -1 : 0;
-        let headX = 0, headY = 0, bodyX = 0, bodyOffset = 0;
+        // Calculate walk cycle offset
+        const walkOffset = isWalking ? ((this.animationFrame % 12) < 6 ? 1 : -1) : 0;
         
-        // Adjust position based on facing direction
-        switch(facing) {
-            case 'left':
-                headX = -2;
-                break;
-            case 'right':
-                headX = 2;
-                break;
-            case 'up':
-                bodyOffset = -2;
-                headY = -2;
-                break;
-            case 'down':
-                headY = 2;
-                break;
-        }
+        // Body positioning variables based on facing direction
+        const facingOffsetX = facing === 'left' ? -2 : (facing === 'right' ? 2 : 0);
         
-        // Draw legs with walking animation
+        // Draw legs
+        ctx.fillStyle = this.colors.blue;
+        
         if (isWalking) {
-            // Left leg
-            ctx.fillStyle = uniformColor;
-            ctx.fillRect(x - 6 * scale, y - 15 * scale, 5 * scale, 15 * scale + walkCycle);
+            // Left leg with walking animation
+            ctx.fillRect(x - 6, y - 16, 5, 16 + (facing === 'left' ? walkOffset : -walkOffset));
             
-            // Right leg
-            ctx.fillRect(x + 1 * scale, y - 15 * scale, 5 * scale, 15 * scale - walkCycle);
+            // Right leg with walking animation
+            ctx.fillRect(x + 1, y - 16, 5, 16 + (facing === 'right' ? walkOffset : -walkOffset));
         } else {
-            // Standing legs
-            ctx.fillStyle = uniformColor;
-            ctx.fillRect(x - 6 * scale, y - 15 * scale, 5 * scale, 15 * scale);
-            ctx.fillRect(x + 1 * scale, y - 15 * scale, 5 * scale, 15 * scale);
+            // Standing pose
+            ctx.fillRect(x - 6, y - 16, 5, 16);
+            ctx.fillRect(x + 1, y - 16, 5, 16);
         }
         
-        // Draw body/uniform
-        ctx.fillStyle = uniformColor;
-        ctx.fillRect(x - 8 * scale, y - 30 * scale + bodyOffset, 16 * scale, 20 * scale);
-        
-        // Draw badge
-        ctx.fillStyle = badgeColor;
-        ctx.fillRect(x - 5 * scale + headX, y - 25 * scale, 4 * scale, 4 * scale);
+        // Draw torso (Sierra-style police uniform)
+        ctx.fillStyle = uniformColor || this.colors.blue;
+        ctx.fillRect(x - 7, y - 32, 14, 16);
         
         // Draw arms based on facing
         if (facing === 'left') {
-            // Left arm in front
-            ctx.fillStyle = uniformColor;
-            ctx.fillRect(x - 10 * scale, y - 28 * scale, 4 * scale, 15 * scale);
+            // Left side view, one arm visible
+            ctx.fillRect(x - 9, y - 32, 3, 14 + (isWalking ? walkOffset : 0));
         } else if (facing === 'right') {
-            // Right arm in front
-            ctx.fillStyle = uniformColor;
-            ctx.fillRect(x + 6 * scale, y - 28 * scale, 4 * scale, 15 * scale);
+            // Right side view, one arm visible
+            ctx.fillRect(x + 6, y - 32, 3, 14 + (isWalking ? walkOffset : 0));
         } else {
-            // Both arms visible
-            ctx.fillStyle = uniformColor;
-            ctx.fillRect(x - 12 * scale, y - 28 * scale, 4 * scale, 15 * scale);
-            ctx.fillRect(x + 8 * scale, y - 28 * scale, 4 * scale, 15 * scale);
+            // Front/back view, both arms
+            ctx.fillRect(x - 10, y - 32, 3, 14 + (isWalking ? walkOffset : 0));
+            ctx.fillRect(x + 7, y - 32, 3, 14 + (isWalking ? -walkOffset : 0));
+        }
+        
+        // Draw badge
+        if (facing !== 'back') {
+            ctx.fillStyle = badgeColor || this.colors.yellow;
+            ctx.fillRect(x + (facing === 'left' ? -5 : 1), y - 28, 4, 4);
         }
         
         // Draw head
-        const skinColor = '#FFD8B1'; // Skin tone
-        ctx.fillStyle = skinColor;
-        ctx.fillRect(x - 6 * scale + headX, y - 40 * scale + headY, 12 * scale, 12 * scale);
-        
-        // Draw hair based on gender
-        ctx.fillStyle = isFemale ? '#8B4513' : '#222222';
-        if (isFemale) {
-            // Female hair style
-            ctx.fillRect(x - 7 * scale + headX, y - 42 * scale + headY, 14 * scale, 5 * scale);
-            ctx.fillRect(x - 7 * scale + headX, y - 38 * scale + headY, 2 * scale, 10 * scale);
-            ctx.fillRect(x + 5 * scale + headX, y - 38 * scale + headY, 2 * scale, 10 * scale);
+        ctx.fillStyle = this.colors.skin;
+        if (facing === 'back') {
+            ctx.fillRect(x - 5, y - 42, 10, 10);
         } else {
-            // Male hair style
-            ctx.fillRect(x - 6 * scale + headX, y - 42 * scale + headY, 12 * scale, 4 * scale);
+            ctx.fillRect(x - 5 + facingOffsetX, y - 42, 10, 10);
         }
         
-        // Draw face features based on facing
-        if (facing !== 'up') {
+        // Draw face features if not facing back
+        if (facing !== 'back') {
             // Eyes
             ctx.fillStyle = '#000000';
             if (facing === 'left') {
-                ctx.fillRect(x - 4 * scale, y - 36 * scale + headY, 2 * scale, 2 * scale);
+                ctx.fillRect(x - 3, y - 38, 2, 2);
             } else if (facing === 'right') {
-                ctx.fillRect(x + 2 * scale, y - 36 * scale + headY, 2 * scale, 2 * scale);
+                ctx.fillRect(x + 1, y - 38, 2, 2);
             } else {
-                ctx.fillRect(x - 4 * scale, y - 36 * scale + headY, 2 * scale, 2 * scale);
-                ctx.fillRect(x + 2 * scale, y - 36 * scale + headY, 2 * scale, 2 * scale);
-            }
-            
-            // Mouth
-            if (facing === 'down') {
-                ctx.fillRect(x - 2 * scale, y - 32 * scale + headY, 4 * scale, 1 * scale);
+                // Front facing eyes
+                ctx.fillRect(x - 3, y - 38, 2, 2);
+                ctx.fillRect(x + 1, y - 38, 2, 2);
             }
         }
         
-        // Special features for NPCs if needed
-        if (isNPC) {
-            // Could add special features for NPCs
+        // Hair based on gender and facing
+        ctx.fillStyle = isFemale ? '#8B4513' : '#222222';
+        if (facing === 'back') {
+            ctx.fillRect(x - 5, y - 44, 10, 4);
+        } else {
+            if (isFemale) {
+                // Female hairstyle
+                ctx.fillRect(x - 6 + facingOffsetX, y - 45, 12, 3);
+                ctx.fillRect(x - 7 + facingOffsetX, y - 42, 3, 8);
+                ctx.fillRect(x + 4 + facingOffsetX, y - 42, 3, 8);
+            } else {
+                // Male hairstyle
+                ctx.fillRect(x - 5 + facingOffsetX, y - 46, 10, 4);
+            }
+        }
+        
+        // Sierra-style detailing for police officers
+        if (!isNPC) {
+            // Belt
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(x - 7, y - 18, 14, 2);
+            
+            // Collar
+            ctx.fillStyle = '#000055';
+            ctx.fillRect(x - 4, y - 32, 8, 2);
         }
     }
 
