@@ -3291,39 +3291,7 @@ window.GameEngine = GameEngine;
 
 // Removed duplicate async init() method to resolve the error.
 
-startGameLoop() {
-    if (this.isRunning) return;
-
-    console.log("Starting game loop");
-    this.isRunning = true;
-    this.lastFrameTime = performance.now();
-    this.accumulator = 0;
-    this.frameInterval = 1000 / 60; // Target 60 FPS
-    
-    // Start the game loop
-    const loop = (timestamp) => {
-        if (!this.isRunning) return;
-
-        const deltaTime = timestamp - this.lastFrameTime;
-        this.accumulator += deltaTime;
-        this.lastFrameTime = timestamp;
-
-        // Update game state
-        while (this.accumulator >= this.frameInterval) {
-            this.update(this.frameInterval / 1000);
-            this.accumulator -= this.frameInterval;
-        }
-
-        // Draw current frame
-        this.drawCurrentScene();
-
-        // Request next frame
-        this.requestID = requestAnimationFrame(loop);
-    };
-
-    // Start the loop
-    this.requestID = requestAnimationFrame(loop);
-}
+// Removed duplicate definition of startGameLoop() to resolve the syntax error.
 
 // Removed duplicate definition of async loadScene(sceneName) to resolve the syntax error.
 
