@@ -6,7 +6,7 @@ const GAME_DATA = {
         policeStation: {
             background: '',
             music: 'station_theme',
-            // Add collision objects
+            // Enhance collision objects with better coverage
             collisionObjects: [
                 // Reception desk
                 { type: 'rect', x: 350, y: 280, width: 160, height: 60 },
@@ -17,17 +17,21 @@ const GAME_DATA = {
                 // Detective desks
                 { type: 'rect', x: 200, y: 320, width: 100, height: 60 },
                 { type: 'rect', x: 500, y: 350, width: 100, height: 60 },
-                // Walls
-                { type: 'rect', x: 400, y: 20, width: 800, height: 40 },   // Top wall
-                { type: 'rect', x: 20, y: 300, width: 40, height: 600 },   // Left wall
-                { type: 'rect', x: 780, y: 300, width: 40, height: 600 },  // Right wall
+                // Walls - make them thicker and properly positioned
+                { type: 'rect', x: 400, y: 10, width: 800, height: 20 },    // Top wall
+                { type: 'rect', x: 10, y: 300, width: 20, height: 600 },    // Left wall
+                { type: 'rect', x: 790, y: 300, width: 20, height: 600 },   // Right wall
+                { type: 'rect', x: 400, y: 590, width: 800, height: 20 },   // Bottom wall except for door
                 // Water cooler
                 { type: 'rect', x: 730, y: 280, width: 24, height: 25 },
                 // Plants
                 { type: 'circle', x: 50, y: 270, radius: 15 },
                 { type: 'circle', x: 750, y: 350, radius: 15 },
                 // Coffee machine
-                { type: 'rect', x: 680, y: 150, width: 30, height: 40 }
+                { type: 'rect', x: 680, y: 150, width: 30, height: 40 },
+                // Add collision for all NPCs in the room
+                { type: 'circle', x: 400, y: 280, radius: 20 }, // Receptionist
+                { type: 'circle', x: 600, y: 320, radius: 20 }  // Sergeant
             ],
             hotspots: [
                 {
@@ -101,7 +105,10 @@ const GAME_DATA = {
                         look: "The Sheriff's office. The door is slightly ajar.",
                         use: "You enter the Sheriff's office.",
                         talk: "There's no one at the door to talk to."
-                    }
+                    },
+                    targetScene: 'sheriffsOffice',
+                    targetX: 250,
+                    targetY: 400
                 },
                 {
                     id: 'briefingRoomDoor',
@@ -113,7 +120,10 @@ const GAME_DATA = {
                         look: "The door to the briefing room.",
                         use: "You enter the briefing room.",
                         talk: "There's no one at the door to talk to."
-                    }
+                    },
+                    targetScene: 'briefingRoom',
+                    targetX: 400,
+                    targetY: 450
                 },
                 {
                     id: 'exitDoor',
@@ -125,7 +135,10 @@ const GAME_DATA = {
                         look: "The exit door leading downtown.",
                         use: "You head downtown to investigate.",
                         talk: "It's a door. It doesn't talk back."
-                    }
+                    },
+                    targetScene: 'downtown',
+                    targetX: 400,
+                    targetY: 500
                 }
             ]
         },
@@ -193,6 +206,21 @@ const GAME_DATA = {
                         use: "You carefully search the marked area and find a dropped tool that could have been used in the break-in.",
                         take: "You collect the evidence and bag it properly."
                     }
+                },
+                {
+                    id: 'exitDoor',
+                    x: 400,
+                    y: 550,
+                    width: 100, 
+                    height: 40,
+                    interactions: {
+                        look: "The exit leading back to the police station.",
+                        use: "You head back to the police station.",
+                        talk: "It's a door. It doesn't talk back."
+                    },
+                    targetScene: 'policeStation',
+                    targetX: 400,
+                    targetY: 450
                 }
             ]
         },
@@ -311,7 +339,10 @@ const GAME_DATA = {
                         look: "Door leading back to the main station.",
                         use: "You head back to the main station area.",
                         take: "You can't take the door."
-                    }
+                    },
+                    targetScene: 'policeStation',
+                    targetX: 650,
+                    targetY: 200
                 }
             ]
         },
@@ -389,7 +420,10 @@ const GAME_DATA = {
                         look: "Door leading back to the main station.",
                         use: "You head back to the main station area.",
                         take: "You can't take the door."
-                    }
+                    },
+                    targetScene: 'policeStation',
+                    targetX: 100,
+                    targetY: 200
                 }
             ]
         }
@@ -1391,4 +1425,31 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
     }
     
     return false;
+};
+
+// Add debugging code
+window.debugCollisions = function() {
+    if (window.gameEngine) {
+        const collisions = window.gameEngine.getSceneCollisionObjects();
+        console.log('Current scene collision objects:', collisions);
+    }
+};
+
+// Add debugging code for door testing
+window.testDoorTransition = function(doorId) {
+    if (!window.gameEngine) {
+        console.error('Game engine not initialized');
+        return;
+    }
+    
+    const scene = window.gameEngine.currentScene;
+    const hotspots = window.GAME_DATA?.scenes?.[scene]?.hotspots || [];
+    const doorHotspot = hotspots.find(h => h.id === doorId);
+    
+    if (doorHotspot) {
+        console.log('Testing door:', doorHotspot);
+        window.gameEngine.processHotspotInteraction(doorHotspot, 'use');
+    } else {
+        console.error(`Door with ID "${doorId}" not found in current scene`);
+    }
 };

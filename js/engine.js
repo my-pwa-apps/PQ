@@ -1047,15 +1047,24 @@ class GameEngine {
             return false;
         }
         
+        // Debug output
+        console.log(`Attempting to load scene: ${sceneId}`);
+        console.log(`Available scenes:`, window.GAME_DATA?.scenes ? Object.keys(window.GAME_DATA.scenes) : 'GAME_DATA not available');
+        
         // Check if scene exists in GAME_DATA
         if (!window.GAME_DATA?.scenes?.[sceneId]) {
             console.error(`Scene '${sceneId}' not found in GAME_DATA`);
             return false;
         }
         
-        console.log(`Loading scene: ${sceneId}`);
-        
         try {
+            console.log(`Loading scene: ${sceneId}`);
+            
+            // Reset any scene-specific state
+            this.isWalking = false;
+            this.targetX = undefined;
+            this.targetY = undefined;
+            
             // Update current scene
             this.currentScene = sceneId;
             
@@ -1064,11 +1073,6 @@ class GameEngine {
                 window.game.currentScene = sceneId;
             }
             
-            // Reset any scene-specific state
-            this.isWalking = false;
-            this.targetX = undefined;
-            this.targetY = undefined;
-            
             // Play scene music if available
             const sceneData = window.GAME_DATA.scenes[sceneId];
             if (sceneData.music && window.soundManager) {
@@ -1076,6 +1080,12 @@ class GameEngine {
             }
             
             console.log(`Scene '${sceneId}' loaded successfully`);
+            
+            // Make sure someone is handling this change
+            if (window.game?.updateSceneUI) {
+                window.game.updateSceneUI();
+            }
+            
             return true;
         } catch (error) {
             console.error(`Error loading scene '${sceneId}':`, error);
@@ -1092,7 +1102,6 @@ class GameEngine {
         for (const npc of currentSceneNPCs) {
             // Update NPC animation state
             if (npc.isWalking) {
-                // Simple animation for walking
                 npc.animationFrame = (npc.animationFrame || 0) + 1;
             }
             
@@ -1106,11 +1115,30 @@ class GameEngine {
                     
                     if (distance > 2) {
                         const speed = 0.5;
-                        npc.x += (dx / distance) * speed;
-                        npc.y += (dy / distance) * speed;
-                        npc.facing = Math.abs(dx) > Math.abs(dy) ? 
-                            (dx > 0 ? 'right' : 'left') : 
-                            (dy > 0 ? 'down' : 'up');
+                        const nextX = npc.x + (dx / distance) * speed;
+                        const nextY = npc.y + (dy / distance) * speed;
+                        
+                        // Add collision check for NPCs
+                        if (!this.checkNPCCollision(npc, nextX, nextY)) {
+                            npc.x = nextX;
+                            npc.y = nextY;
+                            npc.facing = Math.abs(dx) > Math.abs(dy) ? 
+                                (dx > 0 ? 'right' : 'left') : 
+                                (dy > 0 ? 'down' : 'up');
+                        } else {
+                            // If collision, try to find a new path or wait
+                            npc.waitTime = 1;
+                            // Try to move in only x or only y direction
+                            const tryX = npc.x + (dx / distance) * speed;
+                            if (!this.checkNPCCollision(npc, tryX, npc.y)) {
+                                npc.x = tryX;
+                            }
+                            
+                            const tryY = npc.y + (dy / distance) * speed;
+                            if (!this.checkNPCCollision(npc, npc.x, tryY)) {
+                                npc.y = tryY;
+                            }
+                        }
                     } else {
                         // Reached waypoint, move to next one
                         npc.currentPatrolPoint = (npc.currentPatrolPoint + 1) % npc.patrolPoints.length;
@@ -1472,61 +1500,81 @@ class GameEngine {
             return true;
         }
         
-        // Handle scene transitions via doors with improved debugging
+        // Handle scene transitions via doors
         if (action === 'use' && hotspot.id.toLowerCase().includes('door')) {
+            // Debug information
+            console.log(`Door interaction with ${hotspot.id} in ${this.currentScene}`);
+            console.log(`Door hotspot details:`, hotspot);
+            
             let targetScene = null;
             let playerX = 400;
             let playerY = 350;
             
-            console.log(`Attempting to use door: ${hotspot.id} in scene ${this.currentScene}`);
+            // Define door transitions based on current scene and door ID
+            const doorTransitions = {
+                'policeStation': {
+                    'exitDoor': { scene: 'downtown', x: 400, y: 500 },
+                    'briefingRoomDoor': { scene: 'briefingRoom', x: 400, y: 450 },
+                    'sheriffsOfficeDoor': { scene: 'sheriffsOffice', x: 250, y: 400 }
+                },
+                'downtown': {
+                    'exitDoor': { scene: 'policeStation', x: 400, y: 450 }
+                },
+                'briefingRoom': {
+                    'exitDoor': { scene: 'policeStation', x: 100, y: 200 }
+                },
+                'sheriffsOffice': {
+                    'exitDoor': { scene: 'policeStation', x: 650, y: 200 }
+                },
+                'park': {
+                    'exitDoor': { scene: 'downtown', x: 400, y: 400 }
+                }
+            };
             
-            // Handle specific door transitions
-            if (hotspot.id === 'exitDoor' && this.currentScene === 'policeStation') {
-                console.log("Should transition to downtown scene");
-                targetScene = 'downtown';
-                playerX = 400;
-                playerY = 500;
-            } else if (hotspot.id === 'briefingRoomDoor') {
-                console.log("Should transition to briefing room");
-                targetScene = 'briefingRoom';
-                playerX = 400;
-                playerY = 450;
-            } else if (hotspot.id === 'sheriffsOfficeDoor') {
-                console.log("Should transition to sheriff's office");
-                targetScene = 'sheriffsOffice';
-                playerX = 250;
-                playerY = 400;
-            } else if (hotspot.id === 'exitDoor' && this.currentScene !== 'policeStation') {
-                console.log("Should return to police station");
-                targetScene = 'policeStation';
-                playerX = 400;
-                playerY = 450;
+            // Look up transition based on current scene and door ID
+            const doorConfig = doorTransitions[this.currentScene]?.[hotspot.id];
+            if (doorConfig) {
+                targetScene = doorConfig.scene;
+                playerX = doorConfig.x;
+                playerY = doorConfig.y;
+                console.log(`Using preset door transition to ${targetScene}`);
             }
             
-            // Custom door transitions from scene data
+            // Use custom door transitions from hotspot data if defined
             if (hotspot.targetScene) {
-                console.log(`Custom door transition to ${hotspot.targetScene}`);
                 targetScene = hotspot.targetScene;
-                playerX = hotspot.targetX || 400;
-                playerY = hotspot.targetY || 350;
+                playerX = hotspot.targetX || playerX;
+                playerY = hotspot.targetY || playerY;
+                console.log(`Using hotspot-defined transition to ${targetScene}`);
             }
             
             // Perform scene transition if target is set
             if (targetScene) {
-                console.log(`Executing scene transition: ${this.currentScene} -> ${targetScene}`);
-                const success = this.loadScene(targetScene);
+                console.log(`Attempting scene transition: ${this.currentScene} -> ${targetScene}`);
                 
-                if (success) {
-                    this.playerPosition.x = playerX;
-                    this.playerPosition.y = playerY;
-                    console.log(`Scene changed to ${targetScene} at position ${playerX},${playerY}`);
-                    this.showMessage(`You entered the ${targetScene}.`);
-                    return true;
-                } else {
-                    console.error(`Failed to load scene: ${targetScene}`);
-                    this.showMessage("That door seems to be stuck.");
-                    return false;
-                }
+                // First stop player movement
+                this.isWalking = false;
+                this.targetX = undefined;
+                this.targetY = undefined;
+                
+                // Show transition message
+                this.showMessage(`Going to ${targetScene.replace(/([A-Z])/g, ' $1').toLowerCase()}...`);
+                
+                // Add slight delay for message to be visible
+                setTimeout(() => {
+                    const success = this.loadScene(targetScene);
+                    
+                    if (success) {
+                        this.playerPosition.x = playerX;
+                        this.playerPosition.y = playerY;
+                        console.log(`Successfully transitioned to ${targetScene} at position ${playerX},${playerY}`);
+                    } else {
+                        console.error(`Failed to load scene: ${targetScene}`);
+                        this.showMessage("That door seems to be stuck.");
+                    }
+                }, 500);
+                
+                return true;
             }
         }
         
@@ -1815,6 +1863,83 @@ class GameEngine {
             console.error("Failed to initialize dialog system:", err);
         }
         return !!window._dialogManager;
+    }
+
+    // Add missing handleDialogAction method needed by DialogManager
+    handleDialogAction(action) {
+        if (!action) return;
+        console.log(`Handling dialog action: ${action}`);
+        
+        // Handle special dialog actions like scene transitions or inventory changes
+        if (action.startsWith('gotoScene:')) {
+            const sceneName = action.split(':')[1];
+            if (sceneName) {
+                this.loadScene(sceneName);
+            }
+        } else if (action.startsWith('addItem:')) {
+            const itemName = action.split(':')[1];
+            if (itemName) {
+                this.addToInventory(itemName);
+            }
+        }
+    }
+
+    // Add a collision check method for NPCs
+    checkNPCCollision(npc, nextX, nextY) {
+        const npcRadius = 15; // Smaller collision radius for NPCs
+        
+        // Get collision objects for current scene
+        const sceneCollisions = this.getSceneCollisionObjects();
+        
+        // Check against scene objects
+        for (const obj of sceneCollisions) {
+            if (obj.type === 'rect') {
+                // Calculate distances
+                const halfWidth = obj.width / 2;
+                const halfHeight = obj.height / 2;
+                
+                // Check overlap between NPC circle and rectangle
+                if (nextX + npcRadius >= obj.x - halfWidth &&
+                    nextX - npcRadius <= obj.x + halfWidth &&
+                    nextY + npcRadius >= obj.y - halfHeight &&
+                    nextY - npcRadius <= obj.y + halfHeight) {
+                    return true; // Collision detected
+                }
+            } else if (obj.type === 'circle') {
+                // Calculate distance between centers
+                const distance = Math.sqrt((nextX - obj.x) ** 2 + (nextY - obj.y) ** 2);
+                if (distance < obj.radius + npcRadius) {
+                    return true; // Collision detected
+                }
+            }
+        }
+        
+        // Check collisions with other NPCs to avoid overlapping
+        for (const otherNPC of this.npcs[this.currentScene]) {
+            if (otherNPC !== npc) {
+                const distance = Math.sqrt((nextX - otherNPC.x) ** 2 + (nextY - otherNPC.y) ** 2);
+                if (distance < npcRadius * 2) {
+                    return true; // Collision with another NPC
+                }
+            }
+        }
+        
+        // Check collision with player
+        const playerDistance = Math.sqrt(
+            (nextX - this.playerPosition.x) ** 2 + 
+            (nextY - this.playerPosition.y) ** 2
+        );
+        if (playerDistance < npcRadius + this.playerCollisionRadius) {
+            return true; // Collision with player
+        }
+        
+        return false; // No collision
+    }
+
+    // Add method to ensure dialog system correctly handles dialog ended state
+    dialogEnded() {
+        console.log("Dialog ended, returning control to game");
+        // Handle any post-dialog logic here
     }
 }
 
