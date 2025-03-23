@@ -414,8 +414,8 @@ class GameDebugger {
             return;
         }
         
-        // Find all door hotspots
-        const doors = sceneData.hotspots.filter(h => h.id.toLowerCase().includes('door'));
+        // Add null check here as well to be safe
+        const doors = sceneData.hotspots.filter(h => h.id && h.id.toLowerCase && h.id.toLowerCase().includes('door'));
         this.logEntry(`Found ${doors.length} doors in scene ${scene}`);
         
         // Test each door
@@ -449,7 +449,8 @@ class GameDebugger {
             
             if (!scene.hotspots) return;
             
-            const doors = scene.hotspots.filter(h => h.id.toLowerCase().includes('door'));
+            // Add null check before calling toLowerCase()
+            const doors = scene.hotspots.filter(h => h.id && h.id.toLowerCase && h.id.toLowerCase().includes('door'));
             doors.forEach(door => {
                 if (!door.targetScene) {
                     this.logEntry(`Error: Door "${door.id}" in scene "${sceneName}" has no target scene`, "error");
@@ -486,6 +487,12 @@ class GameDebugger {
         
         // Create markers for all hotspots
         sceneData.hotspots.forEach(hotspot => {
+            // Add null check for hotspot properties
+            if (!hotspot || !hotspot.x || !hotspot.y || !hotspot.width || !hotspot.height) {
+                this.logEntry(`Warning: Invalid hotspot found in scene ${scene}`, "warn");
+                return;
+            }
+            
             const marker = document.createElement('div');
             marker.className = 'debug-hotspot-marker';
             marker.style.position = 'absolute';
@@ -493,7 +500,7 @@ class GameDebugger {
             marker.style.top = `${hotspot.y - hotspot.height/2}px`;
             marker.style.width = `${hotspot.width}px`;
             marker.style.height = `${hotspot.height}px`;
-            marker.style.border = hotspot.id.toLowerCase().includes('door') ? '2px solid red' : '2px solid blue';
+            marker.style.border = (hotspot.id && hotspot.id.toLowerCase && hotspot.id.toLowerCase().includes('door')) ? '2px solid red' : '2px solid blue';
             marker.style.backgroundColor = 'rgba(255,255,0,0.2)';
             marker.style.pointerEvents = 'none'; // Don't interfere with clicks
             marker.style.zIndex = '999';
@@ -508,7 +515,7 @@ class GameDebugger {
             label.style.padding = '2px 5px';
             label.style.fontSize = '10px';
             label.style.whiteSpace = 'nowrap';
-            label.textContent = hotspot.id;
+            label.textContent = hotspot.id || 'unnamed';
             marker.appendChild(label);
             
             document.body.appendChild(marker);
