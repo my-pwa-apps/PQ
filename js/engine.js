@@ -114,9 +114,27 @@ class GameEngine {
     }
 
     update(deltaTime = 1 / 60) {
-        if (this.isWalking) {
-            this.playerWalkCycle = (this.playerWalkCycle + 1) % 4;
+        // Handle player movement toward target if walking
+        if (this.isWalking && this.targetX !== undefined && this.targetY !== undefined) {
+            const speed = 5;
+            const dx = this.targetX - this.playerPosition.x;
+            const dy = this.targetY - this.playerPosition.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance > speed) {
+                this.playerPosition.x += (dx / distance) * speed;
+                this.playerPosition.y += (dy / distance) * speed;
+                this.playerWalkCycle = (this.playerWalkCycle + 1) % 4;
+            } else {
+                // Player reached destination
+                this.playerPosition.x = this.targetX;
+                this.playerPosition.y = this.targetY;
+                this.isWalking = false;
+                this.targetX = undefined;
+                this.targetY = undefined;
+            }
         }
+        
         this.updateNPCs(deltaTime);
         this.animationFrame++;
     }
@@ -1190,6 +1208,127 @@ class GameEngine {
                 name: 'Sheriff Johnson'
             }
         ];
+    }
+
+    handleInteraction(x, y) {
+        // Reset walking state when user clicks
+        this.isWalking = false;
+        
+        // Check for interaction with NPCs
+        const npcsInScene = this.npcs[this.currentScene] || [];
+        for (const npc of npcsInScene) {
+            // Simple hit testing for NPCs
+            const dx = Math.abs(x - npc.x);
+            const dy = Math.abs(y - npc.y);
+            
+            if (dx < 30 && dy < 50) {
+                // Player clicked on an NPC
+                console.log(`Interacting with NPC: ${npc.name}`);
+                
+                // Face towards the NPC
+                if (this.playerPosition.x < npc.x) {
+                    this.playerFacing = 'right';
+                } else if (this.playerPosition.x > npc.x) {
+                    this.playerFacing = 'left';
+                } else if (this.playerPosition.y < npc.y) {
+                    this.playerFacing = 'down';
+                } else {
+                    this.playerFacing = 'up';
+                }
+                
+                // Handle dialog if this NPC has dialog
+                if (npc.dialogId && window.dialogManager) {
+                    window.dialogManager.startDialog(npc.dialogId);
+                } else {
+                    // If no dialog system, use simple message
+                    const dialogText = npc.dialog || `${npc.name} has nothing to say right now.`;
+                    this.showMessage(dialogText);
+                }
+                
+                return; // Stop processing after finding an NPC
+            }
+        }
+        
+        // Check for hotspots from GAME_DATA
+        if (window.GAME_DATA && window.GAME_DATA.scenes && window.GAME_DATA.scenes[this.currentScene]) {
+            const scene = window.GAME_DATA.scenes[this.currentScene];
+            const hotspots = scene.hotspots || [];
+            
+            for (const hotspot of hotspots) {
+                if (x >= hotspot.x - hotspot.width/2 && 
+                    x <= hotspot.x + hotspot.width/2 && 
+                    y >= hotspot.y - hotspot.height/2 && 
+                    y <= hotspot.y + hotspot.height/2) {
+                    
+                    // Handle hotspot interaction based on current action
+                    const action = window.game?.activeAction || 'look';
+                    const response = hotspot.interactions?.[action] || `You can't ${action} that.`;
+                    
+                    // Show the response message
+                    this.showMessage(response);
+                    
+                    // Handle special interactions
+                    this.processHotspotInteraction(hotspot, action);
+                    
+                    return; // Stop processing after finding a hotspot
+                }
+            }
+        }
+        
+        // If player clicked on empty space, move there
+        this.movePlayerToPoint(x, y);
+    }
+
+    showMessage(text) {
+        // Display a message using dialog system if available
+        if (window.dialogManager) {
+            window.dialogManager.showDialog(text);
+        } else if (window.game?.showDialog) {
+            window.game.showDialog(text);
+        } else {
+            console.log("Game message:", text);
+        }
+    }
+
+    processHotspotInteraction(hotspot, action) {
+        // Handle special case interactions
+        if (hotspot.id === 'exitDoor' && action === 'use' && this.currentScene === 'policeStation') {
+            // Example: Change scene when using exit door
+            this.loadScene('downtown');
+            this.playerPosition = { x: 400, y: 500 };
+        } else if (hotspot.id === 'briefingRoomDoor' && action === 'use') {
+            this.loadScene('briefingRoom');
+            this.playerPosition = { x: 400, y: 450 };
+        } else if (hotspot.id === 'sheriffsOfficeDoor' && action === 'use') {
+            this.loadScene('sheriffsOffice');
+            this.playerPosition = { x: 250, y: 400 };
+        } else if (action === 'take' && hotspot.interactions?.take?.includes("inventory")) {
+            // Example: Add item to inventory
+            const itemName = hotspot.id;
+            if (window.game?.addToInventory) {
+                window.game.addToInventory(itemName);
+            }
+        }
+    }
+
+    movePlayerToPoint(x, y) {
+        // Calculate direction to target
+        const dx = x - this.playerPosition.x;
+        const dy = y - this.playerPosition.y;
+        
+        // Set facing direction based on dominant axis
+        if (Math.abs(dx) > Math.abs(dy)) {
+            this.playerFacing = dx > 0 ? 'right' : 'left';
+        } else {
+            this.playerFacing = dy > 0 ? 'down' : 'up';
+        }
+        
+        // Set walking state
+        this.isWalking = true;
+        
+        // Move player to target over time (in update loop)
+        this.targetX = x;
+        this.targetY = y;
     }
 }
 
