@@ -13,6 +13,21 @@
     
     <!-- Styles -->
     <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Add debug panel styles -->
+    <style>
+        #debug-toggle-button {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: #444;
+            color: white;
+            border: 1px solid #666;
+            padding: 5px;
+            z-index: 1000;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
     <div id="game-container">
@@ -31,7 +46,7 @@
             
             <!-- Controls guide -->
             <div id="controls-guide">
-                WASD/Arrows: Move | Ctrl+S: Save | Ctrl+L: Load | Ctrl+N: New Game
+                WASD/Arrows: Move | Alt+D: Debug | Alt+C: Show Collisions | Alt+H: Show Hotspots
             </div>
         </div>
         
@@ -69,14 +84,36 @@
     <!-- Score Display -->
     <div id="score-display" class="game-ui-element">Score: 0</div>
     
+    <!-- Debug toggle button -->
+    <button id="debug-toggle-button" onclick="toggleDebug()">Debug</button>
+    
     <!-- Load scripts in correct initialization order -->
     <script src="js/data/GameData.js"></script>
+    <script src="js/SpatialPartitioning.js"></script>
     <script src="js/soundManager.js"></script>
     <script src="js/engine.js"></script>
     <script src="js/managers/DialogManager.js"></script>
-    <script src="js/game.js"></script>
     <script src="js/ui/DialogManager.js"></script>
     <script src="js/scenes/SceneManager.js"></script>
     <script src="js/debug.js"></script>
+    <script src="js/game.js"></script>
+    
+    <!-- Add simple debug initialization script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Document loaded - setting up debug key listeners');
+            
+            // Global keyboard listener as a fallback
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'd' && event.altKey) {
+                    console.log('Alt+D pressed - toggling debug');
+                    if (typeof toggleDebug === 'function') {
+                        toggleDebug();
+                    }
+                    event.preventDefault();
+                }
+            });
+        });
+    </script>
 </body>
 </html>

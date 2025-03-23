@@ -19,6 +19,9 @@ class GameDebugger {
             frameCount: 0,
             lastTime: performance.now()
         };
+        
+        // Bind methods to maintain proper 'this' context
+        this.handleKeyDown = this.handleKeyDown.bind(this);
     }
     
     /**
@@ -28,15 +31,15 @@ class GameDebugger {
         // Create debug UI
         this.createDebugPanel();
         
-        // Register keyboard shortcuts
-        document.addEventListener('keydown', this.handleKeyDown.bind(this));
+        // Register keyboard shortcuts - add capturing phase for better keyboard handling
+        document.addEventListener('keydown', this.handleKeyDown, true);
         
         // Set up performance monitoring
         if (this.logPerformance) {
             this.startPerformanceMonitoring();
         }
         
-        console.log("Game debugger initialized");
+        console.log("Game debugger initialized - Press Alt+D to show debug panel");
     }
     
     /**
@@ -224,9 +227,13 @@ class GameDebugger {
      * Handle keyboard shortcuts
      */
     handleKeyDown(event) {
+        console.log("Debug key event:", event.key, event.altKey);
+        
         // Alt+D to toggle debug panel
         if (event.key === 'd' && event.altKey) {
+            console.log("Debug panel toggle triggered");
             this.toggleDebugPanel();
+            event.preventDefault(); // Prevent default browser behavior
         }
         
         // Alt+C to toggle collision visualization
@@ -234,9 +241,11 @@ class GameDebugger {
             this.showCollisions = !this.showCollisions;
             if (window.gameEngine) {
                 window.gameEngine.debugMode = this.showCollisions;
+                console.log("Debug collisions set to:", this.showCollisions);
             }
             const checkbox = document.getElementById('debug-collisions');
             if (checkbox) checkbox.checked = this.showCollisions;
+            event.preventDefault();
         }
         
         // Alt+H to toggle hotspot visualization
@@ -245,6 +254,7 @@ class GameDebugger {
             this.toggleHotspotDisplay(this.showHotspots);
             const checkbox = document.getElementById('debug-hotspots');
             if (checkbox) checkbox.checked = this.showHotspots;
+            event.preventDefault();
         }
         
         // Alt+P to toggle performance monitoring
@@ -257,11 +267,13 @@ class GameDebugger {
             }
             const checkbox = document.getElementById('debug-performance');
             if (checkbox) checkbox.checked = this.logPerformance;
+            event.preventDefault();
         }
         
         // Alt+R to reload current scene
         if (event.key === 'r' && event.altKey) {
             this.reloadCurrentScene();
+            event.preventDefault();
         }
     }
     
@@ -272,6 +284,7 @@ class GameDebugger {
         this.active = !this.active;
         if (this.panel) {
             this.panel.style.display = this.active ? 'block' : 'none';
+            console.log("Debug panel visibility set to:", this.active);
         }
         
         // If debug panel is active, also activate debugging mode
@@ -846,6 +859,7 @@ class GameDebugger {
 
 // Initialize the debugger when the document is ready
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("Initializing game debugger");
     window.gameDebugger = new GameDebugger();
     window.gameDebugger.init();
     
@@ -895,6 +909,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // Add toggle debug command to document
 window.toggleDebug = () => {
     if (window.gameDebugger) {
+        console.log("Toggling debug panel via global function");
         window.gameDebugger.toggleDebugPanel();
+    } else {
+        console.error("Game debugger not initialized");
     }
 };

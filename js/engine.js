@@ -140,33 +140,41 @@ class GameEngine {
     update(deltaTime = 1 / 60) {
         // Handle player movement toward target if walking
         if (this.isWalking && this.targetX !== undefined && this.targetY !== undefined) {
-            const speed = 5;
+            // Calculate direction vector
             const dx = this.targetX - this.playerPosition.x;
             const dy = this.targetY - this.playerPosition.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            if (distance > speed) {
-                // Calculate next position
-                const nextX = this.playerPosition.x + (dx / distance) * speed;
-                const nextY = this.playerPosition.y + (dy / distance) * speed;
+            // Only move if we're not already at the target
+            if (distance > 5) {
+                // Normalized direction
+                const dirX = dx / distance;
+                const dirY = dy / distance;
                 
-                // Check for collision at next position
-                if (!this.checkCollisionAtPath(nextX, nextY)) {
-                    // No collision, move the player
+                // Calculate next position
+                const speed = 5;
+                const nextX = this.playerPosition.x + dirX * speed;
+                const nextY = this.playerPosition.y + dirY * speed;
+                
+                // Update player facing based on movement direction
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    this.playerFacing = dx > 0 ? 'right' : 'left';
+                } else {
+                    this.playerFacing = dy > 0 ? 'down' : 'up';
+                }
+                
+                // Check for collision before moving
+                if (!this.checkCollisionAtPoint(nextX, nextY)) {
                     this.playerPosition.x = nextX;
                     this.playerPosition.y = nextY;
-                    this.playerWalkCycle = (this.playerWalkCycle + 1) % 4;
-                } else {
-                    // Collision detected, stop walking
-                    this.isWalking = false;
-                    this.targetX = undefined;
-                    this.targetY = undefined;
-                    this.showMessage("Oops, path blocked.");
+                    
+                    // Update walk cycle
+                    this.playerWalkCycle = (this.playerWalkCycle + 1) % 8;
+                } else if (this.debugMode) {
+                    console.log("Collision detected, cannot move to", nextX, nextY);
                 }
             } else {
-                // Player reached destination
-                this.playerPosition.x = this.targetX;
-                this.playerPosition.y = this.targetY;
+                // Reached the target
                 this.isWalking = false;
                 this.targetX = undefined;
                 this.targetY = undefined;
@@ -1073,13 +1081,23 @@ class GameEngine {
             // Update game state if needed
             if (window.game) {
                 window.game.currentScene = sceneId;
-                console.log("Updated game.currentScene:", window.game.currentScene);
             }
             
-            console.log(`Scene '${sceneId}' loaded successfully`);
+            // Notify any scene manager if available
+            if (window.sceneManager && typeof window.sceneManager.loadScene === 'function') {
+                window.sceneManager.loadScene(sceneId);
+            }
+            
+            // Play scene music if available
+            const sceneMusic = window.GAME_DATA.scenes[sceneId].music;
+            if (sceneMusic && window.soundManager) {
+                window.soundManager.playBackgroundMusic(sceneMusic);
+            }
+            
+            console.log(`Scene ${sceneId} loaded successfully`);
             return true;
         } catch (error) {
-            console.error(`Error loading scene '${sceneId}':`, error);
+            console.error(`Error loading scene ${sceneId}:`, error);
             return false;
         }
     }
@@ -1498,87 +1516,39 @@ class GameEngine {
             return true;
         }
         
-        // Handle scene transitions via doors - focus on this fix
+        // Handle standard interactions
+        if (hotspot.interactions && hotspot.interactions[action]) {
+            const message = hotspot.interactions[action];
+            console.log(`Showing interaction message: ${message}`);
+            this.showMessage(message);
+            return true;
+        }
+        
+        // Handle scene transitions via doors - fixed implementation
         if (action === 'use' && hotspot.id.toLowerCase().includes('door')) {
             // Debug information
             console.log(`Door interaction with ${hotspot.id} in ${this.currentScene}`);
             console.log(`Door hotspot details:`, JSON.stringify(hotspot));
             
-            let targetScene = null;
-            let playerX = 400;
-            let playerY = 350;
-            
-            // Check if the hotspot has explicit target data
-            if (hotspot.targetScene) {
-                targetScene = hotspot.targetScene;
-                playerX = hotspot.targetX || playerX;
-                playerY = hotspot.targetY || playerY;
-                console.log(`Using explicit target: ${targetScene} at ${playerX},${playerY}`);
-            }
-            // If not, try to determine from current scene and door ID
-            else {
-                // Define door transitions based on current scene and door ID
-                const doorTransitions = {
-                    'policeStation': {
-                        'exitDoor': { scene: 'downtown', x: 400, y: 500 },
-                        'briefingRoomDoor': { scene: 'briefingRoom', x: 400, y: 450 },
-                        'sheriffsOfficeDoor': { scene: 'sheriffsOffice', x: 250, y: 400 }
-                    },
-                    'downtown': {
-                        'exitDoor': { scene: 'policeStation', x: 400, y: 450 }
-                    },
-                    'briefingRoom': {
-                        'exitDoor': { scene: 'policeStation', x: 100, y: 200 }
-                    },
-                    'sheriffsOffice': {
-                        'exitDoor': { scene: 'policeStation', x: 650, y: 200 }
-                    }
-                };
+            // Validate target scene exists
+            if (hotspot.targetScene && window.GAME_DATA?.scenes?.[hotspot.targetScene]) {
+                console.log(`Valid target scene: ${hotspot.targetScene}`);
                 
-                // Get specific transition for this door and scene
-                const sceneTransitions = doorTransitions[this.currentScene];
-                if (sceneTransitions) {
-                    const doorConfig = sceneTransitions[hotspot.id];
-                    if (doorConfig) {
-                        targetScene = doorConfig.scene;
-                        playerX = doorConfig.x;
-                        playerY = doorConfig.y;
-                        console.log(`Using predefined transition: ${targetScene} at ${playerX},${playerY}`);
-                    }
-                }
-            }
-            
-            // Perform scene transition if target is set
-            if (targetScene) {
-                console.log(`Attempting scene transition: ${this.currentScene} -> ${targetScene}`);
+                // Get target position or use defaults
+                const targetX = hotspot.targetX || 400;
+                const targetY = hotspot.targetY || 350;
                 
-                // First stop player movement
-                this.isWalking = false;
-                this.targetX = undefined;
-                this.targetY = undefined;
+                // Load the target scene
+                this.loadScene(hotspot.targetScene);
                 
-                // Show transition message
-                this.showMessage(`Going to ${targetScene.replace(/([A-Z])/g, ' $1').toLowerCase()}...`);
+                // Position the player at the target location
+                this.playerPosition.x = targetX;
+                this.playerPosition.y = targetY;
                 
-                // Need to delay the actual transition to ensure the engine can process it
-                setTimeout(() => {
-                    console.log(`Executing delayed transition to ${targetScene}`);
-                    const success = this.loadScene(targetScene);
-                    
-                    if (success) {
-                        // Update player position after successful transition
-                        this.playerPosition.x = playerX;
-                        this.playerPosition.y = playerY;
-                        console.log(`Successfully transitioned to ${targetScene} at position ${playerX},${playerY}`);
-                    } else {
-                        console.error(`Failed to load scene: ${targetScene}`);
-                        this.showMessage("That door seems to be stuck.");
-                    }
-                }, 100);
-                
+                console.log(`Transitioned to ${hotspot.targetScene} at position (${targetX}, ${targetY})`);
                 return true;
             } else {
-                console.error(`No target scene defined for door ${hotspot.id} in scene ${this.currentScene}`);
+                console.error(`Invalid target scene: ${hotspot.targetScene}`);
                 this.showMessage("This door doesn't seem to go anywhere.");
             }
         }
@@ -1716,74 +1686,111 @@ class GameEngine {
         this.targetY = y;
     }
 
+    /**
+     * Check if there's a collision at the specified point
+     * @param {number} x - X coordinate to check
+     * @param {number} y - Y coordinate to check
+     * @returns {boolean} True if there's a collision
+     */
     checkCollisionAtPoint(x, y) {
-        // Get collision objects for current scene
-        const sceneCollisions = this.getSceneCollisionObjects();
+        // Get collision objects for the current scene
+        const collisionObjects = this.getSceneCollisionObjects();
         
-        for (const obj of sceneCollisions) {
-            // Handle rectangular collision objects
-            if (obj.type === 'rect') {
-                // Check if point is inside collision rectangle
-                if (x >= obj.x - obj.width/2 && 
-                    x <= obj.x + obj.width/2 && 
-                    y >= obj.y - obj.height/2 && 
-                    y <= obj.y + obj.height/2) {
-                    return true; // Collision detected
-                }
-            } 
-            // Handle circular collision objects
-            else if (obj.type === 'circle') {
-                // Check if point is inside collision circle
-                const distance = Math.sqrt((x - obj.x) ** 2 + (y - obj.y) ** 2);
-                if (distance <= obj.radius) {
-                    return true; // Collision detected
-                }
+        // Check each object for collision
+        for (const obj of collisionObjects) {
+            // Enhanced collision detection with debug info
+            if (this.debugMode) {
+                console.log(`Checking collision with object: ${JSON.stringify(obj)}`);
             }
-        }
-        
-        return false; // No collision
-    }
 
-    checkCollisionAtPath(nextX, nextY) {
-        // Get collision objects for current scene
-        const sceneCollisions = this.getSceneCollisionObjects();
-        
-        // Check player collision with each object
-        for (const obj of sceneCollisions) {
             if (obj.type === 'rect') {
-                // Calculate distances
-                const halfWidth = obj.width / 2;
-                const halfHeight = obj.height / 2;
+                // Rectangle collision
+                const left = obj.x - obj.width / 2;
+                const right = obj.x + obj.width / 2;
+                const top = obj.y - obj.height / 2;
+                const bottom = obj.y + obj.height / 2;
                 
-                // Check overlap between player circle and rectangle
-                if (nextX + this.playerCollisionRadius >= obj.x - halfWidth &&
-                    nextX - this.playerCollisionRadius <= obj.x + halfWidth &&
-                    nextY + this.playerCollisionRadius >= obj.y - halfHeight &&
-                    nextY - this.playerCollisionRadius <= obj.y + halfHeight) {
-                    return true; // Collision detected
+                if (x >= left && x <= right && y >= top && y <= bottom) {
+                    if (this.debugMode) {
+                        console.log(`Collision detected with rectangle at (${obj.x}, ${obj.y})`);
+                    }
+                    return true;
                 }
             } else if (obj.type === 'circle') {
-                // Calculate distance between centers
-                const distance = Math.sqrt((nextX - obj.x) ** 2 + (nextY - obj.y) ** 2);
-                if (distance < obj.radius + this.playerCollisionRadius) {
-                    return true; // Collision detected
+                // Circle collision
+                const distX = x - obj.x;
+                const distY = y - obj.y;
+                const distance = Math.sqrt(distX * distX + distY * distY);
+                
+                if (distance <= obj.radius) {
+                    if (this.debugMode) {
+                        console.log(`Collision detected with circle at (${obj.x}, ${obj.y})`);
+                    }
+                    return true;
                 }
             }
         }
         
-        return false; // No collision
+        return false;
     }
 
+    /**
+     * Check if there's a collision along the path from current position to target
+     * @param {number} nextX - Target X coordinate
+     * @param {number} nextY - Target Y coordinate
+     * @returns {boolean} True if there's a collision
+     */
+    checkCollisionAtPath(nextX, nextY) {
+        // Current position
+        const currentX = this.playerPosition.x;
+        const currentY = this.playerPosition.y;
+        
+        // Check if target position has collision
+        if (this.checkCollisionAtPoint(nextX, nextY)) {
+            return true;
+        }
+        
+        // Also check intermediate points along path for large movements
+        const distance = Math.sqrt(
+            Math.pow(nextX - currentX, 2) + 
+            Math.pow(nextY - currentY, 2)
+        );
+        
+        // Only check path for longer movements
+        if (distance > 10) {
+            const steps = Math.ceil(distance / 5); // Check every 5 pixels
+            
+            for (let i = 1; i < steps; i++) {
+                const ratio = i / steps;
+                const checkX = currentX + (nextX - currentX) * ratio;
+                const checkY = currentY + (nextY - currentY) * ratio;
+                
+                if (this.checkCollisionAtPoint(checkX, checkY)) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Get collision objects for the current scene
+     * @returns {Array} Array of collision objects
+     */
     getSceneCollisionObjects() {
-        // Ensure GAME_DATA exists
-        if (!window.GAME_DATA || !window.GAME_DATA.scenes || !window.GAME_DATA.scenes[this.currentScene]) {
+        if (!window.GAME_DATA || !window.GAME_DATA.scenes) {
+            console.warn("Game data not loaded");
             return [];
         }
         
-        // Get scene data
         const scene = window.GAME_DATA.scenes[this.currentScene];
         
-        // Return collision objects for the scene
+        if (!scene) {
+            console.warn(`Scene ${this.currentScene} not found in game data`);
+            return [];
+        }
+        
         return scene.collisionObjects || [];
     }
 
