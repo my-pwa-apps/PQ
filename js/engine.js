@@ -188,15 +188,15 @@ class GameEngine {
     handleMovement(direction) {
         const speed = 5;
         switch (direction) {
-            case 'up': this.playerPosition.y -= moveSpeed; break;
+            case 'up': this.playerPosition.y -= speed; break;
             case 'down':
-                this.playerPosition.y += moveSpeed;
+                this.playerPosition.y += speed;
                 break;
             case 'left':
-                this.playerPosition.x -= moveSpeed;
+                this.playerPosition.x -= speed;
                 break;
             case 'right':
-                this.playerPosition.x += moveSpeed;
+                this.playerPosition.x += speed;
                 break;
         }
         this.playerFacing = direction;
