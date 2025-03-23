@@ -755,13 +755,45 @@ if (typeof window.DialogManager === 'undefined') {
     window.DialogManager = DialogManager;
 }
 
-// Create global instance with lazy initialization
-Object.defineProperty(window, 'dialogManager', {
-    get: function() {
-        if (!this._dialogManager) {
-            this._dialogManager = new DialogManager();
+// Create global instance with more reliable initialization
+if (typeof window !== 'undefined') {
+    // Define the class globally
+    window.DialogManager = DialogManager;
+    
+    // Create a direct instance that's always available
+    if (!window._dialogManager) {
+        try {
+            window._dialogManager = new DialogManager();
+            console.log("DialogManager initialized");
+        } catch (err) {
+            console.error("Error initializing DialogManager:", err);
         }
-        return this._dialogManager;
+    }
+    
+    // Update the property definition to use the existing instance
+    Object.defineProperty(window, 'dialogManager', {
+        get: function() {
+            if (!this._dialogManager) {
+                console.log("Creating new DialogManager instance");
+                try {
+                    this._dialogManager = new DialogManager();
+                } catch (err) {
+                    console.error("Failed to create DialogManager:", err);
+                }
+            }
+            return this._dialogManager;
+        }
+    });
+}
+
+// Initialize immediately when loaded to avoid timing issues
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        // Access dialogManager to trigger initialization
+        const dm = window.dialogManager;
+        console.log("DialogManager ready:", dm ? true : false);
+    } catch (err) {
+        console.error("Error in DialogManager initialization:", err);
     }
 });
 

@@ -90,6 +90,9 @@ class GameEngine {
             this.setupEventListeners();
             this.setupNPCs(); // Call the NPC setup
             
+            // Initialize dialog system early
+            this.initDialogSystem();
+            
             // Initialize game state
             this.loadScene(this.currentScene);
             
@@ -1252,9 +1255,27 @@ class GameEngine {
                     this.playerFacing = 'up';
                 }
                 
-                // Handle dialog if this NPC has dialog
-                if (npc.dialogId && window.dialogManager) {
-                    window.dialogManager.startDialog(npc.dialogId);
+                // Handle dialog if this NPC has dialog - with safety checks
+                if (npc.dialogId) {
+                    try {
+                        // Ensure dialog manager exists or create one
+                        if (!window._dialogManager && typeof DialogManager === 'function') {
+                            console.log("Creating new dialog manager instance");
+                            window._dialogManager = new DialogManager();
+                        }
+                        
+                        // Access through the getter to ensure initialization
+                        if (window.dialogManager && typeof window.dialogManager.startDialog === 'function') {
+                            window.dialogManager.startDialog(npc.dialogId);
+                        } else {
+                            // Fallback if dialog manager isn't available
+                            this.showMessage(`${npc.name}: "Hello there!"`);
+                            console.warn("Dialog manager not available - using fallback message");
+                        }
+                    } catch (err) {
+                        console.error("Dialog error:", err);
+                        this.showMessage(`${npc.name} wants to speak but there was an error.`);
+                    }
                 } else {
                     // If no dialog system, use simple message
                     const dialogText = npc.dialog || `${npc.name} has nothing to say right now.`;
@@ -1421,6 +1442,24 @@ class GameEngine {
         
         // Apply appropriate cursor
         this.canvas.style.cursor = overInteractive ? 'pointer' : 'default';
+    }
+
+    // Add method to initialize the dialog system specifically
+    initDialogSystem() {
+        try {
+            // Ensure DialogManager is loaded
+            if (typeof window.DialogManager === 'function' && !window._dialogManager) {
+                console.log("Initializing dialog system...");
+                window._dialogManager = new DialogManager();
+                
+                // Force access through the getter to ensure proper initialization
+                const dm = window.dialogManager;
+                console.log("Dialog system initialized:", dm ? "success" : "failed");
+            }
+        } catch (err) {
+            console.error("Failed to initialize dialog system:", err);
+        }
+        return !!window._dialogManager;
     }
 }
 
