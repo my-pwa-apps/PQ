@@ -600,6 +600,37 @@ class Game {
         this.showErrorScreen(error);
     }
 
+    // Add the missing setupErrorHandlers method
+    setupErrorHandlers() {
+        // Set up global error handler
+        window.addEventListener('error', (event) => {
+            console.error('Game error:', event.error || event.message);
+            this.errorBoundary.hasError = true;
+            this.errorBoundary.error = event.error || new Error(event.message);
+            this.showErrorScreen(this.errorBoundary.error);
+            return false;
+        });
+
+        // Handle unhandled promise rejections
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+            this.errorBoundary.hasError = true;
+            this.errorBoundary.error = event.reason;
+            this.showErrorScreen(event.reason);
+            return false;
+        });
+
+        // Set up engine error handlers if available
+        if (this.engine) {
+            this.engine.onError = (error) => {
+                console.error('Engine error:', error);
+                this.errorBoundary.hasError = true;
+                this.errorBoundary.error = error;
+                this.showErrorScreen(error);
+            };
+        }
+    }
+
     // Add optimized asset preloading
     async preloadAssets() {
         // Since we're generating everything in code, we don't need to load external assets
