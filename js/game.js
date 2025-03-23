@@ -602,27 +602,52 @@ class Game {
 
     // Add optimized asset preloading
     async preloadAssets() {
-        const assetPromises = [];
+        // Since we're generating everything in code, we don't need to load external assets
+        console.log('Using programmatically generated assets only');
         
-        // Define asset locations
-        const assets = {
-            'player': 'assets/player.png',
-            'ui_elements': 'assets/ui.png',
-            'background_main': 'assets/background.png'
-        };
-        
-        // Load critical assets through game engine
-        for (const [id, url] of Object.entries(assets)) {
-            if (this.engine && !this.engine.assets.has(id)) {
-                try {
-                    assetPromises.push(this.engine.loadAsset(id, url));
-                } catch (error) {
-                    console.error(`Failed to load asset ${id}:`, error);
-                }
+        // If we need placeholder assets for the engine to work with, create them here
+        if (this.engine) {
+            try {
+                // Create an empty canvas for each required asset
+                const createCanvasAsset = (id, width = 64, height = 64) => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Draw something basic to the canvas
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(0, 0, width, height);
+                    ctx.fillStyle = '#888';
+                    ctx.fillText(id, 5, height/2);
+                    
+                    // Convert to blob and return as data URL
+                    return new Promise(resolve => {
+                        canvas.toBlob(blob => {
+                            const img = new Image();
+                            const url = URL.createObjectURL(blob);
+                            img.onload = () => {
+                                this.engine.assets.set(id, img);
+                                URL.revokeObjectURL(url);
+                                resolve(img);
+                            };
+                            img.src = url;
+                        });
+                    });
+                };
+                
+                // Create programmatically generated assets
+                await Promise.all([
+                    createCanvasAsset('player', 32, 48),
+                    createCanvasAsset('ui_elements', 128, 128),
+                    createCanvasAsset('background_main', 800, 600)
+                ]);
+            } catch (error) {
+                console.warn('Error creating placeholder assets:', error);
             }
         }
         
-        return Promise.all(assetPromises);
+        return true;
     }
 
     // Add state management optimization
