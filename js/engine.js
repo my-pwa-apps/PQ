@@ -28,6 +28,10 @@ class GameEngine {
             skin: '#FFD8B1'
         };
 
+        // Add assets map for loading and storing game assets
+        this.assets = new Map();
+        this.loadingAssets = new Set();
+
         this.currentScene = 'policeStation';
         this.debugMode = false;
     }
@@ -227,6 +231,88 @@ class GameEngine {
         console.log(`Loading scene: ${sceneId}`);
         this.currentScene = sceneId;
         return true;
+    }
+
+    // Add missing updateNPCs function
+    updateNPCs(deltaTime = 1/60) {
+        if (!this.npcs || !this.npcs[this.currentScene]) return;
+        
+        const currentSceneNPCs = this.npcs[this.currentScene];
+        
+        for (const npc of currentSceneNPCs) {
+            // Update NPC animation state
+            if (npc.isWalking) {
+                // Simple animation for walking
+                npc.animationFrame = (npc.animationFrame || 0) + 1;
+            }
+            
+            // Update NPC position if they're moving
+            if (npc.isWalking && npc.patrolPoints && npc.patrolPoints.length > 0) {
+                const target = npc.patrolPoints[npc.currentPatrolPoint || 0];
+                if (target) {
+                    const dx = target.x - npc.x;
+                    const dy = target.y - npc.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > 2) {
+                        const speed = 0.5;
+                        npc.x += (dx / distance) * speed;
+                        npc.y += (dy / distance) * speed;
+                        npc.facing = Math.abs(dx) > Math.abs(dy) ? 
+                            (dx > 0 ? 'right' : 'left') : 
+                            (dy > 0 ? 'down' : 'up');
+                    } else {
+                        // Reached waypoint, move to next one
+                        npc.currentPatrolPoint = (npc.currentPatrolPoint + 1) % npc.patrolPoints.length;
+                        npc.isWalking = false;
+                        npc.waitTime = 2; // Wait for 2 seconds before moving again
+                    }
+                }
+            } else if (npc.waitTime > 0) {
+                npc.waitTime -= deltaTime;
+                if (npc.waitTime <= 0) {
+                    npc.isWalking = true;
+                }
+            }
+        }
+    }
+
+    // Add loadAsset method for preloading assets
+    async loadAsset(id, url) {
+        if (this.assets.has(id)) {
+            return this.assets.get(id);
+        }
+        
+        if (this.loadingAssets.has(id)) {
+            // Wait for the asset to load if it's already being loaded
+            return new Promise((resolve) => {
+                const checkLoaded = setInterval(() => {
+                    if (this.assets.has(id)) {
+                        clearInterval(checkLoaded);
+                        resolve(this.assets.get(id));
+                    }
+                }, 100);
+            });
+        }
+        
+        this.loadingAssets.add(id);
+        
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            
+            img.onload = () => {
+                this.assets.set(id, img);
+                this.loadingAssets.delete(id);
+                resolve(img);
+            };
+            
+            img.onerror = () => {
+                this.loadingAssets.delete(id);
+                reject(new Error(`Failed to load asset: ${id} from ${url}`));
+            };
+            
+            img.src = url;
+        });
     }
 
     dispose() {
