@@ -44,6 +44,9 @@ class GameEngine {
         this.ctx.imageSmoothingEnabled = false;
         this.canvas.style.width = '800px';
         this.canvas.style.height = '600px';
+        
+        // Add cursor style to ensure it's visible
+        this.canvas.style.cursor = 'pointer';
     }
 
     setupBufferCanvas() {
@@ -66,6 +69,16 @@ class GameEngine {
             if (directions[e.key]) {
                 this.handleMovement(directions[e.key]);
             }
+        });
+        
+        // Track mouse position for cursor updates
+        this.canvas.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            this.lastMouseX = e.clientX - rect.left;
+            this.lastMouseY = e.clientY - rect.top;
+            
+            // Update cursor immediately
+            this.updateCursorStyle();
         });
     }
 
@@ -134,6 +147,9 @@ class GameEngine {
                 this.targetY = undefined;
             }
         }
+        
+        // Update cursor style based on mouse position
+        this.updateCursorStyle();
         
         this.updateNPCs(deltaTime);
         this.animationFrame++;
@@ -1255,10 +1271,19 @@ class GameEngine {
             const hotspots = scene.hotspots || [];
             
             for (const hotspot of hotspots) {
-                if (x >= hotspot.x - hotspot.width/2 && 
-                    x <= hotspot.x + hotspot.width/2 && 
-                    y >= hotspot.y - hotspot.height/2 && 
-                    y <= hotspot.y + hotspot.height/2) {
+                // Debug hitbox calculation - improve precision
+                const hotspotX = hotspot.x;
+                const hotspotY = hotspot.y;
+                const hotspotWidth = hotspot.width || 20;
+                const hotspotHeight = hotspot.height || 20;
+                
+                // Check if click is within hotspot bounds
+                if (x >= hotspotX - hotspotWidth/2 && 
+                    x <= hotspotX + hotspotWidth/2 && 
+                    y >= hotspotY - hotspotHeight/2 && 
+                    y <= hotspotY + hotspotHeight/2) {
+                    
+                    console.log(`Clicked on hotspot: ${hotspot.id}`, hotspot);
                     
                     // Handle hotspot interaction based on current action
                     const action = window.game?.activeAction || 'look';
@@ -1291,24 +1316,54 @@ class GameEngine {
     }
 
     processHotspotInteraction(hotspot, action) {
-        // Handle special case interactions
-        if (hotspot.id === 'exitDoor' && action === 'use' && this.currentScene === 'policeStation') {
-            // Example: Change scene when using exit door
-            this.loadScene('downtown');
-            this.playerPosition = { x: 400, y: 500 };
-        } else if (hotspot.id === 'briefingRoomDoor' && action === 'use') {
-            this.loadScene('briefingRoom');
-            this.playerPosition = { x: 400, y: 450 };
-        } else if (hotspot.id === 'sheriffsOfficeDoor' && action === 'use') {
-            this.loadScene('sheriffsOffice');
-            this.playerPosition = { x: 250, y: 400 };
+        console.log(`Processing hotspot interaction: ${hotspot.id}, action: ${action}`);
+        
+        // Handle scene transitions for doors
+        if (action === 'use' && hotspot.id.toLowerCase().includes('door')) {
+            let targetScene = null;
+            let playerX = 400;
+            let playerY = 350;
+            
+            // Handle specific door transitions
+            if (hotspot.id === 'exitDoor' && this.currentScene === 'policeStation') {
+                console.log("Transitioning to downtown scene...");
+                targetScene = 'downtown';
+                playerX = 400;
+                playerY = 500;
+            } else if (hotspot.id === 'briefingRoomDoor') {
+                console.log("Transitioning to briefing room...");
+                targetScene = 'briefingRoom';
+                playerX = 400;
+                playerY = 450;
+            } else if (hotspot.id === 'sheriffsOfficeDoor') {
+                console.log("Transitioning to sheriff's office...");
+                targetScene = 'sheriffsOffice';
+                playerX = 250;
+                playerY = 400;
+            } else if (hotspot.id === 'exitDoor' && this.currentScene !== 'policeStation') {
+                console.log("Returning to police station...");
+                targetScene = 'policeStation';
+                playerX = 400;
+                playerY = 450;
+            }
+            
+            // Perform scene transition if target is set
+            if (targetScene) {
+                console.log(`Scene transition: ${this.currentScene} -> ${targetScene}`);
+                this.loadScene(targetScene);
+                this.playerPosition.x = playerX;
+                this.playerPosition.y = playerY;
+                return true;
+            }
         } else if (action === 'take' && hotspot.interactions?.take?.includes("inventory")) {
-            // Example: Add item to inventory
+            // Handle adding item to inventory
             const itemName = hotspot.id;
             if (window.game?.addToInventory) {
                 window.game.addToInventory(itemName);
             }
         }
+        
+        return false;
     }
 
     movePlayerToPoint(x, y) {
@@ -1329,6 +1384,43 @@ class GameEngine {
         // Move player to target over time (in update loop)
         this.targetX = x;
         this.targetY = y;
+    }
+
+    // Add method to update cursor style based on what's under the mouse
+    updateCursorStyle() {
+        if (!this.canvas || !this.lastMouseX) return;
+        
+        // Default to pointer cursor
+        let cursorStyle = 'pointer';
+        
+        // Check if mouse is over an interactive element
+        const x = this.lastMouseX;
+        const y = this.lastMouseY;
+        
+        // Check for NPCs under cursor
+        const npcsInScene = this.npcs[this.currentScene] || [];
+        let overInteractive = npcsInScene.some(npc => {
+            const dx = Math.abs(x - npc.x);
+            const dy = Math.abs(y - npc.y);
+            return dx < 30 && dy < 50;
+        });
+        
+        // Check for hotspots under cursor
+        if (!overInteractive && window.GAME_DATA?.scenes?.[this.currentScene]?.hotspots) {
+            const hotspots = window.GAME_DATA.scenes[this.currentScene].hotspots;
+            overInteractive = hotspots.some(hotspot => {
+                const hotspotWidth = hotspot.width || 20;
+                const hotspotHeight = hotspot.height || 20;
+                
+                return x >= hotspot.x - hotspotWidth/2 && 
+                       x <= hotspot.x + hotspotWidth/2 && 
+                       y >= hotspot.y - hotspotHeight/2 && 
+                       y <= hotspot.y + hotspotHeight/2;
+            });
+        }
+        
+        // Apply appropriate cursor
+        this.canvas.style.cursor = overInteractive ? 'pointer' : 'default';
     }
 }
 
