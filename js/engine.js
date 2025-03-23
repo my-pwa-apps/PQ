@@ -185,6 +185,11 @@ class GameEngine {
         this.drawCurrentScene();
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.drawImage(this.offscreenCanvas, 0, 0);
+        
+        // Draw collision visualization in debug mode
+        if (this.debugMode) {
+            this.debugDrawCollisions();
+        }
     }
 
     drawCurrentScene() {
@@ -1047,45 +1052,31 @@ class GameEngine {
             return false;
         }
         
-        // Debug output
-        console.log(`Attempting to load scene: ${sceneId}`);
-        console.log(`Available scenes:`, window.GAME_DATA?.scenes ? Object.keys(window.GAME_DATA.scenes) : 'GAME_DATA not available');
+        console.log(`Loading scene: ${sceneId}`);
         
         // Check if scene exists in GAME_DATA
         if (!window.GAME_DATA?.scenes?.[sceneId]) {
-            console.error(`Scene '${sceneId}' not found in GAME_DATA`);
+            console.error(`Scene '${sceneId}' not found in GAME_DATA. Available scenes:`, 
+                window.GAME_DATA?.scenes ? Object.keys(window.GAME_DATA.scenes) : 'No scenes data');
             return false;
         }
         
         try {
-            console.log(`Loading scene: ${sceneId}`);
+            // Update current scene
+            this.currentScene = sceneId;
             
             // Reset any scene-specific state
             this.isWalking = false;
             this.targetX = undefined;
             this.targetY = undefined;
             
-            // Update current scene
-            this.currentScene = sceneId;
-            
             // Update game state if needed
             if (window.game) {
                 window.game.currentScene = sceneId;
-            }
-            
-            // Play scene music if available
-            const sceneData = window.GAME_DATA.scenes[sceneId];
-            if (sceneData.music && window.soundManager) {
-                window.soundManager.playBackgroundMusic(sceneData.music);
+                console.log("Updated game.currentScene:", window.game.currentScene);
             }
             
             console.log(`Scene '${sceneId}' loaded successfully`);
-            
-            // Make sure someone is handling this change
-            if (window.game?.updateSceneUI) {
-                window.game.updateSceneUI();
-            }
-            
             return true;
         } catch (error) {
             console.error(`Error loading scene '${sceneId}':`, error);
@@ -1369,26 +1360,33 @@ class GameEngine {
                     y >= hotspotY - hotspotHeight/2 && 
                     y <= hotspotY + hotspotHeight/2) {
                     
+                    // Debug output for clicked hotspot
+                    console.log(`Clicked on hotspot: ${hotspot.id} at (${hotspotX},${hotspotY})`);
+                    
                     // Check if player is close enough to interact
                     const playerDistance = Math.sqrt((this.playerPosition.x - hotspotX) ** 2 + 
                                                     (this.playerPosition.y - hotspotY) ** 2);
                     
                     if (playerDistance <= this.interactionDistance) {
-                        console.log(`Interacting with hotspot: ${hotspot.id}`, hotspot);
+                        console.log(`Interacting with hotspot: ${hotspot.id}, distance: ${playerDistance}`);
                         
-                        // Handle hotspot interaction based on current action
-                        const action = window.game?.activeAction || 'look';
+                        // Handle hotspot interaction based on current action (default to 'look')
+                        const action = window.game?.activeAction || 'use';  // Default to 'use' for doors
                         const response = hotspot.interactions?.[action] || `You can't ${action} that.`;
+                        
+                        // For doors, use 'use' action regardless of selected action
+                        const effectiveAction = hotspot.id.toLowerCase().includes('door') ? 'use' : action;
                         
                         // Show the response message
                         this.showMessage(response);
                         
                         // Handle special interactions
-                        this.processHotspotInteraction(hotspot, action);
+                        this.processHotspotInteraction(hotspot, effectiveAction);
                         
                         return; // Stop processing after finding a hotspot
                     } else {
                         // Player is too far away
+                        console.log(`Too far from hotspot: ${hotspot.id}, distance: ${playerDistance}`);
                         this.showMessage("I need to get closer.");
                         
                         // Move player closer to the hotspot
@@ -1500,52 +1498,54 @@ class GameEngine {
             return true;
         }
         
-        // Handle scene transitions via doors
+        // Handle scene transitions via doors - focus on this fix
         if (action === 'use' && hotspot.id.toLowerCase().includes('door')) {
             // Debug information
             console.log(`Door interaction with ${hotspot.id} in ${this.currentScene}`);
-            console.log(`Door hotspot details:`, hotspot);
+            console.log(`Door hotspot details:`, JSON.stringify(hotspot));
             
             let targetScene = null;
             let playerX = 400;
             let playerY = 350;
             
-            // Define door transitions based on current scene and door ID
-            const doorTransitions = {
-                'policeStation': {
-                    'exitDoor': { scene: 'downtown', x: 400, y: 500 },
-                    'briefingRoomDoor': { scene: 'briefingRoom', x: 400, y: 450 },
-                    'sheriffsOfficeDoor': { scene: 'sheriffsOffice', x: 250, y: 400 }
-                },
-                'downtown': {
-                    'exitDoor': { scene: 'policeStation', x: 400, y: 450 }
-                },
-                'briefingRoom': {
-                    'exitDoor': { scene: 'policeStation', x: 100, y: 200 }
-                },
-                'sheriffsOffice': {
-                    'exitDoor': { scene: 'policeStation', x: 650, y: 200 }
-                },
-                'park': {
-                    'exitDoor': { scene: 'downtown', x: 400, y: 400 }
-                }
-            };
-            
-            // Look up transition based on current scene and door ID
-            const doorConfig = doorTransitions[this.currentScene]?.[hotspot.id];
-            if (doorConfig) {
-                targetScene = doorConfig.scene;
-                playerX = doorConfig.x;
-                playerY = doorConfig.y;
-                console.log(`Using preset door transition to ${targetScene}`);
-            }
-            
-            // Use custom door transitions from hotspot data if defined
+            // Check if the hotspot has explicit target data
             if (hotspot.targetScene) {
                 targetScene = hotspot.targetScene;
                 playerX = hotspot.targetX || playerX;
                 playerY = hotspot.targetY || playerY;
-                console.log(`Using hotspot-defined transition to ${targetScene}`);
+                console.log(`Using explicit target: ${targetScene} at ${playerX},${playerY}`);
+            }
+            // If not, try to determine from current scene and door ID
+            else {
+                // Define door transitions based on current scene and door ID
+                const doorTransitions = {
+                    'policeStation': {
+                        'exitDoor': { scene: 'downtown', x: 400, y: 500 },
+                        'briefingRoomDoor': { scene: 'briefingRoom', x: 400, y: 450 },
+                        'sheriffsOfficeDoor': { scene: 'sheriffsOffice', x: 250, y: 400 }
+                    },
+                    'downtown': {
+                        'exitDoor': { scene: 'policeStation', x: 400, y: 450 }
+                    },
+                    'briefingRoom': {
+                        'exitDoor': { scene: 'policeStation', x: 100, y: 200 }
+                    },
+                    'sheriffsOffice': {
+                        'exitDoor': { scene: 'policeStation', x: 650, y: 200 }
+                    }
+                };
+                
+                // Get specific transition for this door and scene
+                const sceneTransitions = doorTransitions[this.currentScene];
+                if (sceneTransitions) {
+                    const doorConfig = sceneTransitions[hotspot.id];
+                    if (doorConfig) {
+                        targetScene = doorConfig.scene;
+                        playerX = doorConfig.x;
+                        playerY = doorConfig.y;
+                        console.log(`Using predefined transition: ${targetScene} at ${playerX},${playerY}`);
+                    }
+                }
             }
             
             // Perform scene transition if target is set
@@ -1560,11 +1560,13 @@ class GameEngine {
                 // Show transition message
                 this.showMessage(`Going to ${targetScene.replace(/([A-Z])/g, ' $1').toLowerCase()}...`);
                 
-                // Add slight delay for message to be visible
+                // Need to delay the actual transition to ensure the engine can process it
                 setTimeout(() => {
+                    console.log(`Executing delayed transition to ${targetScene}`);
                     const success = this.loadScene(targetScene);
                     
                     if (success) {
+                        // Update player position after successful transition
                         this.playerPosition.x = playerX;
                         this.playerPosition.y = playerY;
                         console.log(`Successfully transitioned to ${targetScene} at position ${playerX},${playerY}`);
@@ -1572,9 +1574,12 @@ class GameEngine {
                         console.error(`Failed to load scene: ${targetScene}`);
                         this.showMessage("That door seems to be stuck.");
                     }
-                }, 500);
+                }, 100);
                 
                 return true;
+            } else {
+                console.error(`No target scene defined for door ${hotspot.id} in scene ${this.currentScene}`);
+                this.showMessage("This door doesn't seem to go anywhere.");
             }
         }
         
@@ -1940,6 +1945,80 @@ class GameEngine {
     dialogEnded() {
         console.log("Dialog ended, returning control to game");
         // Handle any post-dialog logic here
+    }
+
+    // Add improved debug method
+    debugDrawCollisions() {
+        if (!this.ctx) return;
+        
+        const ctx = this.ctx;
+        const collisionObjects = this.getSceneCollisionObjects();
+        
+        ctx.save();
+        ctx.globalAlpha = 0.4;
+        ctx.lineWidth = 2;
+        
+        for (const obj of collisionObjects) {
+            if (obj.type === 'rect') {
+                // Draw rectangle
+                ctx.strokeStyle = 'red';
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+                ctx.fillRect(
+                    obj.x - obj.width/2, 
+                    obj.y - obj.height/2, 
+                    obj.width, 
+                    obj.height
+                );
+                ctx.strokeRect(
+                    obj.x - obj.width/2, 
+                    obj.y - obj.height/2, 
+                    obj.width, 
+                    obj.height
+                );
+            } else if (obj.type === 'circle') {
+                // Draw circle
+                ctx.strokeStyle = 'blue';
+                ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
+                ctx.beginPath();
+                ctx.arc(
+                    obj.x, 
+                    obj.y, 
+                    obj.radius, 
+                    0, 
+                    Math.PI * 2
+                );
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+        
+        // Draw player collision radius
+        ctx.strokeStyle = 'green';
+        ctx.beginPath();
+        ctx.arc(
+            this.playerPosition.x, 
+            this.playerPosition.y, 
+            this.playerCollisionRadius, 
+            0, 
+            Math.PI * 2
+        );
+        ctx.stroke();
+        
+        // Draw interaction radius
+        ctx.strokeStyle = 'yellow';
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(
+            this.playerPosition.x, 
+            this.playerPosition.y, 
+            this.interactionDistance, 
+            0, 
+            Math.PI * 2
+        );
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.restore();
     }
 }
 
