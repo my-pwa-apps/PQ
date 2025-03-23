@@ -75,6 +75,7 @@ class GameEngine {
             this.setupCanvas();
             this.setupBufferCanvas();
             this.setupEventListeners();
+            this.setupNPCs(); // Call the NPC setup
             
             // Initialize game state
             this.loadScene(this.currentScene);
@@ -179,10 +180,114 @@ class GameEngine {
 
     drawPixelCharacter(x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false, isFemale = false) {
         const ctx = this.offscreenCtx;
+        const scale = 1.2; // Scale factor for character size
+        
+        // Draw shadow under character
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 5, 10 * scale, 5 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Body positioning variables
+        const walkCycle = isWalking ? (this.animationFrame % 20) < 10 ? 1 : -1 : 0;
+        let headX = 0, headY = 0, bodyX = 0, bodyOffset = 0;
+        
+        // Adjust position based on facing direction
+        switch(facing) {
+            case 'left':
+                headX = -2;
+                break;
+            case 'right':
+                headX = 2;
+                break;
+            case 'up':
+                bodyOffset = -2;
+                headY = -2;
+                break;
+            case 'down':
+                headY = 2;
+                break;
+        }
+        
+        // Draw legs with walking animation
+        if (isWalking) {
+            // Left leg
+            ctx.fillStyle = uniformColor;
+            ctx.fillRect(x - 6 * scale, y - 15 * scale, 5 * scale, 15 * scale + walkCycle);
+            
+            // Right leg
+            ctx.fillRect(x + 1 * scale, y - 15 * scale, 5 * scale, 15 * scale - walkCycle);
+        } else {
+            // Standing legs
+            ctx.fillStyle = uniformColor;
+            ctx.fillRect(x - 6 * scale, y - 15 * scale, 5 * scale, 15 * scale);
+            ctx.fillRect(x + 1 * scale, y - 15 * scale, 5 * scale, 15 * scale);
+        }
+        
+        // Draw body/uniform
         ctx.fillStyle = uniformColor;
-        ctx.fillRect(x - 10, y - 30, 20, 30);
+        ctx.fillRect(x - 8 * scale, y - 30 * scale + bodyOffset, 16 * scale, 20 * scale);
+        
+        // Draw badge
         ctx.fillStyle = badgeColor;
-        ctx.fillRect(x - 3, y - 25, 6, 6);
+        ctx.fillRect(x - 5 * scale + headX, y - 25 * scale, 4 * scale, 4 * scale);
+        
+        // Draw arms based on facing
+        if (facing === 'left') {
+            // Left arm in front
+            ctx.fillStyle = uniformColor;
+            ctx.fillRect(x - 10 * scale, y - 28 * scale, 4 * scale, 15 * scale);
+        } else if (facing === 'right') {
+            // Right arm in front
+            ctx.fillStyle = uniformColor;
+            ctx.fillRect(x + 6 * scale, y - 28 * scale, 4 * scale, 15 * scale);
+        } else {
+            // Both arms visible
+            ctx.fillStyle = uniformColor;
+            ctx.fillRect(x - 12 * scale, y - 28 * scale, 4 * scale, 15 * scale);
+            ctx.fillRect(x + 8 * scale, y - 28 * scale, 4 * scale, 15 * scale);
+        }
+        
+        // Draw head
+        const skinColor = '#FFD8B1'; // Skin tone
+        ctx.fillStyle = skinColor;
+        ctx.fillRect(x - 6 * scale + headX, y - 40 * scale + headY, 12 * scale, 12 * scale);
+        
+        // Draw hair based on gender
+        ctx.fillStyle = isFemale ? '#8B4513' : '#222222';
+        if (isFemale) {
+            // Female hair style
+            ctx.fillRect(x - 7 * scale + headX, y - 42 * scale + headY, 14 * scale, 5 * scale);
+            ctx.fillRect(x - 7 * scale + headX, y - 38 * scale + headY, 2 * scale, 10 * scale);
+            ctx.fillRect(x + 5 * scale + headX, y - 38 * scale + headY, 2 * scale, 10 * scale);
+        } else {
+            // Male hair style
+            ctx.fillRect(x - 6 * scale + headX, y - 42 * scale + headY, 12 * scale, 4 * scale);
+        }
+        
+        // Draw face features based on facing
+        if (facing !== 'up') {
+            // Eyes
+            ctx.fillStyle = '#000000';
+            if (facing === 'left') {
+                ctx.fillRect(x - 4 * scale, y - 36 * scale + headY, 2 * scale, 2 * scale);
+            } else if (facing === 'right') {
+                ctx.fillRect(x + 2 * scale, y - 36 * scale + headY, 2 * scale, 2 * scale);
+            } else {
+                ctx.fillRect(x - 4 * scale, y - 36 * scale + headY, 2 * scale, 2 * scale);
+                ctx.fillRect(x + 2 * scale, y - 36 * scale + headY, 2 * scale, 2 * scale);
+            }
+            
+            // Mouth
+            if (facing === 'down') {
+                ctx.fillRect(x - 2 * scale, y - 32 * scale + headY, 4 * scale, 1 * scale);
+            }
+        }
+        
+        // Special features for NPCs if needed
+        if (isNPC) {
+            // Could add special features for NPCs
+        }
     }
 
     handleMovement(direction) {
@@ -321,6 +426,120 @@ class GameEngine {
         this.ctx = null;
         this.offscreenCanvas = null;
         this.offscreenCtx = null;
+    }
+
+    // Initialize NPCs for different scenes
+    setupNPCs() {
+        // Police Station NPCs
+        this.npcs.policeStation = [
+            {
+                id: 'receptionist',
+                x: 400,
+                y: 280,
+                uniformColor: '#0000AA', // blue police uniform
+                badgeColor: '#FFD700', // gold badge
+                facing: 'down',
+                isWalking: false,
+                isFemale: true,
+                name: 'Officer Jenny',
+                dialogId: 'receptionist_dialog',
+                patrolPoints: []
+            },
+            {
+                id: 'sergeant',
+                x: 600,
+                y: 320,
+                uniformColor: '#00008B', // dark blue for sergeant
+                badgeColor: '#FFD700',
+                facing: 'left',
+                isWalking: false,
+                isFemale: false,
+                name: 'Sergeant Dooley',
+                dialogId: 'sergeant_dialog',
+                patrolPoints: []
+            },
+            {
+                id: 'officer',
+                x: 200,
+                y: 350,
+                uniformColor: '#0000AA',
+                badgeColor: '#FFD700',
+                facing: 'right',
+                isWalking: true,
+                isFemale: false,
+                name: 'Officer Johnson',
+                patrolPoints: [
+                    { x: 200, y: 350 },
+                    { x: 300, y: 350 },
+                    { x: 300, y: 400 },
+                    { x: 200, y: 400 }
+                ],
+                currentPatrolPoint: 0,
+                waitTime: 0
+            }
+        ];
+        
+        // Downtown NPCs
+        this.npcs.downtown = [
+            {
+                id: 'witness',
+                x: 150,
+                y: 300,
+                uniformColor: '#A52A2A', // brown civilian clothes
+                badgeColor: '#FFFFFF',
+                facing: 'right',
+                isWalking: false,
+                isFemale: false,
+                name: 'Store Owner',
+                dialogId: 'witness_dialog'
+            },
+            {
+                id: 'officer',
+                x: 400,
+                y: 350,
+                uniformColor: '#0000AA',
+                badgeColor: '#FFD700',
+                facing: 'left',
+                isWalking: true,
+                isFemale: true,
+                name: 'Officer Martinez',
+                patrolPoints: [
+                    { x: 350, y: 350 },
+                    { x: 450, y: 350 }
+                ]
+            }
+        ];
+        
+        // Park NPCs
+        this.npcs.park = [
+            {
+                id: 'suspect',
+                x: 400,
+                y: 300,
+                uniformColor: '#333333', // dark clothes
+                badgeColor: '#333333',
+                facing: 'down',
+                isWalking: false,
+                isFemale: false,
+                name: 'Suspicious Person',
+                dialogId: 'suspect_dialog'
+            }
+        ];
+        
+        // Sheriff's Office NPCs
+        this.npcs.sheriffsOffice = [
+            {
+                id: 'sheriff',
+                x: 400,
+                y: 250,
+                uniformColor: '#2F4F4F', // dark slate gray
+                badgeColor: '#FFD700',
+                facing: 'down',
+                isWalking: false,
+                isFemale: false,
+                name: 'Sheriff Johnson'
+            }
+        ];
     }
 }
 
