@@ -710,20 +710,20 @@ class GameDebugger {
                     }
                     
                     if (typeof hotspot.x !== 'number' || typeof hotspot.y !== 'number') {
-                        this.logEntry(`Error: Hotspot "${hotspot.id}" has invalid position: (${hotspot.x}, ${hotspot.y})`, "error");
+                        this.logEntry(`Error: Hotspot "${hotspot.id || 'unnamed'}" has invalid position: (${hotspot.x}, ${hotspot.y})`, "error");
                     }
                     
                     if (typeof hotspot.width !== 'number' || hotspot.width <= 0 || 
                         typeof hotspot.height !== 'number' || hotspot.height <= 0) {
-                        this.logEntry(`Warning: Hotspot "${hotspot.id}" has invalid dimensions: ${hotspot.width}x${hotspot.height}`, "warn");
+                        this.logEntry(`Warning: Hotspot "${hotspot.id || 'unnamed'}" has invalid dimensions: ${hotspot.width}x${hotspot.height}`, "warn");
                     }
                     
                     if (!hotspot.interactions || Object.keys(hotspot.interactions).length === 0) {
-                        this.logEntry(`Warning: Hotspot "${hotspot.id}" has no interactions defined`, "warn");
+                        this.logEntry(`Warning: Hotspot "${hotspot.id || 'unnamed'}" has no interactions defined`, "warn");
                     }
                     
-                    // Check doors
-                    if (hotspot.id.toLowerCase().includes('door')) {
+                    // Add null check before calling toLowerCase() - this is where the error occurred
+                    if (hotspot.id && hotspot.id.toLowerCase && hotspot.id.toLowerCase().includes('door')) {
                         if (!hotspot.targetScene) {
                             this.logEntry(`Error: Door "${hotspot.id}" has no target scene!`, "error");
                         } else if (!scenes[hotspot.targetScene]) {
