@@ -1476,7 +1476,7 @@ class GameEngine {
             dialogBox = document.createElement('div');
             dialogBox.id = 'simple-dialog';
             dialogBox.style.position = 'absolute';
-            dialogBox.style.bottom = '20px';
+            dialogBox.style.bottom = '120px'; // Moved up to avoid buttons
             dialogBox.style.left = '50%';
             dialogBox.style.transform = 'translateX(-50%)';
             dialogBox.style.backgroundColor = 'rgba(0,0,0,0.7)';
@@ -1486,7 +1486,7 @@ class GameEngine {
             dialogBox.style.maxWidth = '80%';
             dialogBox.style.fontFamily = 'monospace';
             dialogBox.style.fontSize = '14px';
-            dialogBox.style.zIndex = '1000';
+            dialogBox.style.zIndex = '900'; // Keep under command buttons
             document.body.appendChild(dialogBox);
         }
         

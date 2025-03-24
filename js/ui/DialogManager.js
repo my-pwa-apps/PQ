@@ -380,12 +380,12 @@ if (typeof window.DialogManager === 'undefined') {
                 // Add to document
                 document.body.appendChild(this.dialogContainer);
                 
-                // Style the dialog
+                // Style the dialog - UPDATED positioning to not overlap command buttons
                 const style = document.createElement('style');
                 style.textContent = `
                     .game-dialog {
                         position: absolute;
-                        bottom: 20px;
+                        bottom: 120px; /* Moved up to avoid command buttons */
                         left: 50%;
                         transform: translateX(-50%);
                         background-color: rgba(0, 0, 0, 0.7);
@@ -396,10 +396,12 @@ if (typeof window.DialogManager === 'undefined') {
                         font-family: monospace;
                         font-size: 14px;
                         line-height: 1.4;
-                        z-index: 1000;
+                        z-index: 900; /* Lower z-index so it doesn't cover UI buttons */
                     }
                     #dialog-text {
                         min-height: 2em;
+                        max-height: 150px; /* Limit height */
+                        overflow-y: auto; /* Add scrolling for long text */
                     }
                     .dialog-option {
                         background-color: rgba(100, 100, 100, 0.5);
@@ -414,6 +416,13 @@ if (typeof window.DialogManager === 'undefined') {
                     }
                     .dialog-option:hover {
                         background-color: rgba(150, 150, 150, 0.5);
+                    }
+                    /* Add responsive positioning */
+                    @media (max-height: 500px) {
+                        .game-dialog {
+                            bottom: 100px;
+                            max-height: 120px;
+                        }
                     }
                 `;
                 document.head.appendChild(style);

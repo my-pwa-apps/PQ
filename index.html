@@ -13,7 +13,7 @@
     <!-- Styles -->
     <link rel="stylesheet" href="css/style.css">
     
-    <!-- Debug panel styles - now using media query to reduce page load impact -->
+    <!-- Debug panel and UI styles with improved z-index -->
     <style>
         #debug-toggle-button {
             position: fixed;
@@ -30,6 +30,22 @@
         }
         #debug-toggle-button:hover {
             opacity: 1;
+        }
+        
+        /* Ensure UI elements stay on top of dialogs */
+        #command-panel {
+            position: relative;
+            z-index: 950; /* Higher than dialog boxes */
+        }
+        
+        .cmd-btn {
+            position: relative;
+            z-index: 951; /* Ensure buttons are clickable */
+        }
+        
+        #dialog-box {
+            /* In case inline styles are overridden */
+            bottom: 120px !important; 
         }
     </style>
 </head>
