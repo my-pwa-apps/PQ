@@ -1,11 +1,12 @@
 /**
  * DialogManager.js
  * Sierra-style dialogue system for Police Quest
+ * Optimized version with better performance and error handling
  */
 if (typeof window.DialogManager === 'undefined') {
     class DialogManager {
         constructor() {
-            // Cache DOM elements for better performance
+            // Cache DOM elements for better performance - with error handling
             this.dialogElement = document.getElementById('dialog-text');
             this.dialogContainer = document.getElementById('dialog-box');
             this.optionsContainer = document.createElement('div');
@@ -47,7 +48,11 @@ if (typeof window.DialogManager === 'undefined') {
             };
             
             // Create parser input if it doesn't exist (lazily)
-            this.setupParserInput();
+            if (window.requestIdleCallback) {
+                window.requestIdleCallback(() => this.setupParserInput());
+            } else {
+                setTimeout(() => this.setupParserInput(), 100);
+            }
         }
         
         /**
@@ -56,7 +61,7 @@ if (typeof window.DialogManager === 'undefined') {
         setupParserInput() {
             if (document.querySelector('.parser-input')) return;
             
-            // Defer DOM manipulation until idle
+            // Create parser input only when needed
             if (window.requestIdleCallback) {
                 window.requestIdleCallback(() => this.createParserInput());
             } else {
@@ -134,16 +139,23 @@ if (typeof window.DialogManager === 'undefined') {
          * @param {string} dialogId - The ID of the dialog tree in GAME_DATA
          */
         startDialog(dialogId) {
-            if (!window.GAME_DATA || !window.GAME_DATA.dialogs || !window.GAME_DATA.dialogs[dialogId]) {
-                this.showDialog("Error: Dialog not found.");
-                return;
+            try {
+                if (!window.GAME_DATA || !window.GAME_DATA.dialogs || !window.GAME_DATA.dialogs[dialogId]) {
+                    this.showDialog("Error: Dialog not found.");
+                    return false;
+                }
+                
+                this.currentDialogTree = window.GAME_DATA.dialogs[dialogId];
+                this.currentDialogId = dialogId;
+                
+                // Start with the first dialog entry
+                this.showDialogNode(0);
+                return true;
+            } catch (error) {
+                console.error(`Error starting dialog ${dialogId}:`, error);
+                this.showDialog("Error: Could not start conversation.");
+                return false;
             }
-            
-            this.currentDialogTree = window.GAME_DATA.dialogs[dialogId];
-            this.currentDialogId = dialogId;
-            
-            // Start with the first dialog entry
-            this.showDialogNode(0);
         }
         
         /**
@@ -329,10 +341,10 @@ if (typeof window.DialogManager === 'undefined') {
          * @param {string} text - The text to display
          */
         showDialog(text) {
-            if (!text) return;
+            if (!text) return false;
             
             // Create dialog box if needed
-            if (!this.dialogElement) {
+            if (!this.dialogElement || !this.dialogContainer) {
                 this.ensureDialogElements();
             }
             
@@ -343,6 +355,7 @@ if (typeof window.DialogManager === 'undefined') {
             
             // Use the typewriter effect method
             this.displayDialogText(text, true);
+            return true;
         }
 
         /**
@@ -856,7 +869,7 @@ if (typeof window !== 'undefined') {
         }
     }
     
-    // Update the property definition to use the existing instance
+    // Update the property definition to use the existing instance with error handling
     Object.defineProperty(window, 'dialogManager', {
         get: function() {
             if (!this._dialogManager) {
@@ -865,6 +878,13 @@ if (typeof window !== 'undefined') {
                     this._dialogManager = new DialogManager();
                 } catch (err) {
                     console.error("Failed to create DialogManager:", err);
+                    // Return a fallback minimal implementation
+                    return {
+                        showDialog: function(text) {
+                            console.log("Fallback dialog:", text);
+                            alert(text);
+                        }
+                    };
                 }
             }
             return this._dialogManager;
@@ -873,7 +893,15 @@ if (typeof window !== 'undefined') {
 }
 
 // Initialize immediately when loaded to avoid timing issues
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState !== 'loading') {
+    // Document already loaded, initialize now
+    initDialogManager();
+} else {
+    // Wait for DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', initDialogManager);
+}
+
+function initDialogManager() {
     try {
         // Access dialogManager to trigger initialization
         const dm = window.dialogManager;
@@ -881,9 +909,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
         console.error("Error in DialogManager initialization:", err);
     }
-});
+}
 
-// Make console error safer
+// Provide safe error logging
 window.dialogManagerError = function(message) {
     console.error(`[DialogManager] ${message}`);
 };

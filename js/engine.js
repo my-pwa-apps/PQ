@@ -1794,17 +1794,23 @@ class GameEngine {
         return scene.collisionObjects || [];
     }
 
+    /**
+     * Handle dialog interactions with NPCs
+     * @param {Object} npc - The NPC object to interact with
+     */
     handleNPCDialog(npc) {
+        if (!npc) return;
+        
         if (npc.dialogId) {
             try {
                 // Ensure dialog manager exists or create one
                 if (!window._dialogManager && typeof DialogManager === 'function') {
-                    console.log("Creating new dialog manager instance");
+                    this.debugMode && console.log("Creating new dialog manager instance");
                     window._dialogManager = new DialogManager();
                 }
                 
-                // Access through the getter to ensure initialization
-                if (window.dialogManager && typeof window.dialogManager.startDialog === 'function') {
+                // Use optional chaining for more concise null checks
+                if (window.dialogManager?.startDialog) {
                     window.dialogManager.startDialog(npc.dialogId);
                 } else {
                     // Fallback if dialog manager isn't available
@@ -1812,19 +1818,21 @@ class GameEngine {
                     console.warn("Dialog manager not available - using fallback message");
                 }
             } catch (err) {
-                console.error("Dialog error:", err);
+                console.error(`Dialog error for NPC ${npc.name}:`, err);
                 this.showMessage(`${npc.name} wants to speak but there was an error.`);
             }
         } else {
             // If no dialog system, use simple message
-            const dialogText = npc.dialog || `${npc.name} has nothing to say right now.`;
+            const dialogText = npc.dialog || `${npc.name || 'This person'} has nothing to say right now.`;
             this.showMessage(dialogText);
         }
     }
 
-    // Add method to update cursor style based on what's under the mouse
+    /**
+     * Update cursor style based on what's under the mouse pointer
+     */
     updateCursorStyle() {
-        if (!this.canvas || !this.lastMouseX) return;
+        if (!this.canvas || this.lastMouseX === undefined || this.lastMouseY === undefined) return;
         
         // Default to pointer cursor
         let cursorStyle = 'pointer';

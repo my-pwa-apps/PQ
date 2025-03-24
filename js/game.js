@@ -579,7 +579,7 @@ class Game {
             inventory: [],
             currentCase: GAME_DATA.cases.case1 // Start with first case
         };
-        this.currentScene = 'officeArea';
+        this.currentScene = 'policeStation';
         
         // Use object pooling where appropriate
         this.particlePool = null;
@@ -1360,17 +1360,25 @@ class Game {
     
     // Initialize game when DOM is loaded
     static init() {
-        window.addEventListener('DOMContentLoaded', () => {
-            console.log("DOM fully loaded");
-            try {
-                const game = new Game();
-                game.initGame().then(() => {
-                    window.game = game;
-                });
-            } catch (error) {
-                console.error("Failed to initialize game:", error);
-            }
-        });
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', Game._initInstance);
+        } else {
+            // DOM already loaded, initialize immediately
+            Game._initInstance();
+        }
+    }
+    
+    // Private static method to avoid duplicate function creation
+    static _initInstance() {
+        console.log("DOM fully loaded");
+        try {
+            const game = new Game();
+            game.initGame().then(() => {
+                window.game = game;
+            });
+        } catch (error) {
+            console.error("Failed to initialize game:", error);
+        }
     }
 }
 

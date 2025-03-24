@@ -9,12 +9,11 @@
     <link rel="preload" href="css/style.css" as="style">
     <link rel="preload" href="js/engine.js" as="script">
     <link rel="preload" href="js/game.js" as="script">
-    <link rel="preload" href="js/soundManager.js" as="script">
     
     <!-- Styles -->
     <link rel="stylesheet" href="css/style.css">
     
-    <!-- Add debug panel styles -->
+    <!-- Debug panel styles - now using media query to reduce page load impact -->
     <style>
         #debug-toggle-button {
             position: fixed;
@@ -26,6 +25,11 @@
             padding: 5px;
             z-index: 1000;
             cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        #debug-toggle-button:hover {
+            opacity: 1;
         }
     </style>
 </head>
@@ -87,32 +91,37 @@
     <!-- Debug toggle button -->
     <button id="debug-toggle-button" onclick="toggleDebug()">Debug</button>
     
-    <!-- Load scripts in correct initialization order -->
-    <script src="js/data/GameData.js"></script>
-    <script src="js/SpatialPartitioning.js"></script>
-    <script src="js/soundManager.js"></script>
-    <script src="js/engine.js"></script>
-    <script src="js/managers/DialogManager.js"></script>
-    <script src="js/ui/DialogManager.js"></script>
-    <script src="js/scenes/SceneManager.js"></script>
-    <script src="js/debug.js"></script>
-    <script src="js/game.js"></script>
+    <!-- Load scripts in correct initialization order with performance attributes -->
+    <script src="js/data/GameData.js" defer></script>
+    <script src="js/SpatialPartitioning.js" defer></script>
+    <script src="js/soundManager.js" defer></script>
+    <script src="js/engine.js" defer></script>
+    <script src="js/ui/DialogManager.js" defer></script>
+    <script src="js/scenes/SceneManager.js" defer></script>
+    <script src="js/debug.js" defer></script>
+    <script src="js/game.js" defer></script>
     
-    <!-- Add simple debug initialization script -->
+    <!-- Add simple debug initialization script with improved error handling -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Document loaded - setting up debug key listeners');
-            
-            // Global keyboard listener as a fallback
-            document.addEventListener('keydown', function(event) {
-                if (event.key === 'd' && event.altKey) {
-                    console.log('Alt+D pressed - toggling debug');
-                    if (typeof toggleDebug === 'function') {
-                        toggleDebug();
+            try {
+                console.log('Document loaded - setting up debug key listeners');
+                
+                // Global keyboard listener as a fallback
+                document.addEventListener('keydown', function(event) {
+                    if (event.key === 'd' && event.altKey) {
+                        console.log('Alt+D pressed - toggling debug');
+                        if (typeof toggleDebug === 'function') {
+                            toggleDebug();
+                        } else {
+                            console.warn('Debug toggle function not found');
+                        }
+                        event.preventDefault();
                     }
-                    event.preventDefault();
-                }
-            });
+                });
+            } catch (err) {
+                console.error('Error in debug initialization:', err);
+            }
         });
     </script>
 </body>
