@@ -6,12 +6,12 @@
     <title>Police Quest</title>
     
     <!-- Preload critical assets -->
-    <link rel="preload" href="css/style.css" as="style">
+    <link rel="preload" href="css/style_sierra.css" as="style">
     <link rel="preload" href="js/engine.js" as="script">
     <link rel="preload" href="js/game.js" as="script">
     
-    <!-- Styles -->
-    <link rel="stylesheet" href="css/style.css">
+    <!-- Styles - Enhanced Sierra-style CSS -->
+    <link rel="stylesheet" href="css/style_sierra.css">
     
     <!-- Debug panel and UI styles with improved z-index -->
     <style>
@@ -57,9 +57,9 @@
             
             <!-- Main game canvas with performance attributes -->
             <canvas id="gameCanvas" width="800" height="600"></canvas>
-            
-            <!-- Case information panel -->
+              <!-- Case information panel -->
             <div id="case-info" class="ui-panel">
+                <button id="case-info-close" onclick="dismissCaseInfo()">×</button>
                 <h3>Case Information</h3>
                 <div id="case-details"></div>
             </div>
@@ -105,15 +105,28 @@
     <div id="score-display" class="game-ui-element">Score: 0</div>
     
     <!-- Debug toggle button -->
-    <button id="debug-toggle-button" onclick="toggleDebug()">Debug</button>
-    
-    <!-- Load scripts in correct initialization order with performance attributes -->
+    <button id="debug-toggle-button" onclick="toggleDebug()">Debug</button>    <!-- Load scripts in correct initialization order with performance attributes -->
+    <!-- Enhanced game data -->
     <script src="js/data/GameData.js" defer></script>
+    <script src="js/data/EnhancedStory.js" defer></script>
+    <script src="js/data/EnhancedScenes.js" defer></script>
+    
+    <!-- Core engine systems -->
     <script src="js/SpatialPartitioning.js" defer></script>
+    <script src="js/ParticleSystem.js" defer></script>
+    <script src="js/SierraGraphics_enhanced.js" defer></script>
+    
+    <!-- Game systems -->
+    <script src="js/PoliceGameplay.js" defer></script>
+    <script src="js/PoliceStory.js" defer></script>
     <script src="js/soundManager.js" defer></script>
+    
+    <!-- Engine and managers -->
     <script src="js/engine.js" defer></script>
     <script src="js/ui/DialogManager.js" defer></script>
     <script src="js/scenes/SceneManager.js" defer></script>
+    
+    <!-- Debug and main game -->
     <script src="js/debug.js" defer></script>
     <script src="js/game.js" defer></script>
     

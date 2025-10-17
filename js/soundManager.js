@@ -906,6 +906,53 @@ class SoundManager {
             });
         }
     }
+    
+    // Police Quest specific audio methods
+    playPoliceRadio(message) {
+        // Play radio static followed by voice
+        this.playSound('radio_static');
+        setTimeout(() => {
+            this.playSound('radio_voice');
+        }, 500);
+    }
+    
+    playSirenSound() {
+        this.playSound('police_siren');
+    }
+    
+    playGunshot() {
+        this.playSound('gunshot');
+    }
+    
+    playArrestSound() {
+        this.playSound('handcuffs');
+    }
+    
+    playProcedureAlert() {
+        this.playSound('procedure_alert');
+    }
+    
+    playSuccessChime() {
+        this.playSound('success_chime');
+    }
+    
+    playErrorBuzz() {
+        this.playSound('error_buzz');
+    }
+    
+    playSceneMusic(sceneName) {
+        const musicMap = {
+            'policeStation': 'police_station_theme',
+            'downtown': 'downtown_theme', 
+            'sheriffOffice': 'sheriff_office_theme',
+            'briefingRoom': 'briefing_room_theme'
+        };
+        
+        const musicName = musicMap[sceneName];
+        if (musicName) {
+            this.playMusic(musicName);
+        }
+    }
 }
 
 // Initialize when document is ready with proper error handling

@@ -355,6 +355,126 @@ window.GAME_DATA = {
         dialogDisplayTime: 3000,
         musicVolume: 0.7,
         sfxVolume: 1.0
+    },
+    // Police Quest NPCs - Authentic Sierra style characters
+    npcs: {
+        jenny: {
+            id: 'jenny',
+            name: 'Officer Jenny',
+            scene: 'policeStation',
+            position: { x: 400, y: 280 },
+            uniformColor: '#0000AA',  // Police blue
+            badgeColor: '#FFFF55',   // Gold badge
+            facing: 'down',
+            isFemale: true,
+            dialogues: {
+                greeting: "Good morning, Officer Bonds! Ready for another day keeping Lytton safe?",
+                about_work: "I'm handling dispatch today. Let me know if you need any backup.",
+                about_case: "There's been some suspicious activity downtown. You might want to check it out.",
+                goodbye: "Stay safe out there, Sonny!"
+            },
+            interactions: {
+                talk: "greeting",
+                ask_about_work: "about_work",
+                ask_about_case: "about_case"
+            },
+            isClickable: true,
+            animated: true
+        },
+        sergeant: {
+            id: 'sergeant',
+            name: 'Sergeant Mitchell',
+            scene: 'policeStation',
+            position: { x: 600, y: 320 },
+            uniformColor: '#0000AA',
+            badgeColor: '#FFFF55',
+            facing: 'left',
+            isFemale: false,
+            dialogues: {
+                greeting: "Bonds! Good to see you're on time. We've got work to do.",
+                briefing: "Your patrol area is downtown. Keep an eye out for any traffic violations.",
+                procedure: "Remember - always follow proper police procedure. Write detailed reports.",
+                goodbye: "Dismissed. Make us proud out there."
+            },
+            interactions: {
+                talk: "greeting",
+                ask_briefing: "briefing",
+                ask_procedure: "procedure"
+            },
+            isClickable: true,
+            animated: false
+        },
+        desk_officer: {
+            id: 'desk_officer',
+            name: 'Officer Williams',
+            scene: 'policeStation',
+            position: { x: 250, y: 300 },
+            uniformColor: '#0000AA',
+            badgeColor: '#FFFF55',
+            facing: 'right',
+            isFemale: false,
+            dialogues: {
+                greeting: "Morning, Bonds. Paperwork never ends around here.",
+                evidence: "The evidence locker is behind you. Need anything specific?",
+                reports: "Make sure your reports are thorough. The captain's been checking them carefully.",
+                goodbye: "Back to the paperwork grind..."
+            },
+            interactions: {
+                talk: "greeting",
+                ask_evidence: "evidence",
+                ask_reports: "reports"
+            },
+            isClickable: true,
+            animated: false
+        },
+        citizen_1: {
+            id: 'citizen_1',
+            name: 'Local Citizen',
+            scene: 'downtown',
+            position: { x: 200, y: 400 },
+            uniformColor: '#AA5500',  // Brown civilian clothes
+            badgeColor: null,
+            facing: 'right',
+            isFemale: false,
+            dialogues: {
+                greeting: "Oh, hello officer! Thank goodness you're here.",
+                complaint: "Someone broke into the electronics store last night. Did you see the broken window?",
+                help: "I hope you catch whoever did this. This used to be a safe neighborhood.",
+                goodbye: "Thanks for keeping us safe, officer."
+            },
+            interactions: {
+                talk: "greeting",
+                ask_complaint: "complaint",
+                ask_help: "help"
+            },
+            isClickable: true,
+            animated: true
+        },
+        shop_owner: {
+            id: 'shop_owner',
+            name: 'Mr. Peterson',
+            scene: 'downtown',
+            position: { x: 450, y: 390 },
+            uniformColor: '#AAAAAA',  // Gray shop apron
+            badgeColor: null,
+            facing: 'left',
+            isFemale: false,
+            dialogues: {
+                greeting: "Officer! I'm so glad you're here. My store was robbed!",
+                story: "They smashed the front window and took some electronics. Happened around midnight.",
+                evidence: "I think I saw a suspicious car speeding away. Dark colored, maybe blue or black.",
+                insurance: "I need a police report for my insurance. Can you help me with that?",
+                goodbye: "Please catch these criminals before they strike again!"
+            },
+            interactions: {
+                talk: "greeting",
+                ask_story: "story",
+                ask_evidence: "evidence",
+                ask_insurance: "insurance"
+            },
+            isClickable: true,
+            animated: false
+        }
     }
 };
 

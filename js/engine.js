@@ -42,6 +42,26 @@ class GameEngine {
 
         // Add inventory system
         this.inventory = [];
+        
+        // Enhanced graphics systems
+        this.particleSystem = null;
+        this.backgroundLayers = new Map();
+        this.lightingEffects = [];
+        this.weatherEffects = new Map();
+        
+        // Performance optimization
+        this.frameCounter = 0;
+        this.skipFrames = 0;
+        this.lastMousePosition = { x: 0, y: 0 };
+        
+        // Enhanced visual effects
+        this.screenShake = { intensity: 0, duration: 0 };
+        this.screenFlash = { color: '#FFFFFF', intensity: 0, duration: 0 };
+        this.transition = { active: false, progress: 0, type: 'fade' };
+        
+        // Lighting system
+        this.ambientLight = 0.8;
+        this.lightSources = [];
     }
 
     setupCanvas() {
@@ -70,20 +90,58 @@ class GameEngine {
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
             this.handleInteraction(x, y);
-        });
-
-        document.addEventListener('keydown', (e) => {
+        });        document.addEventListener('keydown', (e) => {
             const directions = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
             if (directions[e.key]) {
                 this.handleMovement(directions[e.key]);
+                return;
+            }
+            
+            // Police-specific keyboard shortcuts
+            switch(e.key.toLowerCase()) {
+                case 'r':
+                    // Radio shortcut
+                    if (this.policeGameplay) {
+                        this.policeGameplay.useRadio();
+                    }
+                    break;
+                case 'b':
+                    // Badge shortcut  
+                    if (this.policeGameplay) {
+                        this.policeGameplay.showBadge();
+                    }
+                    break;
+                case 'h':
+                    // Handcuffs shortcut
+                    if (this.policeGameplay) {
+                        this.policeGameplay.useHandcuffs();
+                    }
+                    break;
+                case 'w':
+                    // Weapon/service revolver shortcut
+                    if (this.policeGameplay) {
+                        this.policeGameplay.drawWeapon();
+                    }
+                    break;
+                case 'i':
+                    // Inventory toggle
+                    this.toggleInventory();
+                    break;
+                case 'p':
+                    // Procedure panel toggle
+                    this.toggleProcedurePanel();
+                    break;
+                case 'escape':
+                    // Cancel current action
+                    this.cancelCurrentAction();
+                    break;
             }
         });
         
         // Track mouse position for cursor updates
         this.canvas.addEventListener('mousemove', (e) => {
             const rect = this.canvas.getBoundingClientRect();
-            this.lastMouseX = e.clientX - rect.left;
-            this.lastMouseY = e.clientY - rect.top;
+            this.lastMouseX = e.clientX - rect.left;            this.lastMouseY = e.clientY - rect.top;
             
             // Update cursor immediately
             this.updateCursorStyle();
@@ -97,6 +155,41 @@ class GameEngine {
             this.setupBufferCanvas();
             this.setupEventListeners();
             this.setupNPCs(); // Call the NPC setup
+            
+            // Initialize enhanced graphics systems - with error handling
+            if (window.ParticleSystem) {
+                this.particleSystem = new window.ParticleSystem(this.canvas, this.offscreenCtx);
+            } else {
+                console.warn("ParticleSystem not available, skipping particle effects");
+            }
+              // Initialize Sierra Graphics System with offscreen canvas for proper rendering
+            if (window.SierraGraphics) {
+                this.sierraGraphics = new window.SierraGraphics(this.offscreenCanvas, this.offscreenCtx);
+                console.log("Sierra Graphics System initialized");
+            } else {
+                console.warn("SierraGraphics not available, using standard graphics");
+            }
+            
+            // Initialize Police Gameplay System
+            if (window.PoliceGameplay) {
+                this.policeGameplay = new window.PoliceGameplay(this);
+                console.log("Police Gameplay System initialized");
+            } else {
+                console.warn("PoliceGameplay not available, using standard gameplay");
+            }
+              // Initialize Police Story System
+            if (window.PoliceStory) {
+                this.policeStory = new window.PoliceStory(this);
+                console.log("Police Story System initialized");
+            } else {
+                console.warn("PoliceStory not available, using standard story");
+            }
+            
+            // Initialize audio system
+            this.initAudioSystem();
+            
+            this.initializeLighting();
+            this.initializeWeatherEffects();
             
             // Initialize dialog system early
             this.initDialogSystem();
@@ -129,8 +222,7 @@ class GameEngine {
 
         const deltaTime = timestamp - this.lastFrameTime;
         if (deltaTime >= this.frameInterval) {
-            this.update(deltaTime);
-            this.render();
+            this.update(deltaTime);            this.render();
             this.lastFrameTime = timestamp;
         }
 
@@ -170,6 +262,11 @@ class GameEngine {
                     
                     // Update walk cycle
                     this.playerWalkCycle = (this.playerWalkCycle + 1) % 8;
+                    
+                    // Create dust particles when walking
+                    if (this.particleSystem && this.frameCounter % 10 === 0) {
+                        this.particleSystem.createDustEffect(nextX, nextY + 15);
+                    }
                 } else if (this.debugMode) {
                     console.log("Collision detected, cannot move to", nextX, nextY);
                 }
@@ -180,24 +277,132 @@ class GameEngine {
                 this.targetY = undefined;
             }
         }
-        
-        // Update cursor style based on mouse position
+          // Update cursor style based on mouse position
         this.updateCursorStyle();
         
         this.updateNPCs(deltaTime);
+        
+        // Update particle system
+        if (this.particleSystem) {
+            this.particleSystem.update(deltaTime);
+        }
+        
+        // Update police gameplay systems
+        if (this.policeGameplay) {
+            this.policeGameplay.update(deltaTime);
+        }
+        
+        // Update story system
+        if (this.policeStory) {
+            this.policeStory.update(deltaTime);
+        }
+        
+        // Update UI elements
+        this.updatePoliceUI();
+        
+        // Update screen effects
+        this.updateScreenEffects(deltaTime);
+        
+        // Update lighting effects
+        this.updateLighting(deltaTime);
+        
         this.animationFrame++;
-    }
-
-    render() {
-        this.offscreenCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.drawCurrentScene();
+        this.frameCounter++;
+    }    render() {
+        // Apply screen shake effect
+        let shakeX = 0, shakeY = 0;
+        if (this.screenShake.intensity > 0) {
+            shakeX = (Math.random() - 0.5) * this.screenShake.intensity;
+            shakeY = (Math.random() - 0.5) * this.screenShake.intensity;
+        }
+        
+        this.offscreenCtx.save();
+        this.offscreenCtx.translate(shakeX, shakeY);
+          this.offscreenCtx.clearRect(-shakeX, -shakeY, this.canvas.width, this.canvas.height);
+          // Use Sierra Graphics for authentic Police Quest experience
+        if (this.sierraGraphics) {
+            this.renderWithSierraGraphics();
+        } else {
+            this.drawCurrentScene();
+        }
+        
+        // Render particle system
+        if (this.particleSystem) {
+            this.particleSystem.render();
+        }
+        
+        // Apply lighting effects
+        this.renderLighting();
+        
+        this.offscreenCtx.restore();
+        
+        // Copy to main canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.drawImage(this.offscreenCanvas, 0, 0);
+        
+        // Apply screen flash effect
+        if (this.screenFlash.intensity > 0) {
+            this.ctx.save();
+            this.ctx.globalAlpha = this.screenFlash.intensity;
+            this.ctx.fillStyle = this.screenFlash.color;
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.restore();
+        }
+        
+        // Apply scene transition effect
+        if (this.transition.active) {
+            this.renderTransition();
+        }
         
         // Draw collision visualization in debug mode
         if (this.debugMode) {
             this.debugDrawCollisions();
         }
+    }
+    
+    renderLighting() {
+        // Disable lighting overlay for now - it was making the screen too dark
+        // Only render in special scenes or debug mode
+        if (this.debugMode && this.lightSources.length > 0) {
+            // Create lighting overlay
+            this.offscreenCtx.save();
+            this.offscreenCtx.globalCompositeOperation = 'multiply';
+            this.offscreenCtx.fillStyle = `rgba(0, 0, 0, ${1 - this.ambientLight})`;
+            this.offscreenCtx.fillRect(0, 0, 800, 600);
+            
+            // Add light sources
+            this.offscreenCtx.globalCompositeOperation = 'screen';
+            for (const light of this.lightSources) {
+                const gradient = this.offscreenCtx.createRadialGradient(
+                    light.x, light.y, 0,
+                    light.x, light.y, light.radius
+                );
+                gradient.addColorStop(0, `rgba(255, 255, 255, ${light.intensity})`);
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                
+                this.offscreenCtx.fillStyle = gradient;
+                this.offscreenCtx.fillRect(
+                    light.x - light.radius, light.y - light.radius,
+                    light.radius * 2, light.radius * 2
+                );
+            }
+            
+            this.offscreenCtx.restore();
+        }
+    }
+    
+    renderTransition() {
+        this.ctx.save();
+        if (this.transition.type === 'fade') {
+            this.ctx.globalAlpha = this.transition.progress;
+            this.ctx.fillStyle = '#000000';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        } else if (this.transition.type === 'slide') {
+            const offset = this.transition.progress * this.canvas.width;
+            this.ctx.fillStyle = '#000000';
+            this.ctx.fillRect(0, 0, offset, this.canvas.height);
+        }
+        this.ctx.restore();
     }
 
     drawCurrentScene() {
@@ -1050,8 +1255,7 @@ class GameEngine {
         const data = localStorage.getItem(`save_${slot}`);
         if (data) {
             this.gameState = JSON.parse(data);
-        }
-    }
+        }    }
 
     // Add a loadScene method to handle scene changes
     loadScene(sceneId) {
@@ -1072,6 +1276,9 @@ class GameEngine {
         try {
             // Update current scene
             this.currentScene = sceneId;
+            
+            // Play scene-appropriate music
+            this.playSceneAudio(sceneId);
             
             // Reset any scene-specific state
             this.isWalking = false;
@@ -1094,11 +1301,89 @@ class GameEngine {
                 window.soundManager.playBackgroundMusic(sceneMusic);
             }
             
+            // Load NPCs for this scene
+            this.loadSceneNPCs(sceneId);
+            
             console.log(`Scene ${sceneId} loaded successfully`);
             return true;
         } catch (error) {
             console.error(`Error loading scene ${sceneId}:`, error);
             return false;
+        }
+    }
+
+    // Load NPCs for the current scene
+    loadSceneNPCs(sceneId) {
+        if (!window.GAME_DATA?.npcs) {
+            console.log('No NPC data available');
+            return;
+        }
+        
+        // Initialize NPCs object if not exists
+        if (!this.npcs) {
+            this.npcs = {};
+        }
+        
+        // Clear existing NPCs
+        this.npcs = {};
+        
+        // Load NPCs for this scene
+        for (const npcId in window.GAME_DATA.npcs) {
+            const npcData = window.GAME_DATA.npcs[npcId];
+            if (npcData.scene === sceneId) {
+                this.npcs[npcId] = {
+                    ...npcData,
+                    isWalking: false,
+                    animationFrame: 0,
+                    lastAnimationTime: 0
+                };
+                console.log(`Loaded NPC: ${npcData.name} in scene ${sceneId}`);
+            }
+        }
+        
+        console.log(`Loaded ${Object.keys(this.npcs).length} NPCs for scene ${sceneId}`);
+    }
+    
+    // Handle NPC interactions
+    handleNPCClick(npcId) {
+        const npc = this.npcs[npcId];
+        if (!npc || !npc.isClickable) {
+            return;
+        }
+        
+        // Face the player
+        const playerX = this.player.x;
+        const npcX = npc.position.x;
+        
+        if (playerX < npcX) {
+            npc.facing = 'left';
+        } else {
+            npc.facing = 'right';
+        }
+        
+        // Show dialogue
+        if (npc.dialogues && npc.dialogues.greeting) {
+            this.showDialog(npc.dialogues.greeting);
+        }
+        
+        console.log(`Clicked on NPC: ${npc.name}`);
+    }
+    
+    // Update NPCs (for animations, AI, etc.)
+    updateNPCs(deltaTime) {
+        if (!this.npcs) return;
+        
+        for (const npcId in this.npcs) {
+            const npc = this.npcs[npcId];
+            
+            // Simple animation for animated NPCs
+            if (npc.animated) {
+                npc.lastAnimationTime += deltaTime;
+                if (npc.lastAnimationTime > 500) { // 500ms per frame
+                    npc.animationFrame = (npc.animationFrame + 1) % 2;
+                    npc.lastAnimationTime = 0;
+                }
+            }
         }
     }
 
@@ -1322,9 +1607,7 @@ class GameEngine {
                 name: 'Sheriff Johnson'
             }
         ];
-    }
-
-    handleInteraction(x, y) {
+    }    handleInteraction(x, y) {
         // Reset walking state when user clicks
         this.isWalking = false;
         
@@ -1354,7 +1637,24 @@ class GameEngine {
                     this.playerFacing = 'up';
                 }
                 
-                // Handle dialog
+                // Check if this is a police-related interaction
+                if (this.policeGameplay) {
+                    const policeInteraction = this.policeGameplay.handleNPCInteraction(npc, this.playerPosition);
+                    if (policeInteraction.handled) {
+                        return;
+                    }
+                }
+                
+                // Handle story-related dialog
+                if (this.policeStory) {
+                    const storyDialog = this.policeStory.getDialogForNPC(npc.name, this.currentScene);
+                    if (storyDialog) {
+                        this.handleNPCDialog(npc, storyDialog);
+                        return;
+                    }
+                }
+                
+                // Handle standard dialog
                 this.handleNPCDialog(npc);
                 return; // Stop processing after finding an NPC
             }
@@ -1829,6 +2129,16 @@ class GameEngine {
     }
 
     /**
+     * Get scene data by name
+     * @param {string} sceneName - Name of the scene
+     * @returns {object} Scene data object
+     */
+    getSceneData(sceneName) {
+        const scene = sceneName || this.currentScene;
+        return window.GAME_DATA?.scenes?.[scene];
+    }
+
+    /**
      * Update cursor style based on what's under the mouse pointer
      */
     updateCursorStyle() {
@@ -1933,7 +2243,7 @@ class GameEngine {
                 }
             }
         }
-        
+ 
         // Check collisions with other NPCs to avoid overlapping
         for (const otherNPC of this.npcs[this.currentScene]) {
             if (otherNPC !== npc) {
@@ -2035,7 +2345,465 @@ class GameEngine {
         
         ctx.restore();
     }
-}
 
+    initializeLighting() {
+        // Add light sources for different scenes
+        this.lightSources = [];
+        
+        // Police station lighting
+        if (this.currentScene === 'policeStation') {
+            this.lightSources.push(
+                { x: 400, y: 200, radius: 150, intensity: 0.8, color: '#FFFFFF' }, // Ceiling lights
+                { x: 680, y: 150, radius: 50, intensity: 0.6, color: '#FFE4B5' },   // Coffee machine light
+                { x: 200, y: 320, radius: 80, intensity: 0.7, color: '#87CEEB' }    // Computer screen
+            );
+        }
+    }
+    
+    initializeWeatherEffects() {
+        // Initialize weather based on scene
+        if (this.currentScene === 'downtown') {
+            // Add subtle rain effect for downtown
+            this.particleSystem.addRainEmitter();
+        }
+    }
+    
+    // Enhanced screen effects
+    screenShakeEffect(intensity, duration) {
+        this.screenShake.intensity = intensity;
+        this.screenShake.duration = duration;
+    }
+    
+    screenFlashEffect(color, intensity, duration) {
+        this.screenFlash.color = color;
+        this.screenFlash.intensity = intensity;
+        this.screenFlash.duration = duration;
+    }
+    
+    startSceneTransition(type = 'fade') {
+        this.transition.active = true;
+        this.transition.progress = 0;
+        this.transition.type = type;
+    }
+
+    updateScreenEffects(deltaTime) {
+        // Update screen shake
+        if (this.screenShake.duration > 0) {
+            this.screenShake.duration -= deltaTime;
+            if (this.screenShake.duration <= 0) {
+                this.screenShake.intensity = 0;
+            }
+        }
+        
+        // Update screen flash
+        if (this.screenFlash.duration > 0) {
+            this.screenFlash.duration -= deltaTime;
+            this.screenFlash.intensity = Math.max(0, this.screenFlash.intensity * 0.95);
+            if (this.screenFlash.duration <= 0) {
+                this.screenFlash.intensity = 0;
+            }
+        }
+        
+        // Update transitions
+        if (this.transition.active) {
+            this.transition.progress += deltaTime / 1000;
+            if (this.transition.progress >= 1) {
+                this.transition.active = false;
+                this.transition.progress = 0;
+            }
+        }
+    }
+    
+    updateLighting(deltaTime) {
+        // Subtle lighting animation
+        this.ambientLight = 0.8 + Math.sin(this.animationFrame * 0.01) * 0.05;
+        
+        // Animate light sources
+        for (const light of this.lightSources) {
+            if (light.flicker) {
+                light.intensity = light.baseIntensity + Math.random() * 0.1 - 0.05;
+            }
+        }
+    }
+    
+    applyScreenShake() {
+        if (this.screenShake.intensity > 0) {
+            const shakeX = (Math.random() - 0.5) * this.screenShake.intensity;
+            const shakeY = (Math.random() - 0.5) * this.screenShake.intensity;
+            this.ctx.translate(shakeX, shakeY);
+        }
+    }
+    
+    applyScreenFlash() {
+        if (this.screenFlash.intensity > 0) {
+            this.ctx.save();
+            this.ctx.globalAlpha = this.screenFlash.intensity;
+            this.ctx.fillStyle = this.screenFlash.color;
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.restore();
+        }
+    }    renderWithSierraGraphics() {
+        try {
+            // Clear with authentic Sierra background
+            this.sierraGraphics.clearScreen();
+            
+            // Draw scene background with Sierra style
+            switch (this.currentScene) {
+                case 'policeStation':
+                    if (this.sierraGraphics.drawPoliceStation) {
+                        this.sierraGraphics.drawPoliceStation();
+                    } else {
+                        this.drawCurrentScene(); // Fallback
+                    }
+                    break;
+                case 'downtown':
+                    if (this.sierraGraphics.drawDowntown) {
+                        this.sierraGraphics.drawDowntown();
+                    } else {
+                        this.drawCurrentScene(); // Fallback
+                    }
+                    break;
+                case 'sheriffOffice':
+                    if (this.sierraGraphics.drawSheriffOffice) {
+                        this.sierraGraphics.drawSheriffOffice();
+                    } else {
+                        this.drawCurrentScene(); // Fallback
+                    }
+                    break;
+                case 'briefingRoom':
+                    if (this.sierraGraphics.drawBriefingRoom) {
+                        this.sierraGraphics.drawBriefingRoom();
+                    } else {
+                        this.drawCurrentScene(); // Fallback
+                    }
+                    break;
+                default:
+                    this.drawCurrentScene(); // Fallback to original rendering
+                    return;
+            }
+        } catch (error) {
+            console.warn("SierraGraphics error, falling back to standard rendering:", error);
+            this.drawCurrentScene();
+            return;
+        }
+        
+        // Draw NPCs with Sierra character style
+        for (const npcId in this.npcs) {
+            const npc = this.npcs[npcId];
+            if (npc.scene === this.currentScene && npc.visible !== false) {
+                this.sierraGraphics.drawCharacter(
+                    npc.x || npc.position?.x || 0,
+                    npc.y || npc.position?.y || 0,
+                    npc.name,
+                    npc.facing || 'down',
+                    npc.action || 'standing'
+                );
+            }
+        }
+        
+        // Draw player with Sierra character style
+        this.sierraGraphics.drawCharacter(
+            this.playerPosition.x,
+            this.playerPosition.y,
+            'sonny',
+            this.playerFacing,
+            this.isWalking ? 'walking' : 'standing'
+        );
+        
+        // Draw hotspots and interactable objects
+        this.drawSierraHotspots();
+        
+        // Draw UI elements
+        this.renderSierraUI();
+    }
+    
+    drawSierraHotspots() {
+        // Draw hotspots for current scene
+        const sceneData = this.getSceneData(this.currentScene);
+        if (sceneData && sceneData.hotspots) {
+            for (const hotspot of sceneData.hotspots) {
+                if (hotspot.visible !== false) {
+                    this.sierraGraphics.drawHotspot(hotspot);
+                }
+            }
+        }
+    }
+    
+    renderSierraUI() {
+        // Draw Sierra-style command interface
+        this.sierraGraphics.drawCommandInterface();
+        
+        // Draw inventory if open
+        if (this.inventoryOpen) {
+            this.sierraGraphics.drawInventory(this.inventory);
+        }
+        
+        // Draw police procedures panel if applicable
+        if (this.policeGameplay && this.policeGameplay.currentProcedure) {
+            this.sierraGraphics.drawProcedurePanel(this.policeGameplay.currentProcedure);
+        }
+        
+        // Draw case information panel
+        if (this.policeStory && this.policeStory.currentCase) {
+            this.sierraGraphics.drawCasePanel(this.policeStory.currentCase);
+        }
+        
+        // Draw score display
+        if (this.policeGameplay) {
+            this.sierraGraphics.drawScoreDisplay(this.policeGameplay.score, this.policeGameplay.rank);
+        }
+    }
+    
+    // Police UI Update Methods
+    updatePoliceUI() {
+        this.updateProcedurePanel();
+        this.updateScoreDisplay();
+        this.updateCaseInfo();
+    }
+    
+    updateProcedurePanel() {
+        const procedurePanel = document.getElementById('procedure-panel');
+        if (!procedurePanel || !this.policeGameplay) return;
+        
+        const currentProcedure = this.policeGameplay.currentProcedure;
+        if (currentProcedure) {
+            procedurePanel.style.display = 'block';
+            const stepsList = procedurePanel.querySelector('.procedure-steps');
+            if (stepsList) {
+                stepsList.innerHTML = '';
+                
+                currentProcedure.steps.forEach((step, index) => {
+                    const stepElement = document.createElement('li');
+                    stepElement.className = step.completed ? 'step completed' : 'step pending';
+                    stepElement.textContent = step.description;
+                    
+                    if (index === currentProcedure.currentStep) {
+                        stepElement.classList.add('current');
+                    }
+                    
+                    stepsList.appendChild(stepElement);
+                });
+            }
+        } else {
+            procedurePanel.style.display = 'none';
+        }
+    }
+    
+    updateScoreDisplay() {
+        const scoreDisplay = document.getElementById('score-display');
+        if (scoreDisplay && this.policeGameplay) {
+            const score = this.policeGameplay.score;
+            const rank = this.policeGameplay.rank;
+            scoreDisplay.textContent = `Score: ${score} | Rank: ${rank}`;
+        }
+    }      updateCaseInfo() {
+        const caseInfo = document.getElementById('case-info');
+        if (!caseInfo) return;
+        
+        // Hide case info if police story system isn't available
+        if (!this.policeStory) {
+            caseInfo.style.display = 'none';
+            return;
+        }
+        
+        const currentCase = this.policeStory.currentCase;
+        if (currentCase && currentCase.title) {
+            caseInfo.style.display = 'block';
+            caseInfo.classList.add('visible');
+            
+            // Build objectives list with better error handling
+            let objectivesList = '';
+            if (currentCase.objectives && Array.isArray(currentCase.objectives)) {
+                objectivesList = currentCase.objectives.map(obj => {
+                    if (obj && typeof obj === 'object') {
+                        const status = obj.completed ? 'completed' : 'pending';
+                        const description = obj.description || obj.text || 'Unknown objective';
+                        return `<li class="${status}">• ${description}</li>`;
+                    }
+                    return `<li class="pending">• ${obj || 'Unknown objective'}</li>`;
+                }).join('');
+            } else {
+                objectivesList = `
+                    <li class="pending">• Begin patrol shift</li>
+                    <li class="pending">• Conduct traffic stops</li>
+                    <li class="pending">• Follow proper procedure</li>
+                    <li class="pending">• Write accurate reports</li>
+                `;
+            }
+            
+            caseInfo.innerHTML = `
+                <button id="case-info-close" type="button">×</button>
+                <h3>Current Case</h3>
+                <p><strong>${currentCase.title || 'Traffic Patrol'}</strong></p>
+                <p>${currentCase.description || 'Begin your shift and patrol the streets of Lytton.'}</p>
+                <div class="objectives">
+                    <h4>Objectives:</h4>
+                    <ul>${objectivesList}</ul>
+                </div>
+            `;
+            
+            // Add proper event listener after creating the button
+            const closeBtn = caseInfo.querySelector('#case-info-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Close button clicked');
+                    window.dismissCaseInfo(e);
+                });
+            }
+        } else {
+            // Show a default message instead of hiding completely
+            caseInfo.style.display = 'block';
+            caseInfo.classList.add('visible');
+            caseInfo.innerHTML = `
+                <button id="case-info-close" type="button">×</button>
+                <h3>Police Officer Status</h3>
+                <p><strong>Officer Sonny Bonds</strong></p>
+                <p>Badge #2847 - Lytton Police Department</p>
+                <p>On Patrol - Ready for assignment</p>
+                <div class="objectives">
+                    <h4>Current Objectives:</h4>
+                    <ul>
+                        <li class="pending">• Report for duty</li>
+                        <li class="pending">• Begin traffic patrol</li>
+                        <li class="pending">• Maintain law and order</li>
+                    </ul>
+                </div>
+            `;
+            
+            // Add event listener for default case too
+            const closeBtn = caseInfo.querySelector('#case-info-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Close button clicked (default case)');
+                    window.dismissCaseInfo(e);
+                });
+            }
+        }
+    }
+
+    showProcedureViolation(violation) {
+        // Display procedure violation message
+        const message = `PROCEDURE VIOLATION: ${violation}`;
+        console.warn(message);
+        
+        // Show visual feedback
+        this.screenFlash = {
+            color: '#FF0000',
+            intensity: 0.3,
+            duration: 60
+        };
+        
+        // Update score
+        if (this.policeGameplay) {
+            this.policeGameplay.addScore(-50); // Penalty for violation
+        }
+        
+        // Play audio feedback
+        this.playPoliceAudio('error');
+    }
+    
+    showProcedureSuccess(procedure) {
+        // Display procedure success message
+        const message = `PROCEDURE COMPLETED: ${procedure}`;
+        console.log(message);
+        
+        // Show positive visual feedback
+        this.screenFlash = {
+            color: '#00FF00',
+            intensity: 0.2,
+            duration: 30
+        };
+        
+        // Award score
+        if (this.policeGameplay) {
+            this.policeGameplay.addScore(100);
+        }        
+        // Play audio feedback
+        this.playPoliceAudio('success');
+    }
+
+    // Audio initialization method
+    initAudioSystem() {
+        if (window.soundManager) {
+            this.soundManager = window.soundManager;
+            console.log("Audio system initialized with SoundManager");
+        } else {
+            console.warn("SoundManager not available, audio disabled");
+            this.soundManager = null;
+        }
+    }
+    
+    playSceneAudio(sceneName) {
+        if (this.soundManager) {
+            this.soundManager.playSceneMusic(sceneName);
+        }
+    }
+    
+    playPoliceAudio(audioType, data = null) {
+        if (!this.soundManager) return;
+        
+        switch(audioType) {
+            case 'radio':
+                this.soundManager.playPoliceRadio(data);
+                break;
+            case 'siren':
+                this.soundManager.playSirenSound();
+                break;
+            case 'arrest':
+                this.soundManager.playArrestSound();
+                break;
+            case 'procedure_alert':
+                this.soundManager.playProcedureAlert();
+                break;
+            case 'success':
+                this.soundManager.playSuccessChime();
+                break;
+            case 'error':
+                this.soundManager.playErrorBuzz();
+                break;
+            case 'gunshot':
+                this.soundManager.playGunshot();
+                break;
+        }
+   }    // Method to dismiss the case info overlay
+    dismissCaseInfo() {
+        const caseInfo = document.getElementById('case-info');
+        if (caseInfo) {
+            caseInfo.style.display = 'none';
+        }
+    }
+}
+    
 // Export globally
 window.GameEngine = GameEngine;
+
+// Make dismissCaseInfo globally accessible
+window.dismissCaseInfo = function(event) {
+    console.log('dismissCaseInfo called');
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    const caseInfo = document.getElementById('case-info');
+    if (caseInfo) {
+        console.log('Hiding case info panel');
+        caseInfo.style.display = 'none';
+        caseInfo.classList.remove('visible');
+    } else {
+        console.warn('case-info element not found');
+    }
+};
+
+// Make toggleDebug globally accessible
+window.toggleDebug = function() {
+    if (window.gameEngine && typeof window.gameEngine.toggleDebugMode === 'function') {
+        window.gameEngine.toggleDebugMode();
+    } else {
+        console.log('Debug toggle: gameEngine not ready or debug mode not available');
+    }
+};

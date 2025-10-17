@@ -1404,6 +1404,20 @@ function processInteraction(sceneName, hotspotName) {
     return true;
 }
 
+// Global function for HTML onclick handlers
+function dismissCaseInfo() {
+    if (window.gameEngine) {
+        window.gameEngine.dismissCaseInfo();
+    }
+}
+
+// Global debug toggle function
+function toggleDebug() {
+    if (window.gameDebugger) {
+        window.gameDebugger.toggleDebugPanel();
+    }
+}
+
 // Export the process interaction function
 window.Game = {
     ...window.Game,
