@@ -735,11 +735,762 @@ class SierraGraphics {
             case 'policeStation_lobby':
                 this.drawPoliceStation();
                 break;
+            case 'downtown':
+            case 'downtown_main':
+                this.drawDowntown();
+                break;
+            case 'park':
+            case 'city_park':
+                this.drawPark();
+                break;
+            case 'briefingRoom':
+            case 'policeStation_briefing':
+                this.drawBriefingRoom();
+                break;
+            case 'sheriffsOffice':
+            case 'sheriffOffice':
+                this.drawSheriffsOffice();
+                break;
             default:
                 this.clearScreen();
                 this.drawSierraText(`Scene: ${sceneName}`, 300, 250, this.sierraPalette.white);
                 this.drawSierraText("(Scene not yet implemented)", 250, 280, this.sierraPalette.yellow);
         }
+    }
+    
+    // === DOWNTOWN SCENE - Detailed Sierra-style city street ===
+    drawDowntown() {
+        const ctx = this.ctx;
+        this.clearScreen();
+        
+        // Sky with gradient
+        const skyGradient = ctx.createLinearGradient(0, 0, 0, 300);
+        skyGradient.addColorStop(0, this.sierraPalette.cyan);
+        skyGradient.addColorStop(1, this.sierraPalette.blue);
+        ctx.fillStyle = skyGradient;
+        ctx.fillRect(0, 0, 800, 300);
+        
+        // Sun
+        ctx.fillStyle = this.sierraPalette.yellow;
+        ctx.globalAlpha = 0.8;
+        ctx.beginPath();
+        ctx.arc(700, 80, 40, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+        
+        // Buildings - left side
+        this.drawSierraBuilding(0, 80, 180, 220, this.sierraPalette.brown, this.sierraPalette.darkCyan);
+        this.drawSierraBuilding(180, 100, 150, 200, this.sierraPalette.lightGray, this.sierraPalette.darkBlue);
+        
+        // Electronics store (crime scene) - center focus
+        ctx.fillStyle = this.sierraPalette.buildingTan;
+        ctx.fillRect(330, 120, 200, 180);
+        
+        // Store awning
+        ctx.fillStyle = this.sierraPalette.red;
+        ctx.fillRect(330, 115, 200, 15);
+        ctx.strokeStyle = this.sierraPalette.white;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 5; i++) {
+            ctx.beginPath();
+            ctx.moveTo(340 + i * 40, 115);
+            ctx.lineTo(340 + i * 40, 130);
+            ctx.stroke();
+        }
+        
+        // Store sign
+        ctx.fillStyle = this.sierraPalette.yellow;
+        ctx.fillRect(345, 90, 170, 25);
+        ctx.strokeStyle = this.sierraPalette.black;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(345, 90, 170, 25);
+        this.drawSierraText("TECHWORLD ELECTRONICS", 350, 98, this.sierraPalette.black, 8);
+        
+        // Broken window with dramatic crime scene details
+        ctx.fillStyle = this.sierraPalette.darkCyan;
+        ctx.fillRect(350, 140, 80, 100);
+        
+        // Broken glass shards
+        ctx.strokeStyle = this.sierraPalette.white;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(380, 150);
+        ctx.lineTo(395, 180);
+        ctx.moveTo(365, 170);
+        ctx.lineTo(385, 200);
+        ctx.moveTo(395, 160);
+        ctx.lineTo(405, 195);
+        ctx.moveTo(370, 190);
+        ctx.lineTo(390, 220);
+        ctx.stroke();
+        
+        // Police tape
+        ctx.fillStyle = this.sierraPalette.yellow;
+        ctx.save();
+        ctx.globalAlpha = 0.8;
+        ctx.fillRect(340, 250, 180, 8);
+        ctx.fillStyle = this.sierraPalette.black;
+        this.drawSierraText("POLICE LINE - DO NOT CROSS", 345, 252, this.sierraPalette.black, 5);
+        ctx.restore();
+        
+        // Display items inside store
+        ctx.fillStyle = this.sierraPalette.darkGray;
+        ctx.fillRect(455, 160, 60, 50);
+        ctx.fillStyle = this.sierraPalette.white;
+        ctx.fillRect(460, 165, 50, 35);
+        this.drawSierraText("COMPUTERS", 462, 178, this.sierraPalette.blue, 5);
+        
+        // Buildings - right side
+        this.drawSierraBuilding(530, 90, 140, 210, this.sierraPalette.darkGray, this.sierraPalette.cyan);
+        this.drawSierraBuilding(670, 110, 130, 190, this.sierraPalette.brown, this.sierraPalette.darkCyan);
+        
+        // Sidewalk
+        ctx.fillStyle = this.sierraPalette.lightGray;
+        ctx.fillRect(0, 300, 800, 100);
+        
+        // Sidewalk cracks and details
+        ctx.strokeStyle = this.sierraPalette.darkGray;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 6; i++) {
+            const x = 100 + i * 120;
+            ctx.beginPath();
+            ctx.moveTo(x, 300);
+            ctx.lineTo(x, 400);
+            ctx.stroke();
+        }
+        
+        // Street
+        ctx.fillStyle = this.sierraPalette.streetGray;
+        ctx.fillRect(0, 400, 800, 200);
+        
+        // Street center line
+        ctx.fillStyle = this.sierraPalette.yellow;
+        for (let i = 0; i < 800; i += 40) {
+            ctx.fillRect(i, 495, 25, 10);
+        }
+        
+        // Parked police car
+        this.drawDetailedPoliceCar(100, 430);
+        
+        // Street lamp
+        ctx.fillStyle = this.sierraPalette.darkGray;
+        ctx.fillRect(280, 310, 8, 90);
+        
+        // Lamp head
+        ctx.fillStyle = this.sierraPalette.yellow;
+        ctx.beginPath();
+        ctx.arc(284, 310, 12, Math.PI, 0);
+        ctx.fill();
+        
+        // Fire hydrant
+        ctx.fillStyle = this.sierraPalette.red;
+        ctx.fillRect(620, 360, 20, 35);
+        ctx.fillRect(615, 370, 30, 8);
+        ctx.fillStyle = this.sierraPalette.yellow;
+        ctx.fillRect(625, 375, 8, 3);
+        
+        // Trash can
+        ctx.fillStyle = this.sierraPalette.darkGreen;
+        ctx.fillRect(730, 340, 35, 50);
+        ctx.strokeStyle = this.sierraPalette.black;
+        ctx.strokeRect(730, 340, 35, 50);
+    }
+    
+    // === PARK SCENE - Detailed Sierra-style city park ===
+    drawPark() {
+        const ctx = this.ctx;
+        this.clearScreen();
+        
+        // Sky
+        const skyGradient = ctx.createLinearGradient(0, 0, 0, 250);
+        skyGradient.addColorStop(0, this.sierraPalette.cyan);
+        skyGradient.addColorStop(1, this.sierraPalette.blue);
+        ctx.fillStyle = skyGradient;
+        ctx.fillRect(0, 0, 800, 250);
+        
+        // Clouds
+        ctx.fillStyle = this.sierraPalette.white;
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.ellipse(150, 80, 40, 20, 0, 0, Math.PI * 2);
+        ctx.ellipse(180, 75, 35, 18, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(600, 100, 45, 22, 0, 0, Math.PI * 2);
+        ctx.ellipse(640, 95, 38, 20, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+        
+        // Distant trees
+        ctx.fillStyle = this.sierraPalette.darkGreen;
+        ctx.fillRect(0, 180, 800, 70);
+        
+        // Grass with texture
+        ctx.fillStyle = this.sierraPalette.grassGreen;
+        ctx.fillRect(0, 250, 800, 350);
+        this.applyDithering(0, 250, 800, 350, 'light', this.sierraPalette.grassGreen, this.sierraPalette.darkGreen);
+        
+        // Walking path (stone path)
+        ctx.fillStyle = this.sierraPalette.lightGray;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(200, 300);
+        ctx.quadraticCurveTo(400, 320, 600, 300);
+        ctx.quadraticCurveTo(400, 500, 200, 480);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        
+        // Path stones texture
+        this.applyDithering(210, 310, 380, 160, 'medium', this.sierraPalette.lightGray, this.sierraPalette.darkGray);
+        
+        // Fountain - centerpiece
+        const fountainX = 400, fountainY = 320;
+        
+        // Fountain base
+        ctx.fillStyle = this.sierraPalette.darkGray;
+        ctx.beginPath();
+        ctx.arc(fountainX, fountainY, 60, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Fountain edge
+        ctx.strokeStyle = this.sierraPalette.lightGray;
+        ctx.lineWidth = 8;
+        ctx.stroke();
+        
+        // Water
+        ctx.fillStyle = this.sierraPalette.cyan;
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.arc(fountainX, fountainY, 50, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+        
+        // Fountain center pedestal
+        ctx.fillStyle = this.sierraPalette.lightGray;
+        ctx.fillRect(fountainX - 8, fountainY - 40, 16, 40);
+        
+        // Water spray
+        ctx.strokeStyle = this.sierraPalette.white;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.6;
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.moveTo(fountainX, fountainY - 40);
+            ctx.lineTo(fountainX + Math.cos(angle) * 25, fountainY - 60 + Math.sin(angle) * 15);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1.0;
+        
+        // Trees - detailed Sierra style
+        this.drawDetailedTree(120, 280);
+        this.drawDetailedTree(220, 420);
+        this.drawDetailedTree(580, 400);
+        this.drawDetailedTree(680, 290);
+        
+        // Park benches
+        this.drawParkBench(280, 450);
+        this.drawParkBench(520, 450);
+        
+        // Flower beds
+        ctx.fillStyle = this.sierraPalette.brown;
+        ctx.fillRect(100, 500, 100, 40);
+        ctx.fillRect(600, 500, 100, 40);
+        
+        // Flowers
+        const flowerColors = [this.sierraPalette.red, this.sierraPalette.yellow, this.sierraPalette.magenta];
+        for (let bed = 0; bed < 2; bed++) {
+            const bedX = bed === 0 ? 100 : 600;
+            for (let i = 0; i < 20; i++) {
+                const fx = bedX + 10 + (i % 5) * 18;
+                const fy = 505 + Math.floor(i / 5) * 8;
+                ctx.fillStyle = flowerColors[i % 3];
+                ctx.beginPath();
+                ctx.arc(fx, fy, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        // Birds in sky
+        ctx.strokeStyle = this.sierraPalette.black;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 5; i++) {
+            const bx = 300 + i * 80;
+            const by = 120 + Math.sin(i) * 30;
+            ctx.beginPath();
+            ctx.moveTo(bx - 6, by);
+            ctx.quadraticCurveTo(bx, by - 5, bx + 6, by);
+            ctx.stroke();
+        }
+    }
+    
+    // === BRIEFING ROOM - Detailed police meeting room ===
+    drawBriefingRoom() {
+        const ctx = this.ctx;
+        this.clearScreen();
+        
+        // Floor
+        ctx.fillStyle = this.sierraPalette.lightGray;
+        ctx.fillRect(0, 350, 800, 250);
+        
+        // Floor tiles
+        ctx.strokeStyle = this.sierraPalette.darkGray;
+        ctx.lineWidth = 1;
+        for (let x = 0; x < 800; x += 50) {
+            ctx.beginPath();
+            ctx.moveTo(x, 350);
+            ctx.lineTo(x, 600);
+            ctx.stroke();
+        }
+        for (let y = 350; y < 600; y += 50) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(800, y);
+            ctx.stroke();
+        }
+        
+        // Walls
+        ctx.fillStyle = this.sierraPalette.blue;
+        ctx.fillRect(0, 0, 800, 350);
+        this.applyDithering(0, 0, 800, 350, 'light', this.sierraPalette.blue, this.sierraPalette.darkBlue);
+        
+        // Ceiling
+        ctx.fillStyle = this.sierraPalette.white;
+        ctx.fillRect(0, 0, 800, 30);
+        
+        // Conference table - large perspective
+        ctx.fillStyle = this.sierraPalette.brown;
+        ctx.fillRect(200, 300, 400, 120);
+        this.applyDithering(200, 300, 400, 120, 'diagonal', this.sierraPalette.brown, this.sierraPalette.buildingTan);
+        
+        // Table top highlight
+        ctx.fillStyle = this.sierraPalette.buildingTan;
+        ctx.beginPath();
+        ctx.moveTo(200, 300);
+        ctx.lineTo(180, 285);
+        ctx.lineTo(580, 285);
+        ctx.lineTo(600, 300);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Chairs around table
+        const chairPositions = [
+            {x: 220, y: 270}, {x: 320, y: 270}, {x: 420, y: 270}, {x: 520, y: 270},
+            {x: 220, y: 430}, {x: 320, y: 430}, {x: 420, y: 430}, {x: 520, y: 430}
+        ];
+        
+        for (const pos of chairPositions) {
+            ctx.fillStyle = this.sierraPalette.darkGray;
+            ctx.fillRect(pos.x, pos.y, 40, 50);
+            ctx.fillStyle = this.sierraPalette.lightGray;
+            ctx.fillRect(pos.x + 5, pos.y + 5, 30, 20);
+        }
+        
+        // Podium
+        ctx.fillStyle = this.sierraPalette.brown;
+        ctx.fillRect(370, 200, 60, 80);
+        
+        // Podium top
+        ctx.fillStyle = this.sierraPalette.buildingTan;
+        ctx.beginPath();
+        ctx.moveTo(370, 200);
+        ctx.lineTo(360, 190);
+        ctx.lineTo(420, 190);
+        ctx.lineTo(430, 200);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Whiteboard
+        ctx.fillStyle = this.sierraPalette.white;
+        ctx.fillRect(250, 60, 300, 150);
+        ctx.strokeStyle = this.sierraPalette.black;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(250, 60, 300, 150);
+        
+        // Content on whiteboard - case map
+        ctx.fillStyle = this.sierraPalette.blue;
+        this.drawSierraText("CASE BRIEFING", 330, 75, this.sierraPalette.blue, 10);
+        
+        // Case diagram on board
+        ctx.strokeStyle = this.sierraPalette.red;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(280, 120);
+        ctx.lineTo(350, 120);
+        ctx.lineTo(350, 150);
+        ctx.stroke();
+        
+        ctx.fillStyle = this.sierraPalette.red;
+        ctx.beginPath();
+        ctx.arc(280, 120, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(350, 120, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(350, 150, 6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Notes
+        ctx.fillStyle = this.sierraPalette.black;
+        for (let i = 0; i < 5; i++) {
+            ctx.fillRect(390, 110 + i * 15, 140, 2);
+        }
+        
+        // American flag
+        const flagX = 700, flagY = 100;
+        ctx.fillStyle = this.sierraPalette.brown;
+        ctx.fillRect(flagX, flagY, 5, 120);
+        
+        for (let i = 0; i < 13; i++) {
+            ctx.fillStyle = i % 2 === 0 ? this.sierraPalette.red : this.sierraPalette.white;
+            ctx.fillRect(flagX + 6, flagY + 10 + i * 3, 35, 3);
+        }
+        
+        ctx.fillStyle = this.sierraPalette.darkBlue;
+        ctx.fillRect(flagX + 6, flagY + 10, 14, 15);
+    }
+    
+    // === SHERIFF'S OFFICE - Detailed authority figure's office ===
+    drawSheriffsOffice() {
+        const ctx = this.ctx;
+        this.clearScreen();
+        
+        // Floor - carpet
+        ctx.fillStyle = this.sierraPalette.darkRed;
+        ctx.fillRect(0, 350, 800, 250);
+        this.applyDithering(0, 350, 800, 250, 'medium', this.sierraPalette.darkRed, this.sierraPalette.brown);
+        
+        // Walls - prestigious wood paneling
+        ctx.fillStyle = this.sierraPalette.brown;
+        ctx.fillRect(0, 0, 800, 350);
+        this.applyDithering(0, 0, 800, 350, 'diagonal', this.sierraPalette.brown, this.sierraPalette.buildingTan);
+        
+        // Wood panel lines
+        ctx.strokeStyle = this.sierraPalette.darkGray;
+        ctx.lineWidth = 2;
+        for (let x = 0; x < 800; x += 100) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, 350);
+            ctx.stroke();
+        }
+        
+        // Sheriff's desk - large executive desk
+        const deskX = 250, deskY = 280, deskW = 300, deskH = 100;
+        
+        // Desk shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(deskX + 5, deskY + deskH + 2, deskW, 8);
+        
+        // Desk body
+        ctx.fillStyle = this.sierraPalette.brown;
+        ctx.fillRect(deskX, deskY, deskW, deskH);
+        this.applyDithering(deskX, deskY, deskW, deskH, 'diagonal', this.sierraPalette.brown, this.sierraPalette.buildingTan);
+        
+        // Desk top
+        ctx.fillStyle = this.sierraPalette.buildingTan;
+        ctx.beginPath();
+        ctx.moveTo(deskX, deskY);
+        ctx.lineTo(deskX - 30, deskY - 18);
+        ctx.lineTo(deskX + deskW - 30, deskY - 18);
+        ctx.lineTo(deskX + deskW, deskY);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Desk items - computer
+        ctx.fillStyle = this.sierraPalette.lightGray;
+        ctx.fillRect(deskX + 50, deskY - 15, 80, 60);
+        ctx.fillStyle = this.sierraPalette.cyan;
+        ctx.fillRect(deskX + 55, deskY - 10, 70, 45);
+        
+        // Phone
+        ctx.fillStyle = this.sierraPalette.black;
+        ctx.fillRect(deskX + 200, deskY - 10, 30, 20);
+        
+        // Name plate
+        ctx.fillStyle = this.sierraPalette.badgeGold;
+        ctx.fillRect(deskX + 120, deskY - 5, 100, 12);
+        this.drawSierraText("SHERIFF", deskX + 140, deskY - 2, this.sierraPalette.black, 7);
+        
+        // Executive chair
+        ctx.fillStyle = this.sierraPalette.black;
+        ctx.fillRect(380, 390, 60, 80);
+        ctx.fillStyle = this.sierraPalette.darkGray;
+        ctx.fillRect(385, 400, 50, 60);
+        
+        // Bookshelf - left wall
+        ctx.fillStyle = this.sierraPalette.brown;
+        ctx.fillRect(50, 120, 120, 220);
+        
+        // Shelves
+        ctx.strokeStyle = this.sierraPalette.black;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 5; i++) {
+            ctx.beginPath();
+            ctx.moveTo(55, 140 + i * 45);
+            ctx.lineTo(165, 140 + i * 45);
+            ctx.stroke();
+        }
+        
+        // Books
+        const bookColors = [this.sierraPalette.red, this.sierraPalette.blue, this.sierraPalette.green, this.sierraPalette.brown];
+        for (let shelf = 0; shelf < 5; shelf++) {
+            for (let book = 0; book < 10; book++) {
+                ctx.fillStyle = bookColors[book % 4];
+                ctx.fillRect(58 + book * 10, 142 + shelf * 45, 8, 40);
+            }
+        }
+        
+        // Filing cabinet
+        this.drawFileCabinetDetailed(630, 200, 60, 140);
+        
+        // American flag - prominent
+        const flagX = 720, flagY = 100;
+        ctx.fillStyle = this.sierraPalette.brown;
+        ctx.fillRect(flagX, flagY, 6, 140);
+        
+        ctx.fillStyle = this.sierraPalette.badgeGold;
+        ctx.beginPath();
+        ctx.arc(flagX + 3, flagY - 5, 6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        for (let i = 0; i < 13; i++) {
+            ctx.fillStyle = i % 2 === 0 ? this.sierraPalette.red : this.sierraPalette.white;
+            ctx.fillRect(flagX + 8, flagY + 15 + i * 4, 50, 4);
+        }
+        
+        ctx.fillStyle = this.sierraPalette.darkBlue;
+        ctx.fillRect(flagX + 8, flagY + 15, 20, 20);
+        
+        // Stars on flag
+        ctx.fillStyle = this.sierraPalette.white;
+        for (let row = 0; row < 3; row++) {
+            for (let col = 0; col < 3; col++) {
+                ctx.fillRect(flagX + 12 + col * 5, flagY + 19 + row * 5, 2, 2);
+            }
+        }
+        
+        // Certificates on wall
+        ctx.fillStyle = this.sierraPalette.white;
+        ctx.fillRect(350, 80, 100, 130);
+        ctx.strokeStyle = this.sierraPalette.black;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(350, 80, 100, 130);
+        
+        // Certificate seal
+        ctx.fillStyle = this.sierraPalette.badgeGold;
+        ctx.beginPath();
+        ctx.arc(400, 180, 15, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Window
+        ctx.fillStyle = this.sierraPalette.cyan;
+        ctx.fillRect(200, 50, 120, 90);
+        ctx.strokeStyle = this.sierraPalette.black;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(200, 50, 120, 90);
+        ctx.beginPath();
+        ctx.moveTo(260, 50);
+        ctx.lineTo(260, 140);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(200, 95);
+        ctx.lineTo(320, 95);
+        ctx.stroke();
+    }
+    
+    // Helper: Draw detailed tree
+    drawDetailedTree(x, y) {
+        const ctx = this.ctx;
+        
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.ellipse(x, y + 50, 25, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Trunk
+        ctx.fillStyle = this.sierraPalette.brown;
+        ctx.fillRect(x - 10, y, 20, 50);
+        
+        // Trunk texture
+        ctx.strokeStyle = this.sierraPalette.buildingTan;
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+            ctx.beginPath();
+            ctx.moveTo(x - 8, y + i * 10);
+            ctx.lineTo(x + 8, y + i * 10 + 5);
+            ctx.stroke();
+        }
+        
+        // Foliage - multiple layers
+        ctx.fillStyle = this.sierraPalette.darkGreen;
+        ctx.beginPath();
+        ctx.arc(x, y - 10, 35, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = this.sierraPalette.grassGreen;
+        ctx.beginPath();
+        ctx.arc(x - 15, y - 15, 25, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.arc(x + 15, y - 15, 25, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Highlights
+        ctx.fillStyle = this.sierraPalette.yellow;
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath();
+        ctx.arc(x - 10, y - 20, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // Helper: Draw park bench
+    drawParkBench(x, y) {
+        const ctx = this.ctx;
+        
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillRect(x - 2, y + 32, 74, 4);
+        
+        // Seat
+        ctx.fillStyle = this.sierraPalette.brown;
+        ctx.fillRect(x, y, 70, 10);
+        
+        // Backrest
+        ctx.fillRect(x, y - 20, 70, 8);
+        
+        // Legs
+        ctx.fillRect(x + 5, y + 10, 8, 22);
+        ctx.fillRect(x + 57, y + 10, 8, 22);
+        
+        // Support bars
+        ctx.fillRect(x + 5, y - 15, 8, 25);
+        ctx.fillRect(x + 57, y - 15, 8, 25);
+        
+        // Wood texture
+        ctx.strokeStyle = this.sierraPalette.buildingTan;
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 4; i++) {
+            ctx.beginPath();
+            ctx.moveTo(x + 15 + i * 15, y + 2);
+            ctx.lineTo(x + 15 + i * 15, y + 8);
+            ctx.stroke();
+        }
+    }
+    
+    // Helper: Draw detailed police car
+    drawDetailedPoliceCar(x, y) {
+        const ctx = this.ctx;
+        
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(x + 5, y + 52, 90, 8);
+        
+        // Car body - lower
+        ctx.fillStyle = this.sierraPalette.policeCarBlue;
+        ctx.fillRect(x, y + 30, 90, 22);
+        
+        // Car body - upper cabin
+        ctx.fillRect(x + 20, y + 15, 50, 15);
+        
+        // Windows
+        ctx.fillStyle = this.sierraPalette.darkCyan;
+        ctx.fillRect(x + 23, y + 17, 20, 11);
+        ctx.fillRect(x + 47, y + 17, 20, 11);
+        
+        // Police light bar
+        ctx.fillStyle = this.sierraPalette.red;
+        ctx.fillRect(x + 30, y + 10, 12, 5);
+        ctx.fillStyle = this.sierraPalette.blue;
+        ctx.fillRect(x + 48, y + 10, 12, 5);
+        
+        // Wheels
+        ctx.fillStyle = this.sierraPalette.black;
+        ctx.beginPath();
+        ctx.arc(x + 20, y + 52, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + 70, y + 52, 10, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Hubcaps
+        ctx.fillStyle = this.sierraPalette.lightGray;
+        ctx.beginPath();
+        ctx.arc(x + 20, y + 52, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + 70, y + 52, 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // "POLICE" text
+        ctx.fillStyle = this.sierraPalette.white;
+        ctx.font = 'bold 8px monospace';
+        ctx.fillText("POLICE", x + 25, y + 42);
+        
+        // Police badge decal
+        ctx.fillStyle = this.sierraPalette.badgeGold;
+        ctx.beginPath();
+        ctx.arc(x + 12, y + 40, 6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Door lines
+        ctx.strokeStyle = this.sierraPalette.black;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 45, y + 30);
+        ctx.lineTo(x + 45, y + 52);
+        ctx.stroke();
+        
+        // Headlights
+        ctx.fillStyle = this.sierraPalette.yellow;
+        ctx.fillRect(x + 85, y + 35, 5, 6);
+        ctx.fillRect(x + 85, y + 43, 5, 6);
+    }
+    
+    // Helper: Draw Sierra-style building
+    drawSierraBuilding(x, y, width, height, color, windowColor) {
+        const ctx = this.ctx;
+        
+        // Building shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillRect(x + 5, y + height, width, 10);
+        
+        // Building body
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, width, height);
+        
+        // Building outline
+        ctx.strokeStyle = this.sierraPalette.black;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, width, height);
+        
+        // Windows in grid pattern
+        const windowW = 12;
+        const windowH = 16;
+        const rows = Math.floor((height - 40) / 25);
+        const cols = Math.floor((width - 30) / 20);
+        
+        ctx.fillStyle = windowColor;
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                const wx = x + 15 + col * 20;
+                const wy = y + 25 + row * 25;
+                ctx.fillRect(wx, wy, windowW, windowH);
+                
+                // Window frame
+                ctx.strokeStyle = this.sierraPalette.lightGray;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(wx, wy, windowW, windowH);
+            }
+        }
+        
+        // Rooftop
+        ctx.fillStyle = this.sierraPalette.darkGray;
+        ctx.fillRect(x - 5, y - 10, width + 10, 10);
     }
     
     drawBriefingRoom() { this.clearScreen(); }

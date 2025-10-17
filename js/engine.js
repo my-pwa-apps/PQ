@@ -221,9 +221,17 @@ class GameEngine {
         if (!this.isRunning) return;
 
         const deltaTime = timestamp - this.lastFrameTime;
+        
+        // Target 30 FPS for better performance while maintaining smooth gameplay
         if (deltaTime >= this.frameInterval) {
-            this.update(deltaTime);            this.render();
+            this.update(deltaTime / 1000); // Convert to seconds
+            this.render();
             this.lastFrameTime = timestamp;
+            
+            // Update screen effects
+            if (this.screenShake.duration > 0 || this.screenFlash.duration > 0 || this.transition.active) {
+                this.updateScreenEffects(deltaTime / 1000);
+            }
         }
 
         requestAnimationFrame(this.gameLoop.bind(this));
