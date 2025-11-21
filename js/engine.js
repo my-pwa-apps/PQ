@@ -33,7 +33,6 @@ class GameEngine {
         this.assets = new Map();
         this.loadingAssets = new Set();
 
-        this.currentScene = 'policeStation';
         this.debugMode = false;
 
         // Add collision system properties
@@ -279,8 +278,36 @@ class GameEngine {
                     if (this.particleSystem && this.frameCounter % 10 === 0) {
                         this.particleSystem.createDustEffect(nextX, nextY + 15);
                     }
-                } else if (this.debugMode) {
-                    console.log("Collision detected, cannot move to", nextX, nextY);
+                } else {
+                    // Collision detected!
+                    // If we have a pending interaction, check if we are close enough
+                    if (this.pendingInteraction) {
+                        const { type, target, action } = this.pendingInteraction;
+                        const targetX = target.x || target.position?.x || 0;
+                        const targetY = target.y || target.position?.y || 0;
+                        
+                        const dist = Math.sqrt((this.playerPosition.x - targetX) ** 2 + 
+                                             (this.playerPosition.y - targetY) ** 2);
+                        
+                        // Allow interaction if we're close enough, even if we hit a wall
+                        // Use a slightly larger buffer for collision stops
+                        if (dist <= this.interactionDistance + 20) { 
+                            this.isWalking = false;
+                            this.targetX = undefined;
+                            this.targetY = undefined;
+                            
+                            if (type === 'npc') {
+                                this.interactWithNPC(target);
+                            } else if (type === 'hotspot') {
+                                this.processHotspotInteraction(target, action);
+                            }
+                            this.pendingInteraction = null;
+                        }
+                    }
+                    
+                    if (this.debugMode) {
+                        console.log("Collision detected, cannot move to", nextX, nextY);
+                    }
                 }
             } else {
                 // Reached the target
@@ -477,18 +504,22 @@ class GameEngine {
     drawCurrentScene() {
         switch (this.currentScene) {
             case 'policeStation':
+            case 'policeStation_lobby':
                 this.drawPoliceStation();
                 break;
             case 'downtown':
+            case 'downtown_main':
                 this.drawDowntown();
                 break;
             case 'park':
+            case 'city_park':
                 this.drawPark();
                 break;
             case 'sheriffsOffice':
                 this.drawSheriffsOffice();
                 break;
             case 'briefingRoom':
+            case 'policeStation_briefing':
                 this.drawBriefingRoom();
                 break;
             default:
@@ -1761,6 +1792,27 @@ class GameEngine {
     processHotspotInteraction(hotspot, action) {
         console.log(`Processing hotspot interaction: ${hotspot.id}, action: ${action}`);
         
+        // Handle NPC redirection
+        if (hotspot.npc) {
+            // Find the NPC object
+            let npc = null;
+            if (this.npcs[this.currentScene]) {
+                // Check if it's an array or object
+                if (Array.isArray(this.npcs[this.currentScene])) {
+                    npc = this.npcs[this.currentScene].find(n => n.id === hotspot.npc);
+                } else {
+                    npc = this.npcs[this.currentScene][hotspot.npc];
+                }
+            } else if (this.npcs[hotspot.npc]) {
+                npc = this.npcs[hotspot.npc];
+            }
+            
+            if (npc) {
+                this.interactWithNPC(npc);
+                return true;
+            }
+        }
+
         // Handle inventory items
         if (action === 'take' && hotspot.interactions?.take?.includes("inventory")) {
             this.addToInventory(hotspot.id);
@@ -1776,17 +1828,39 @@ class GameEngine {
         // Handle standard interactions
         if (hotspot.interactions && hotspot.interactions[action]) {
             const message = hotspot.interactions[action];
-            if (!message.match(/^[A-Z_]+$/)) {
+            // Check if it's a special command (ALL CAPS with underscores)
+            if (message.match(/^[A-Z_]+$/)) {
+                // Handle special commands
+                if (message.includes('TALK')) {
+                    // Try to find associated NPC
+                    if (hotspot.npc) {
+                        // Already handled above, but just in case
+                        const npc = this.npcs[this.currentScene]?.find?.(n => n.id === hotspot.npc);
+                        if (npc) this.interactWithNPC(npc);
+                    }
+                } else if (message.includes('ENTER') || message.includes('LEAVE') || message.includes('RETURN')) {
+                    // Scene transition
+                    if (hotspot.targetScene) {
+                        this.loadScene(hotspot.targetScene);
+                        if (hotspot.targetX && hotspot.targetY) {
+                            this.playerPosition.x = hotspot.targetX;
+                            this.playerPosition.y = hotspot.targetY;
+                        }
+                    }
+                }
+            } else {
                 this.showMessage(message);
             }
         }
         
-        // Handle scene transitions
+        // Handle scene transitions (fallback)
         if ((action === 'use' || action === 'move') && (hotspot.targetScene || hotspot.id.toLowerCase().includes('door'))) {
             if (hotspot.targetScene) {
                 this.loadScene(hotspot.targetScene);
-                this.playerPosition.x = hotspot.targetX || 400;
-                this.playerPosition.y = hotspot.targetY || 350;
+                if (hotspot.targetX && hotspot.targetY) {
+                    this.playerPosition.x = hotspot.targetX;
+                    this.playerPosition.y = hotspot.targetY;
+                }
             }
         }
     }
