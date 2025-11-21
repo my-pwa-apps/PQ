@@ -1944,8 +1944,23 @@ class GameEngine {
         } 
         // Fallback to GAME_DATA
         else if (window.GAME_DATA && window.GAME_DATA.scenes && window.GAME_DATA.scenes[this.currentScene]) {
-            if (window.GAME_DATA.scenes[this.currentScene].collisionObjects) {
-                objects = objects.concat(window.GAME_DATA.scenes[this.currentScene].collisionObjects);
+            const sceneData = window.GAME_DATA.scenes[this.currentScene];
+            
+            // Handle collisionObjects (legacy format)
+            if (sceneData.collisionObjects) {
+                objects = objects.concat(sceneData.collisionObjects);
+            }
+            
+            // Handle collisionZones (GameData format: x1, y1, x2, y2)
+            if (sceneData.collisionZones) {
+                const zones = sceneData.collisionZones.map(zone => ({
+                    type: 'rect',
+                    x: zone.x1,
+                    y: zone.y1,
+                    width: zone.x2 - zone.x1,
+                    height: zone.y2 - zone.y1
+                }));
+                objects = objects.concat(zones);
             }
         }
         
