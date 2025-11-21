@@ -249,5 +249,5 @@ class ParticleSystem {
     }
 }
 
-// Export for use in other modules
+// Export ParticleSystem to window
 window.ParticleSystem = ParticleSystem;

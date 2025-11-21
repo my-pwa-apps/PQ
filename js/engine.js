@@ -1639,3 +1639,6 @@ class GameEngine {
         this.handleNPCDialog(npc);
     }
 }
+
+// Export GameEngine to window
+window.GameEngine = GameEngine;
