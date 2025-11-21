@@ -1601,6 +1601,165 @@ class GameEngine {
         this.movePlayerToPoint(x, y);
     }
 
+    movePlayerToPoint(x, y) {
+        this.targetX = x;
+        this.targetY = y;
+        this.isWalking = true;
+    }
+
+    toggleInventory() {
+        const panel = document.getElementById('inventory-panel');
+        if (panel) {
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+
+    toggleProcedurePanel() {
+        const panel = document.getElementById('procedure-panel');
+        if (panel) {
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+
+    cancelCurrentAction() {
+        this.isWalking = false;
+        this.targetX = undefined;
+        this.targetY = undefined;
+        this.pendingInteraction = null;
+        if (this.policeGameplay) {
+            this.policeGameplay.cancelCurrentProcedure();
+        }
+    }
+
+    updateCursorStyle() {
+        // Simple cursor update based on what's under the mouse
+        if (this.lastMouseX && this.lastMouseY) {
+            // Check for interactables
+            // This is a simplified check, ideally we'd reuse the hit testing logic
+            this.canvas.style.cursor = 'default';
+            
+            // Check NPCs
+            if (this.npcs) {
+                const npcsInScene = this.npcs[this.currentScene] || Object.values(this.npcs);
+                for (const npc of npcsInScene) {
+                    const dx = Math.abs(this.lastMouseX - (npc.x || npc.position?.x || 0));
+                    const dy = Math.abs(this.lastMouseY - (npc.y || npc.position?.y || 0));
+                    if (dx < 30 && dy < 50) {
+                        this.canvas.style.cursor = 'pointer';
+                        return;
+                    }
+                }
+            }
+            
+            // Check hotspots
+            let hotspots = [];
+            if (window.ENHANCED_SCENES && window.ENHANCED_SCENES[this.currentScene]) {
+                hotspots = window.ENHANCED_SCENES[this.currentScene].hotspots || [];
+            } else if (window.GAME_DATA && window.GAME_DATA.scenes && window.GAME_DATA.scenes[this.currentScene]) {
+                hotspots = window.GAME_DATA.scenes[this.currentScene].hotspots || [];
+            }
+            
+            for (const hotspot of hotspots) {
+                const hx = hotspot.x;
+                const hy = hotspot.y;
+                const hw = hotspot.width || 20;
+                const hh = hotspot.height || 20;
+                
+                if (this.lastMouseX >= hx - hw/2 && 
+                    this.lastMouseX <= hx + hw/2 && 
+                    this.lastMouseY >= hy - hh/2 && 
+                    this.lastMouseY <= hy + hh/2) {
+                    this.canvas.style.cursor = 'pointer';
+                    return;
+                }
+            }
+        }
+    }
+
+    showMessage(text) {
+        if (!text) return;
+        console.log("Game message:", text);
+        
+        // Try to use dialog manager if available
+        if (window.dialogManager && typeof window.dialogManager.showDialog === 'function') {
+            window.dialogManager.showDialog(text);
+        } else {
+            // Fallback to simple dialog
+            this.createSimpleDialog(text);
+        }
+    }
+
+    createSimpleDialog(text) {
+        let dialogBox = document.getElementById('simple-dialog');
+        if (!dialogBox) {
+            dialogBox = document.createElement('div');
+            dialogBox.id = 'simple-dialog';
+            dialogBox.style.position = 'absolute';
+            dialogBox.style.bottom = '120px';
+            dialogBox.style.left = '50%';
+            dialogBox.style.transform = 'translateX(-50%)';
+            dialogBox.style.backgroundColor = 'rgba(0,0,0,0.7)';
+            dialogBox.style.color = 'white';
+            dialogBox.style.padding = '15px 20px';
+            dialogBox.style.borderRadius = '5px';
+            dialogBox.style.maxWidth = '80%';
+            dialogBox.style.fontFamily = 'monospace';
+            dialogBox.style.zIndex = '900';
+            document.body.appendChild(dialogBox);
+        }
+        dialogBox.textContent = text;
+        dialogBox.style.display = 'block';
+        setTimeout(() => { dialogBox.style.display = 'none'; }, 5000);
+    }
+
+    processHotspotInteraction(hotspot, action) {
+        console.log(`Processing hotspot interaction: ${hotspot.id}, action: ${action}`);
+        
+        // Handle inventory items
+        if (action === 'take' && hotspot.interactions?.take?.includes("inventory")) {
+            this.addToInventory(hotspot.id);
+            return true;
+        }
+        
+        // Handle readable items
+        if (action === 'look' && (hotspot.readable || hotspot.content)) {
+            this.showDocument(hotspot.content || hotspot.readable);
+            return true;
+        }
+        
+        // Handle standard interactions
+        if (hotspot.interactions && hotspot.interactions[action]) {
+            const message = hotspot.interactions[action];
+            if (!message.match(/^[A-Z_]+$/)) {
+                this.showMessage(message);
+            }
+        }
+        
+        // Handle scene transitions
+        if ((action === 'use' || action === 'move') && (hotspot.targetScene || hotspot.id.toLowerCase().includes('door'))) {
+            if (hotspot.targetScene) {
+                this.loadScene(hotspot.targetScene);
+                this.playerPosition.x = hotspot.targetX || 400;
+                this.playerPosition.y = hotspot.targetY || 350;
+            }
+        }
+    }
+
+    addToInventory(itemId) {
+        if (!itemId) return;
+        if (this.inventory.includes(itemId)) {
+            this.showMessage(`You already have the ${itemId}.`);
+            return;
+        }
+        this.inventory.push(itemId);
+        this.showMessage(`Added ${itemId} to inventory.`);
+    }
+
+    showDocument(text) {
+        // Simple document viewer
+        alert(text); // Fallback for now
+    }
+
     interactWithNPC(npc) {
         console.log(`Interacting with NPC: ${npc.name}`);
         
@@ -1637,6 +1796,183 @@ class GameEngine {
         
         // Handle standard dialog
         this.handleNPCDialog(npc);
+    }
+    
+    checkCollisionAtPoint(x, y) {
+        // Check scene boundaries
+        if (x < 0 || x > this.canvas.width || y < 0 || y > this.canvas.height) {
+            return true;
+        }
+        
+        // Get collision objects for current scene
+        const collisionObjects = this.getSceneCollisionObjects();
+        
+        // Check against each object
+        for (const obj of collisionObjects) {
+            if (obj.type === 'rect') {
+                if (x >= obj.x && x <= obj.x + obj.width &&
+                    y >= obj.y && y <= obj.y + obj.height) {
+                    return true;
+                }
+            } else if (obj.type === 'circle') {
+                const dx = x - obj.x;
+                const dy = y - obj.y;
+                if (dx * dx + dy * dy <= obj.radius * obj.radius) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    checkNPCCollision(npc, x, y) {
+        // Check against scene collision objects
+        if (this.checkCollisionAtPoint(x, y)) {
+            return true;
+        }
+        
+        // Check against other NPCs
+        const npcs = this.npcs[this.currentScene] || Object.values(this.npcs);
+        for (const otherNPC of npcs) {
+            if (otherNPC === npc) continue;
+            
+            const dx = x - (otherNPC.x || otherNPC.position?.x || 0);
+            const dy = y - (otherNPC.y || otherNPC.position?.y || 0);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist < 30) { // NPC collision radius
+                return true;
+            }
+        }
+        
+        // Check against player
+        const dx = x - this.playerPosition.x;
+        const dy = y - this.playerPosition.y;
+        if (Math.sqrt(dx * dx + dy * dy) < 30) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    getSceneCollisionObjects() {
+        let objects = [];
+        
+        // Get objects from ENHANCED_SCENES
+        if (window.ENHANCED_SCENES && window.ENHANCED_SCENES[this.currentScene]) {
+            if (window.ENHANCED_SCENES[this.currentScene].collisionObjects) {
+                objects = objects.concat(window.ENHANCED_SCENES[this.currentScene].collisionObjects);
+            }
+        } 
+        // Fallback to GAME_DATA
+        else if (window.GAME_DATA && window.GAME_DATA.scenes && window.GAME_DATA.scenes[this.currentScene]) {
+            if (window.GAME_DATA.scenes[this.currentScene].collisionObjects) {
+                objects = objects.concat(window.GAME_DATA.scenes[this.currentScene].collisionObjects);
+            }
+        }
+        
+        return objects;
+    }
+    
+    initAudioSystem() {
+        if (window.SoundManager) {
+            this.soundManager = new window.SoundManager();
+            this.soundManager.initialize().catch(e => console.warn("Audio init failed", e));
+        }
+    }
+
+    initializeLighting() {
+        this.lightSources = [];
+        // Add default lighting based on scene
+        if (this.currentScene === 'downtown' || this.currentScene === 'park') {
+            // Night time lighting
+            this.ambientLight = 0.3;
+        } else {
+            // Indoor lighting
+            this.ambientLight = 0.9;
+        }
+    }
+
+    initializeWeatherEffects() {
+        this.weatherEffects.clear();
+        // Add rain if needed
+        if (this.currentScene === 'downtown' && Math.random() > 0.7) {
+            this.weatherEffects.set('rain', { intensity: 0.5 });
+        }
+    }
+
+    initDialogSystem() {
+        if (window.DialogManager) {
+            this.dialogManager = new window.DialogManager(this);
+        }
+    }
+
+    updateLighting(deltaTime) {
+        // Dynamic lighting updates
+        if (this.lightSources.length > 0) {
+            this.lightSources.forEach(light => {
+                if (light.flicker) {
+                    light.intensity = light.baseIntensity + (Math.random() - 0.5) * 0.1;
+                }
+            });
+        }
+    }
+
+    updateScreenEffects(deltaTime) {
+        // Screen shake decay
+        if (this.screenShake.duration > 0) {
+            this.screenShake.duration -= deltaTime;
+            if (this.screenShake.duration <= 0) {
+                this.screenShake.intensity = 0;
+            }
+        }
+        
+        // Screen flash decay
+        if (this.screenFlash.duration > 0) {
+            this.screenFlash.duration -= deltaTime;
+            this.screenFlash.intensity = Math.max(0, this.screenFlash.intensity - deltaTime * 2);
+        }
+        
+        // Transition update
+        if (this.transition.active) {
+            this.transition.progress += deltaTime * 2; // 0.5s transition
+            if (this.transition.progress >= 1) {
+                this.transition.active = false;
+                this.transition.progress = 0;
+            }
+        }
+    }
+
+    updatePoliceUI() {
+        // Update UI elements related to police gameplay
+        if (this.policeGameplay) {
+            // Update score, etc.
+        }
+    }
+    
+    playSceneAudio(sceneId) {
+        if (this.soundManager) {
+            // Logic to play scene specific audio
+        }
+    }
+    
+    debugDrawCollisions() {
+        const objects = this.getSceneCollisionObjects();
+        this.ctx.save();
+        this.ctx.strokeStyle = 'red';
+        this.ctx.lineWidth = 2;
+        
+        for (const obj of objects) {
+            if (obj.type === 'rect') {
+                this.ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+            } else if (obj.type === 'circle') {
+                this.ctx.beginPath();
+                this.ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
+                this.ctx.stroke();
+            }
+        }
+        this.ctx.restore();
     }
 }
 

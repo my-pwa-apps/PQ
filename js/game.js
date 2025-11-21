@@ -1387,21 +1387,16 @@ function processInteraction(sceneName, hotspotName) {
     const scene = window.GAME_DATA?.scenes[sceneName];
     if (!scene) return false;
     
-    const hotspot = scene.hotspots.find(h => h.name === hotspotName);
+    const hotspot = scene.hotspots.find(h => h.id === hotspotName || h.name === hotspotName);
     if (!hotspot) {
         console.log('Hotspot not found.');
         return false;
     }
 
-    const result = window.GameEngine.handleInteraction(hotspot, window.GAME_DATA.inventory);
-    if (result && hotspot.interaction === 'search') {
-        // Example: Add found item to inventory
-        if (result.includes('key')) {
-            window.GameEngine.addToInventory('key');
-        }
+    if (window.gameEngine) {
+        return window.gameEngine.processHotspotInteraction(hotspot, 'use');
     }
-    
-    return true;
+    return false;
 }
 
 // Global function for HTML onclick handlers
