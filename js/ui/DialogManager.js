@@ -359,6 +359,52 @@ if (typeof window.DialogManager === 'undefined') {
         }
 
         /**
+         * Show a custom dialog with options
+         * @param {string} text - The text to display
+         * @param {Array} options - Array of option objects {text, next}
+         * @param {Function} callback - Callback function when an option is selected
+         */
+        showCustomDialog(text, options, callback) {
+            this.showDialog(text);
+            
+            if (options && options.length > 0) {
+                this.waitForDialogCompletion(() => {
+                    this.showCustomOptions(options, callback);
+                });
+            }
+        }
+
+        showCustomOptions(options, callback) {
+            // Clear previous options
+            this.optionsContainer.innerHTML = '';
+            
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'dialog-options-container';
+            
+            options.forEach(option => {
+                const optionButton = document.createElement('button');
+                optionButton.className = 'dialog-option';
+                optionButton.textContent = option.text;
+                
+                optionButton.addEventListener('click', () => {
+                    this.optionsContainer.innerHTML = '';
+                    this.showDialog(`YOU: ${option.text}`);
+                    
+                    if (callback) {
+                        // Wait a bit before triggering callback to allow "YOU: ..." to be read
+                        setTimeout(() => {
+                            callback(option);
+                        }, 1000);
+                    }
+                });
+                
+                optionsDiv.appendChild(optionButton);
+            });
+            
+            this.optionsContainer.appendChild(optionsDiv);
+        }
+
+        /**
          * Ensure dialog elements exist in DOM
          */
         ensureDialogElements() {

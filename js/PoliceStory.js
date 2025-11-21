@@ -501,6 +501,24 @@ class PoliceStory {    constructor(gameEngine) {
         
         return null;
     }
+
+    // Get dialog for a specific NPC
+    getDialogForNPC(npcName, sceneId) {
+        // Normalize name to key format (e.g. "Sergeant Dooley" -> "sergeant_dooley")
+        const key = npcName.toLowerCase().replace(/ /g, '_');
+        
+        // Check if we have specific dialog for this character
+        if (this.characterDialogs[key]) {
+            return this.handleCharacterDialog(key);
+        }
+        
+        // Check generic NPC dialogs
+        if (this.npcDialogs[npcName]) {
+            return this.npcDialogs[npcName];
+        }
+        
+        return null;
+    }
     
     // Save story progress
     saveProgress() {

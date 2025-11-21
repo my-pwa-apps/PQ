@@ -1844,6 +1844,37 @@ class GameEngine {
         this.handleNPCDialog(npc);
     }
     
+    handleNPCDialog(npc, dialogData = null) {
+        if (dialogData) {
+            // Use the provided dialog data
+            if (this.dialogManager && this.dialogManager.showCustomDialog) {
+                this.dialogManager.showCustomDialog(dialogData.text, dialogData.responses, (selectedOption) => {
+                    // Handle the response
+                    if (this.policeStory && selectedOption.text) {
+                        // Derive key from npc.name
+                        const key = npc.name.toLowerCase().replace(/ /g, '_');
+                        const nextDialog = this.policeStory.handleCharacterDialog(key, selectedOption.text);
+                        if (nextDialog) {
+                            this.handleNPCDialog(npc, nextDialog);
+                        }
+                    }
+                });
+            } else if (this.dialogManager) {
+                this.dialogManager.showDialog(dialogData.text, npc.name);
+            } else {
+                this.showMessage(`${npc.name}: ${dialogData.text}`);
+            }
+        } else {
+            // Fallback to default dialog
+            const defaultText = npc.dialog || "Hello officer.";
+            if (this.dialogManager) {
+                this.dialogManager.showDialog(defaultText);
+            } else {
+                this.showMessage(`${npc.name}: ${defaultText}`);
+            }
+        }
+    }
+    
     checkCollisionAtPoint(x, y) {
         // Check scene boundaries
         if (x < 0 || x > this.canvas.width || y < 0 || y > this.canvas.height) {
