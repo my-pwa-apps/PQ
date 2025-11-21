@@ -13,8 +13,17 @@ class SceneManager {
     }
     
     initializeScenes() {
-        for (const [sceneId, sceneData] of Object.entries(window.GAME_DATA.scenes)) {
-            this.addScene(sceneId, sceneData);
+        // Prefer Enhanced Scenes if available
+        if (window.ENHANCED_SCENES) {
+            console.log("Loading Enhanced Scenes...");
+            for (const [sceneId, sceneData] of Object.entries(window.ENHANCED_SCENES)) {
+                this.addScene(sceneId, sceneData);
+            }
+        } else if (window.GAME_DATA && window.GAME_DATA.scenes) {
+            // Fallback to legacy scenes
+            for (const [sceneId, sceneData] of Object.entries(window.GAME_DATA.scenes)) {
+                this.addScene(sceneId, sceneData);
+            }
         }
     }
 

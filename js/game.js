@@ -579,7 +579,7 @@ class Game {
             inventory: [],
             currentCase: GAME_DATA.cases.case1 // Start with first case
         };
-        this.currentScene = 'policeStation';
+        this.currentScene = (window.ENHANCED_SCENES && window.ENHANCED_SCENES.policeStation_lobby) ? 'policeStation_lobby' : 'policeStation';
         
         // Use object pooling where appropriate
         this.particlePool = null;

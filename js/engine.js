@@ -5,7 +5,8 @@ class GameEngine {
         this.offscreenCanvas = document.createElement('canvas');
         this.offscreenCtx = this.offscreenCanvas.getContext('2d');
 
-        this.currentScene = 'policeStation';
+        // Default to enhanced scene if available
+        this.currentScene = (window.ENHANCED_SCENES && window.ENHANCED_SCENES.policeStation_lobby) ? 'policeStation_lobby' : 'policeStation';
         this.isRunning = false;
         this.debugMode = false;
 
@@ -1274,10 +1275,17 @@ class GameEngine {
         
         console.log(`Loading scene: ${sceneId}`);
         
-        // Check if scene exists in GAME_DATA
-        if (!window.GAME_DATA?.scenes?.[sceneId]) {
-            console.error(`Scene '${sceneId}' not found in GAME_DATA. Available scenes:`, 
-                window.GAME_DATA?.scenes ? Object.keys(window.GAME_DATA.scenes) : 'No scenes data');
+        // Check if scene exists in ENHANCED_SCENES or GAME_DATA
+        let sceneData = null;
+        if (window.ENHANCED_SCENES && window.ENHANCED_SCENES[sceneId]) {
+            sceneData = window.ENHANCED_SCENES[sceneId];
+        } else if (window.GAME_DATA && window.GAME_DATA.scenes && window.GAME_DATA.scenes[sceneId]) {
+            sceneData = window.GAME_DATA.scenes[sceneId];
+        }
+        
+        if (!sceneData) {
+            console.error(`Scene '${sceneId}' not found. Available scenes:`, 
+                window.ENHANCED_SCENES ? Object.keys(window.ENHANCED_SCENES) : 'No enhanced scenes');
             return false;
         }
         
@@ -1300,11 +1308,14 @@ class GameEngine {
             
             // Notify any scene manager if available
             if (window.sceneManager && typeof window.sceneManager.loadScene === 'function') {
-                window.sceneManager.loadScene(sceneId);
+                // Avoid infinite recursion if sceneManager calls back to engine
+                if (!window.sceneManager.loadingScene) {
+                    window.sceneManager.loadScene(sceneId);
+                }
             }
             
             // Play scene music if available
-            const sceneMusic = window.GAME_DATA.scenes[sceneId].music;
+            const sceneMusic = sceneData.music;
             if (sceneMusic && window.soundManager) {
                 window.soundManager.playBackgroundMusic(sceneMusic);
             }
@@ -1322,11 +1333,6 @@ class GameEngine {
 
     // Load NPCs for the current scene
     loadSceneNPCs(sceneId) {
-        if (!window.GAME_DATA?.npcs) {
-            console.log('No NPC data available');
-            return;
-        }
-        
         // Initialize NPCs object if not exists
         if (!this.npcs) {
             this.npcs = {};
@@ -1335,17 +1341,36 @@ class GameEngine {
         // Clear existing NPCs
         this.npcs = {};
         
-        // Load NPCs for this scene
-        for (const npcId in window.GAME_DATA.npcs) {
-            const npcData = window.GAME_DATA.npcs[npcId];
-            if (npcData.scene === sceneId) {
-                this.npcs[npcId] = {
-                    ...npcData,
-                    isWalking: false,
+        // Check ENHANCED_SCENES first
+        if (window.ENHANCED_SCENES && window.ENHANCED_SCENES[sceneId] && window.ENHANCED_SCENES[sceneId].npcs) {
+            const sceneNpcs = window.ENHANCED_SCENES[sceneId].npcs;
+            for (const npc of sceneNpcs) {
+                this.npcs[npc.id] = {
+                    ...npc,
+                    isWalking: npc.patrol || false,
                     animationFrame: 0,
-                    lastAnimationTime: 0
+                    lastAnimationTime: 0,
+                    scene: sceneId
                 };
-                console.log(`Loaded NPC: ${npcData.name} in scene ${sceneId}`);
+                console.log(`Loaded Enhanced NPC: ${npc.name} in scene ${sceneId}`);
+            }
+            return;
+        }
+        
+        // Fallback to GAME_DATA
+        if (window.GAME_DATA?.npcs) {
+            // Load NPCs for this scene
+            for (const npcId in window.GAME_DATA.npcs) {
+                const npcData = window.GAME_DATA.npcs[npcId];
+                if (npcData.scene === sceneId) {
+                    this.npcs[npcId] = {
+                        ...npcData,
+                        isWalking: false,
+                        animationFrame: 0,
+                        lastAnimationTime: 0
+                    };
+                    console.log(`Loaded NPC: ${npcData.name} in scene ${sceneId}`);
+                }
             }
         }
         
@@ -1620,26 +1645,28 @@ class GameEngine {
         this.isWalking = false;
         
         // Check for interaction with NPCs
-        const npcsInScene = this.npcs[this.currentScene] || [];
+        // this.npcs is now a map of ID -> NPC object for the current scene
+        const npcsInScene = Object.values(this.npcs || {});
+        
         for (const npc of npcsInScene) {
             // Simple hit testing for NPCs
-            const dx = Math.abs(x - npc.x);
-            const dy = Math.abs(y - npc.y);
+            const dx = Math.abs(x - (npc.x || npc.position?.x || 0));
+            const dy = Math.abs(y - (npc.y || npc.position?.y || 0));
             
             // Check if player is close enough to interact with NPC
-            const playerDistance = Math.sqrt((this.playerPosition.x - npc.x) ** 2 + 
-                                             (this.playerPosition.y - npc.y) ** 2);
+            const playerDistance = Math.sqrt((this.playerPosition.x - (npc.x || npc.position?.x || 0)) ** 2 + 
+                                             (this.playerPosition.y - (npc.y || npc.position?.y || 0)) ** 2);
             
             if (dx < 30 && dy < 50 && playerDistance < this.interactionDistance) {
                 // Player clicked on an NPC and is close enough
                 console.log(`Interacting with NPC: ${npc.name}`);
                 
                 // Face towards the NPC
-                if (this.playerPosition.x < npc.x) {
+                if (this.playerPosition.x < (npc.x || npc.position?.x)) {
                     this.playerFacing = 'right';
-                } else if (this.playerPosition.x > npc.x) {
+                } else if (this.playerPosition.x > (npc.x || npc.position?.x)) {
                     this.playerFacing = 'left';
-                } else if (this.playerPosition.y < npc.y) {
+                } else if (this.playerPosition.y < (npc.y || npc.position?.y)) {
                     this.playerFacing = 'down';
                 } else {
                     this.playerFacing = 'up';
@@ -1668,61 +1695,60 @@ class GameEngine {
             }
         }
         
-        // Check for hotspots from GAME_DATA
-        if (window.GAME_DATA && window.GAME_DATA.scenes && window.GAME_DATA.scenes[this.currentScene]) {
-            const scene = window.GAME_DATA.scenes[this.currentScene];
-            const hotspots = scene.hotspots || [];
+        // Check for hotspots from ENHANCED_SCENES or GAME_DATA
+        let hotspots = [];
+        if (window.ENHANCED_SCENES && window.ENHANCED_SCENES[this.currentScene]) {
+            hotspots = window.ENHANCED_SCENES[this.currentScene].hotspots || [];
+        } else if (window.GAME_DATA && window.GAME_DATA.scenes && window.GAME_DATA.scenes[this.currentScene]) {
+            hotspots = window.GAME_DATA.scenes[this.currentScene].hotspots || [];
+        }
             
-            for (const hotspot of hotspots) {
-                // Debug hotspot calculation
-                const hotspotX = hotspot.x;
-                const hotspotY = hotspot.y;
-                const hotspotWidth = hotspot.width || 20;
-                const hotspotHeight = hotspot.height || 20;
+        for (const hotspot of hotspots) {
+            // Debug hotspot calculation
+            const hotspotX = hotspot.x;
+            const hotspotY = hotspot.y;
+            const hotspotWidth = hotspot.width || 20;
+            const hotspotHeight = hotspot.height || 20;
+            
+            // Check if click is within hotspot bounds
+            if (x >= hotspotX - hotspotWidth/2 && 
+                x <= hotspotX + hotspotWidth/2 && 
+                y >= hotspotY - hotspotHeight/2 && 
+                y <= hotspotY + hotspotHeight/2) {
                 
-                // Check if click is within hotspot bounds
-                if (x >= hotspotX - hotspotWidth/2 && 
-                    x <= hotspotX + hotspotWidth/2 && 
-                    y >= hotspotY - hotspotHeight/2 && 
-                    y <= hotspotY + hotspotHeight/2) {
+                // Debug output for clicked hotspot
+                console.log(`Clicked on hotspot: ${hotspot.id || hotspot.name} at (${hotspotX},${hotspotY})`);
+                
+                // Check if player is close enough to interact
+                const playerDistance = Math.sqrt((this.playerPosition.x - hotspotX) ** 2 + 
+                                                (this.playerPosition.y - hotspotY) ** 2);
+                
+                if (playerDistance <= this.interactionDistance) {
+                    console.log(`Interacting with hotspot: ${hotspot.id || hotspot.name}, distance: ${playerDistance}`);
                     
-                    // Debug output for clicked hotspot
-                    console.log(`Clicked on hotspot: ${hotspot.id} at (${hotspotX},${hotspotY})`);
+                    // Handle hotspot interaction based on current action (default to 'look')
+                    const action = window.game?.activeAction || 'use';  // Default to 'use' for doors
                     
-                    // Check if player is close enough to interact
-                    const playerDistance = Math.sqrt((this.playerPosition.x - hotspotX) ** 2 + 
-                                                    (this.playerPosition.y - hotspotY) ** 2);
-                    
-                    if (playerDistance <= this.interactionDistance) {
-                        console.log(`Interacting with hotspot: ${hotspot.id}, distance: ${playerDistance}`);
-                        
-                        // Handle hotspot interaction based on current action (default to 'look')
-                        const action = window.game?.activeAction || 'use';  // Default to 'use' for doors
-                        const response = hotspot.interactions?.[action] || `You can't ${action} that.`;
-                        
-                        // For doors, use 'use' action regardless of selected action
-                        const effectiveAction = hotspot.id.toLowerCase().includes('door') ? 'use' : action;
-                        
-                        // Show the response message
-                        this.showMessage(response);
-                        
-                        // Handle special interactions
-                        this.processHotspotInteraction(hotspot, effectiveAction);
-                        
-                        return; // Stop processing after finding a hotspot
+                    // Process the interaction
+                    if (this.processHotspotInteraction) {
+                        this.processHotspotInteraction(hotspot, action);
                     } else {
-                        // Player is too far away
-                        console.log(`Too far from hotspot: ${hotspot.id}, distance: ${playerDistance}`);
-                        this.showMessage("I need to get closer.");
-                        
-                        // Move player closer to the hotspot
-                        const moveToX = hotspotX + (this.playerPosition.x < hotspotX ? -this.interactionDistance/2 : this.interactionDistance/2);
-                        const moveToY = hotspotY + (this.playerPosition.y < hotspotY ? -this.interactionDistance/2 : this.interactionDistance/2);
-                        
-                        // Move player toward the object
-                        this.movePlayerToPoint(moveToX, moveToY);
-                        return;
+                        console.warn("processHotspotInteraction not defined");
                     }
+                    
+                    return; // Stop processing after finding a hotspot
+                } else {
+                    // Player is too far away
+                    console.log(`Too far from hotspot: ${hotspot.id || hotspot.name}, distance: ${playerDistance}`);
+                    this.showMessage("I need to get closer.");
+                    
+                    // Move player closer to the hotspot
+                    const moveToX = hotspotX + (this.playerPosition.x < hotspotX ? -this.interactionDistance/2 : this.interactionDistance/2);
+                    const moveToY = hotspotY + (this.playerPosition.y < hotspotY ? -this.interactionDistance/2 : this.interactionDistance/2);
+                    
+                    // Move player toward the object
+                    this.movePlayerToPoint(moveToX, moveToY);
+                    return;
                 }
             }
         }
@@ -1818,46 +1844,54 @@ class GameEngine {
         }
         
         // Handle readable items
-        if (action === 'look' && hotspot.readable) {
+        if (action === 'look' && (hotspot.readable || hotspot.content)) {
             console.log(`Reading ${hotspot.id}`);
-            this.showDocument(hotspot.readable);
+            const text = hotspot.content || hotspot.readable;
+            this.showDocument(text);
             return true;
         }
         
         // Handle standard interactions
         if (hotspot.interactions && hotspot.interactions[action]) {
             const message = hotspot.interactions[action];
-            console.log(`Showing interaction message: ${message}`);
-            this.showMessage(message);
-            return true;
+            // If message is a string starting with "TALK_", "ENTER_", etc., it might be a special command
+            // But for now we just show it if it's not a command
+            if (!message.match(/^[A-Z_]+$/)) {
+                console.log(`Showing interaction message: ${message}`);
+                this.showMessage(message);
+            }
         }
         
-        // Handle scene transitions via doors - fixed implementation
-        if (action === 'use' && hotspot.id.toLowerCase().includes('door')) {
+        // Handle scene transitions via doors or exits
+        if ((action === 'use' || action === 'move') && (hotspot.targetScene || hotspot.id.toLowerCase().includes('door') || hotspot.id.toLowerCase().includes('exit'))) {
             // Debug information
-            console.log(`Door interaction with ${hotspot.id} in ${this.currentScene}`);
-            console.log(`Door hotspot details:`, JSON.stringify(hotspot));
+            console.log(`Transition interaction with ${hotspot.id} in ${this.currentScene}`);
             
-            // Validate target scene exists
-            if (hotspot.targetScene && window.GAME_DATA?.scenes?.[hotspot.targetScene]) {
-                console.log(`Valid target scene: ${hotspot.targetScene}`);
+            if (hotspot.targetScene) {
+                // Validate target scene exists in either data source
+                const targetExists = (window.ENHANCED_SCENES && window.ENHANCED_SCENES[hotspot.targetScene]) || 
+                                     (window.GAME_DATA?.scenes?.[hotspot.targetScene]);
                 
-                // Get target position or use defaults
-                const targetX = hotspot.targetX || 400;
-                const targetY = hotspot.targetY || 350;
-                
-                // Load the target scene
-                this.loadScene(hotspot.targetScene);
-                
-                // Position the player at the target location
-                this.playerPosition.x = targetX;
-                this.playerPosition.y = targetY;
-                
-                console.log(`Transitioned to ${hotspot.targetScene} at position (${targetX}, ${targetY})`);
-                return true;
-            } else {
-                console.error(`Invalid target scene: ${hotspot.targetScene}`);
-                this.showMessage("This door doesn't seem to go anywhere.");
+                if (targetExists) {
+                    console.log(`Valid target scene: ${hotspot.targetScene}`);
+                    
+                    // Get target position or use defaults
+                    const targetX = hotspot.targetX || 400;
+                    const targetY = hotspot.targetY || 350;
+                    
+                    // Load the target scene
+                    this.loadScene(hotspot.targetScene);
+                    
+                    // Position the player at the target location
+                    this.playerPosition.x = targetX;
+                    this.playerPosition.y = targetY;
+                    
+                    console.log(`Transitioned to ${hotspot.targetScene} at position (${targetX}, ${targetY})`);
+                    return true;
+                } else {
+                    console.error(`Invalid target scene: ${hotspot.targetScene}`);
+                    this.showMessage("This way is blocked.");
+                }
             }
         }
         
@@ -2087,6 +2121,12 @@ class GameEngine {
      * @returns {Array} Array of collision objects
      */
     getSceneCollisionObjects() {
+        // Check ENHANCED_SCENES first
+        if (window.ENHANCED_SCENES && window.ENHANCED_SCENES[this.currentScene]) {
+            const scene = window.ENHANCED_SCENES[this.currentScene];
+            return scene.collisionObjects || [];
+        }
+
         if (!window.GAME_DATA || !window.GAME_DATA.scenes) {
             console.warn("Game data not loaded");
             return [];
@@ -2452,42 +2492,13 @@ class GameEngine {
         }
     }    renderWithSierraGraphics() {
         try {
-            // Clear with authentic Sierra background
-            this.sierraGraphics.clearScreen();
-            
-            // Draw scene background with Sierra style
-            switch (this.currentScene) {
-                case 'policeStation':
-                    if (this.sierraGraphics.drawPoliceStation) {
-                        this.sierraGraphics.drawPoliceStation();
-                    } else {
-                        this.drawCurrentScene(); // Fallback
-                    }
-                    break;
-                case 'downtown':
-                    if (this.sierraGraphics.drawDowntown) {
-                        this.sierraGraphics.drawDowntown();
-                    } else {
-                        this.drawCurrentScene(); // Fallback
-                    }
-                    break;
-                case 'sheriffOffice':
-                    if (this.sierraGraphics.drawSheriffOffice) {
-                        this.sierraGraphics.drawSheriffOffice();
-                    } else {
-                        this.drawCurrentScene(); // Fallback
-                    }
-                    break;
-                case 'briefingRoom':
-                    if (this.sierraGraphics.drawBriefingRoom) {
-                        this.sierraGraphics.drawBriefingRoom();
-                    } else {
-                        this.drawCurrentScene(); // Fallback
-                    }
-                    break;
-                default:
-                    this.drawCurrentScene(); // Fallback to original rendering
-                    return;
+            // Delegate entirely to SierraGraphics.drawScene which handles the mapping
+            if (this.sierraGraphics && this.sierraGraphics.drawScene) {
+                this.sierraGraphics.drawScene(this.currentScene);
+            } else {
+                // Fallback logic if drawScene is missing
+                this.sierraGraphics.clearScreen();
+                this.drawCurrentScene();
             }
         } catch (error) {
             console.warn("SierraGraphics error, falling back to standard rendering:", error);
@@ -2498,13 +2509,15 @@ class GameEngine {
         // Draw NPCs with Sierra character style
         for (const npcId in this.npcs) {
             const npc = this.npcs[npcId];
-            if (npc.scene === this.currentScene && npc.visible !== false) {
+            // Check if NPC is in current scene (either by scene property or just being in the list)
+            // The loadScene method should filter NPCs, but we double check here
+            if (npc.visible !== false) {
                 this.sierraGraphics.drawCharacter(
-                    npc.x || npc.position?.x || 0,
-                    npc.y || npc.position?.y || 0,
-                    npc.name,
+                    npc.x || 0,
+                    npc.y || 0,
+                    npc.sprite || npc.name || 'sonny', // Use sprite name if available
                     npc.facing || 'down',
-                    npc.action || 'standing'
+                    npc.action || (npc.isWalking ? 'walking' : 'standing')
                 );
             }
         }
