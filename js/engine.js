@@ -389,6 +389,46 @@ class GameEngine {
         }
     }
     
+    renderWithSierraGraphics() {
+        // Draw the scene background
+        this.sierraGraphics.drawScene(this.currentScene);
+        
+        // Draw NPCs
+        // Handle both flat map and scene-based map
+        let npcsToDraw = [];
+        if (this.npcs[this.currentScene]) {
+            npcsToDraw = this.npcs[this.currentScene];
+        } else {
+            npcsToDraw = Object.values(this.npcs);
+        }
+        
+        npcsToDraw.forEach(npc => {
+            // Use the Sierra Graphics character renderer
+            this.sierraGraphics.drawSierraCharacter(
+                npc.x || npc.position?.x || 0, 
+                npc.y || npc.position?.y || 0, 
+                npc.uniformColor, 
+                npc.badgeColor, 
+                npc.facing, 
+                npc.isWalking, 
+                true, 
+                npc.isFemale
+            );
+        });
+        
+        // Draw Player
+        this.sierraGraphics.drawSierraCharacter(
+            this.playerPosition.x, 
+            this.playerPosition.y, 
+            '#0000AA', // Police Blue
+            '#FFFF55', // Gold Badge
+            this.playerFacing, 
+            this.isWalking,
+            false,
+            false // Player is Sonny Bonds (Male)
+        );
+    }
+
     renderLighting() {
         // Disable lighting overlay for now - it was making the screen too dark
         // Only render in special scenes or debug mode
@@ -1131,7 +1171,13 @@ class GameEngine {
     }
 
     drawNPCs() {
-        const npcs = this.npcs[this.currentScene] || [];
+        let npcs = [];
+        if (this.npcs[this.currentScene]) {
+            npcs = this.npcs[this.currentScene];
+        } else {
+            npcs = Object.values(this.npcs);
+        }
+        
         npcs.forEach(npc => {
             this.drawPixelCharacter(npc.x, npc.y, npc.uniformColor, npc.badgeColor, npc.facing, npc.isWalking, true, npc.isFemale);
         });
@@ -1923,6 +1969,7 @@ class GameEngine {
         // Screen shake decay
         if (this.screenShake.duration > 0) {
             this.screenShake.duration -= deltaTime;
+
             if (this.screenShake.duration <= 0) {
                 this.screenShake.intensity = 0;
             }

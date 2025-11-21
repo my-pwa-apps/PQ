@@ -1506,10 +1506,6 @@ class SierraGraphics {
         ctx.fillRect(x - 5, y - 10, width + 10, 10);
     }
     
-    drawBriefingRoom() { this.clearScreen(); }
-    drawSheriffsOffice() { this.clearScreen(); }
-    drawPark() { this.clearScreen(); }
-    drawDowntown() { this.clearScreen(); }
     drawSierraTree(x, y) {}
     drawPoliceCar(x, y) {}
 }
