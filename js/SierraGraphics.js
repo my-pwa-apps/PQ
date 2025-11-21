@@ -671,8 +671,8 @@ class SierraGraphics {
     drawSierraCharacter(x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false, isFemale = false) {
         const ctx = this.ctx;
         
-        // Perspective scaling
-        const scale = Math.max(0.6, Math.min(1.2, 0.6 + (y / 600) * 0.8));
+        // Perspective scaling - subtler effect
+        const scale = Math.max(0.85, Math.min(1.15, 0.85 + (y / 600) * 0.3));
         
         ctx.save();
         // Scale around the feet (y + 40)

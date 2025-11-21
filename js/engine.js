@@ -63,6 +63,9 @@ class GameEngine {
         // Lighting system
         this.ambientLight = 0.8;
         this.lightSources = [];
+        
+        // Interaction system
+        this.pendingInteraction = null;
     }
 
     setupCanvas() {
@@ -284,6 +287,23 @@ class GameEngine {
                 this.isWalking = false;
                 this.targetX = undefined;
                 this.targetY = undefined;
+                
+                // Handle pending interaction if any
+                if (this.pendingInteraction) {
+                    const { type, target, action } = this.pendingInteraction;
+                    // Check distance again to be sure
+                    const dist = Math.sqrt((this.playerPosition.x - (target.x || target.position?.x)) ** 2 + 
+                                         (this.playerPosition.y - (target.y || target.position?.y)) ** 2);
+                                         
+                    if (dist <= this.interactionDistance + 10) { // Small buffer
+                        if (type === 'npc') {
+                            this.interactWithNPC(target);
+                        } else if (type === 'hotspot') {
+                            this.processHotspotInteraction(target, action);
+                        }
+                    }
+                    this.pendingInteraction = null;
+                }
             }
         }
           // Update cursor style based on mouse position
@@ -1405,70 +1425,73 @@ class GameEngine {
     }
     
     // Update NPCs (for animations, AI, etc.)
-    updateNPCs(deltaTime) {
+    updateNPCs(deltaTime = 1/60) {
         if (!this.npcs) return;
         
-        for (const npcId in this.npcs) {
-            const npc = this.npcs[npcId];
+        // Handle both flat map (from loadSceneNPCs) and scene-based map (legacy)
+        let npcsToUpdate = [];
+        if (this.npcs[this.currentScene]) {
+            npcsToUpdate = this.npcs[this.currentScene];
+        } else {
+            npcsToUpdate = Object.values(this.npcs);
+        }
+        
+        for (const npc of npcsToUpdate) {
+            // Update NPC animation state
+            if (npc.isWalking) {
+                npc.animationFrame = (npc.animationFrame || 0) + 1;
+            }
             
-            // Simple animation for animated NPCs
-            if (npc.animated) {
-                npc.lastAnimationTime += deltaTime;
-                if (npc.lastAnimationTime > 500) { // 500ms per frame
-                    npc.animationFrame = (npc.animationFrame + 1) % 2;
-                    npc.lastAnimationTime = 0;
+            // Update NPC position if they're moving
+            if (npc.isWalking && npc.patrolPoints && npc.patrolPoints.length > 0) {
+                const target = npc.patrolPoints[npc.currentPatrolPoint || 0];
+                if (target) {
+                    const dx = target.x - npc.x;
+                    const dy = target.y - npc.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > 2) {
+                        const speed = 0.5;
+                        const nextX = npc.x + (dx / distance) * speed;
+                        const nextY = npc.y + (dy / distance) * speed;
+                        
+                        // Add collision check for NPCs
+                        if (!this.checkNPCCollision(npc, nextX, nextY)) {
+                            npc.x = nextX;
+                            npc.y = nextY;
+                            npc.facing = Math.abs(dx) > Math.abs(dy) ? 
+                                (dx > 0 ? 'right' : 'left') : 
+                                (dy > 0 ? 'down' : 'up');
+                        } else {
+                            // If collision, try to find a new path or wait
+                            npc.waitTime = 1;
+                            // Try to move in only x or only y direction
+                            const tryX = npc.x + (dx / distance) * speed;
+                            if (!this.checkNPCCollision(npc, tryX, npc.y)) {
+                                npc.x = tryX;
+                            }
+                            
+                            const tryY = npc.y + (dy / distance) * speed;
+                            if (!this.checkNPCCollision(npc, npc.x, tryY)) {
+                                npc.y = tryY;
+                            }
+                        }
+                    } else {
+                        // Reached waypoint, move to next one
+                        npc.currentPatrolPoint = (npc.currentPatrolPoint + 1) % npc.patrolPoints.length;
+                        npc.isWalking = false;
+                        npc.waitTime = 2; // Wait for 2 seconds before moving again
+                    }
+                }
+            } else if (npc.waitTime > 0) {
+                npc.waitTime -= deltaTime;
+                if (npc.waitTime <= 0) {
+                    npc.isWalking = true;
                 }
             }
         }
     }
 
-    // Add loadAsset method for preloading assets
-    async loadAsset(id, url) {
-        if (this.assets.has(id)) {
-            return this.assets.get(id);
-        }
-        
-        if (this.loadingAssets.has(id)) {
-            // Wait for the asset to load if it's already being loaded
-            return new Promise((resolve) => {
-                const checkLoaded = setInterval(() => {
-                    if (this.assets.has(id)) {
-                        clearInterval(checkLoaded);
-                        resolve(this.assets.get(id));
-                    }
-                }, 100);
-            });
-        }
-        
-        this.loadingAssets.add(id);
-        
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            
-            img.onload = () => {
-                this.assets.set(id, img);
-                this.loadingAssets.delete(id);
-                resolve(img);
-            };
-            
-            img.onerror = () => {
-                this.loadingAssets.delete(id);
-                reject(new Error(`Failed to load asset: ${id} from ${url}`));
-            };
-            
-            img.src = url;
-        });
-    }
-
-    dispose() {
-        this.stopGameLoop();
-        this.canvas = null;
-        this.ctx = null;
-        this.offscreenCanvas = null;
-        this.offscreenCtx = null;
-    }
-
-    // Initialize NPCs for different scenes
     setupUI() {
         const buttons = document.querySelectorAll('.cmd-btn');
         buttons.forEach(btn => {
@@ -1484,58 +1507,44 @@ class GameEngine {
         });
         // Set default
         this.activeAction = 'walk'; 
-    }    handleInteraction(x, y) {
+    }
+
+    handleInteraction(x, y) {
         // Reset walking state when user clicks
         this.isWalking = false;
+        this.pendingInteraction = null;
         
         // Check for interaction with NPCs
-        // this.npcs is now a map of ID -> NPC object for the current scene
-        const npcsInScene = Object.values(this.npcs || {});
+        // Handle both flat map and scene-based map
+        let npcsInScene = [];
+        if (this.npcs) {
+            if (this.npcs[this.currentScene]) {
+                npcsInScene = this.npcs[this.currentScene];
+            } else {
+                npcsInScene = Object.values(this.npcs);
+            }
+        }
         
         for (const npc of npcsInScene) {
             // Simple hit testing for NPCs
-            const dx = Math.abs(x - (npc.x || npc.position?.x || 0));
-            const dy = Math.abs(y - (npc.y || npc.position?.y || 0));
+            const npcX = npc.x || npc.position?.x || 0;
+            const npcY = npc.y || npc.position?.y || 0;
+            const dx = Math.abs(x - npcX);
+            const dy = Math.abs(y - npcY);
             
-            // Check if player is close enough to interact with NPC
-            const playerDistance = Math.sqrt((this.playerPosition.x - (npc.x || npc.position?.x || 0)) ** 2 + 
-                                             (this.playerPosition.y - (npc.y || npc.position?.y || 0)) ** 2);
-            
-            if (dx < 30 && dy < 50 && playerDistance < this.interactionDistance) {
-                // Player clicked on an NPC and is close enough
-                console.log(`Interacting with NPC: ${npc.name}`);
+            if (dx < 30 && dy < 50) {
+                // Player clicked on an NPC
+                const playerDistance = Math.sqrt((this.playerPosition.x - npcX) ** 2 + 
+                                                 (this.playerPosition.y - npcY) ** 2);
                 
-                // Face towards the NPC
-                if (this.playerPosition.x < (npc.x || npc.position?.x)) {
-                    this.playerFacing = 'right';
-                } else if (this.playerPosition.x > (npc.x || npc.position?.x)) {
-                    this.playerFacing = 'left';
-                } else if (this.playerPosition.y < (npc.y || npc.position?.y)) {
-                    this.playerFacing = 'down';
+                if (playerDistance < this.interactionDistance) {
+                    this.interactWithNPC(npc);
                 } else {
-                    this.playerFacing = 'up';
+                    // Move to NPC then interact
+                    this.movePlayerToPoint(npcX, npcY);
+                    this.pendingInteraction = { type: 'npc', target: npc };
                 }
-                
-                // Check if this is a police-related interaction
-                if (this.policeGameplay) {
-                    const policeInteraction = this.policeGameplay.handleNPCInteraction(npc, this.playerPosition);
-                    if (policeInteraction.handled) {
-                        return;
-                    }
-                }
-                
-                // Handle story-related dialog
-                if (this.policeStory) {
-                    const storyDialog = this.policeStory.getDialogForNPC(npc.name, this.currentScene);
-                    if (storyDialog) {
-                        this.handleNPCDialog(npc, storyDialog);
-                        return;
-                    }
-                }
-                
-                // Handle standard dialog
-                this.handleNPCDialog(npc);
-                return; // Stop processing after finding an NPC
+                return;
             }
         }
         
@@ -1567,11 +1576,10 @@ class GameEngine {
                 const playerDistance = Math.sqrt((this.playerPosition.x - hotspotX) ** 2 + 
                                                 (this.playerPosition.y - hotspotY) ** 2);
                 
+                const action = this.activeAction || window.game?.activeAction || 'use';
+
                 if (playerDistance <= this.interactionDistance) {
                     console.log(`Interacting with hotspot: ${hotspot.id || hotspot.name}, distance: ${playerDistance}`);
-                    
-                    // Handle hotspot interaction based on current action (default to 'look')
-                    const action = this.activeAction || window.game?.activeAction || 'use';
                     
                     // Process the interaction
                     if (this.processHotspotInteraction) {
@@ -1579,21 +1587,13 @@ class GameEngine {
                     } else {
                         console.warn("processHotspotInteraction not defined");
                     }
-                    
-                    return; // Stop processing after finding a hotspot
                 } else {
-                    // Player is too far away
-                    console.log(`Too far from hotspot: ${hotspot.id || hotspot.name}, distance: ${playerDistance}`);
-                    this.showMessage("I need to get closer.");
-                    
-                    // Move player closer to the hotspot
-                    const moveToX = hotspotX + (this.playerPosition.x < hotspotX ? -this.interactionDistance/2 : this.interactionDistance/2);
-                    const moveToY = hotspotY + (this.playerPosition.y < hotspotY ? -this.interactionDistance/2 : this.interactionDistance/2);
-                    
-                    // Move player toward the object
-                    this.movePlayerToPoint(moveToX, moveToY);
-                    return;
+                    // Move to hotspot then interact
+                    this.movePlayerToPoint(hotspotX, hotspotY);
+                    this.pendingInteraction = { type: 'hotspot', target: hotspot, action: action };
                 }
+                
+                return; // Stop processing after finding a hotspot
             }
         }
         
@@ -1601,1074 +1601,41 @@ class GameEngine {
         this.movePlayerToPoint(x, y);
     }
 
-    showMessage(text) {
-        if (!text) return;
+    interactWithNPC(npc) {
+        console.log(`Interacting with NPC: ${npc.name}`);
         
-        // Direct display if no dialog systems are available
-        console.log("Game message:", text);
+        // Face towards the NPC
+        const npcX = npc.x || npc.position?.x;
+        const npcY = npc.y || npc.position?.y;
         
-        try {
-            // Try to use dialog manager if available
-            if (window.dialogManager) {
-                // First check if the dialog box elements exist
-                const dialogBox = document.getElementById('dialog-box');
-                const dialogText = document.getElementById('dialog-text');
-                
-                if (!dialogBox || !dialogText) {
-                    // Create dialog elements if they don't exist
-                    this.createSimpleDialog(text);
-                    return;
-                }
-                
-                // Check if showDialog function exists
-                if (typeof window.dialogManager.showDialog === 'function') {
-                    window.dialogManager.showDialog(text);
-                } else if (typeof window.dialogManager.displayDialogText === 'function') {
-                    // Try alternative method
-                    window.dialogManager.displayDialogText(text);
-                } else {
-                    // Use simple DOM manipulation as fallback
-                    this.createSimpleDialog(text);
-                }
-            } else if (window.game?.showDialog) {
-                window.game.showDialog(text);
-            } else {
-                // Use simple DOM manipulation as fallback
-                this.createSimpleDialog(text);
-            }
-        } catch (error) {
-            console.error("Error showing message:", error);
-            // Fallback to simple dialog
-            this.createSimpleDialog(text);
-        }
-    }
-
-    /**
-     * Create a simple dialog box as fallback
-     * @param {string} text - Text to display
-     */
-    createSimpleDialog(text) {
-        let dialogBox = document.getElementById('simple-dialog');
-        
-        if (!dialogBox) {
-            dialogBox = document.createElement('div');
-            dialogBox.id = 'simple-dialog';
-            dialogBox.style.position = 'absolute';
-            dialogBox.style.bottom = '120px'; // Moved up to avoid buttons
-            dialogBox.style.left = '50%';
-            dialogBox.style.transform = 'translateX(-50%)';
-            dialogBox.style.backgroundColor = 'rgba(0,0,0,0.7)';
-            dialogBox.style.color = 'white';
-            dialogBox.style.padding = '15px 20px';
-            dialogBox.style.borderRadius = '5px';
-            dialogBox.style.maxWidth = '80%';
-            dialogBox.style.fontFamily = 'monospace';
-            dialogBox.style.fontSize = '14px';
-            dialogBox.style.zIndex = '900'; // Keep under command buttons
-            document.body.appendChild(dialogBox);
-        }
-        
-        dialogBox.textContent = text;
-        dialogBox.style.display = 'block';
-        
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-            dialogBox.style.display = 'none';
-        }, 5000);
-    }
-
-    processHotspotInteraction(hotspot, action) {
-        console.log(`Processing hotspot interaction: ${hotspot.id}, action: ${action}`);
-        
-        // Handle inventory items
-        if (action === 'take' && hotspot.interactions?.take?.includes("inventory")) {
-            console.log(`Adding ${hotspot.id} to inventory`);
-            this.addToInventory(hotspot.id);
-            return true;
-        }
-        
-        // Handle readable items
-        if (action === 'look' && (hotspot.readable || hotspot.content)) {
-            console.log(`Reading ${hotspot.id}`);
-            const text = hotspot.content || hotspot.readable;
-            this.showDocument(text);
-            return true;
-        }
-        
-        // Handle standard interactions
-        if (hotspot.interactions && hotspot.interactions[action]) {
-            const message = hotspot.interactions[action];
-            // If message is a string starting with "TALK_", "ENTER_", etc., it might be a special command
-            // But for now we just show it if it's not a command
-            if (!message.match(/^[A-Z_]+$/)) {
-                console.log(`Showing interaction message: ${message}`);
-                this.showMessage(message);
-            }
-        }
-        
-        // Handle scene transitions via doors or exits
-        if ((action === 'use' || action === 'move') && (hotspot.targetScene || hotspot.id.toLowerCase().includes('door') || hotspot.id.toLowerCase().includes('exit'))) {
-            // Debug information
-            console.log(`Transition interaction with ${hotspot.id} in ${this.currentScene}`);
-            
-            if (hotspot.targetScene) {
-                // Validate target scene exists in either data source
-                const targetExists = (window.ENHANCED_SCENES && window.ENHANCED_SCENES[hotspot.targetScene]) || 
-                                     (window.GAME_DATA?.scenes?.[hotspot.targetScene]);
-                
-                if (targetExists) {
-                    console.log(`Valid target scene: ${hotspot.targetScene}`);
-                    
-                    // Get target position or use defaults
-                    const targetX = hotspot.targetX || 400;
-                    const targetY = hotspot.targetY || 350;
-                    
-                    // Load the target scene
-                    this.loadScene(hotspot.targetScene);
-                    
-                    // Position the player at the target location
-                    this.playerPosition.x = targetX;
-                    this.playerPosition.y = targetY;
-                    
-                    console.log(`Transitioned to ${hotspot.targetScene} at position (${targetX}, ${targetY})`);
-                    return true;
-                } else {
-                    console.error(`Invalid target scene: ${hotspot.targetScene}`);
-                    this.showMessage("This way is blocked.");
-                }
-            }
-        }
-        
-        return false;
-    }
-
-    showDocument(text) {
-        // Check if we have a custom document viewer
-        const documentViewer = document.getElementById('document-viewer');
-        
-        if (documentViewer) {
-            // Use the existing document viewer
-            const content = document.getElementById('document-content');
-            if (content) content.textContent = text;
-            documentViewer.style.display = 'block';
-            
-            // Add close button functionality if not already set up
-            const closeBtn = document.getElementById('document-close');
-            if (closeBtn && !closeBtn.hasClickHandler) {
-                closeBtn.addEventListener('click', () => {
-                    documentViewer.style.display = 'none';
-                });
-                closeBtn.hasClickHandler = true;
-            }
+        if (this.playerPosition.x < npcX) {
+            this.playerFacing = 'right';
+        } else if (this.playerPosition.x > npcX) {
+            this.playerFacing = 'left';
+        } else if (this.playerPosition.y < npcY) {
+            this.playerFacing = 'down';
         } else {
-            // Create a simple document viewer
-            const viewer = document.createElement('div');
-            viewer.id = 'document-viewer';
-            viewer.style.position = 'absolute';
-            viewer.style.left = '50%';
-            viewer.style.top = '50%';
-            viewer.style.transform = 'translate(-50%, -50%)';
-            viewer.style.width = '60%';
-            viewer.style.maxHeight = '70%';
-            viewer.style.padding = '20px';
-            viewer.style.backgroundColor = '#f5f5dc';  // Paper-like color
-            viewer.style.border = '1px solid #8B4513';
-            viewer.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
-            viewer.style.overflow = 'auto';
-            viewer.style.zIndex = '1000';
-            viewer.style.fontFamily = 'monospace';
-            
-            // Create content area
-            const content = document.createElement('div');
-            content.id = 'document-content';
-            content.textContent = text;
-            content.style.margin = '10px 0';
-            
-            // Create close button
-            const closeBtn = document.createElement('button');
-            closeBtn.id = 'document-close';
-            closeBtn.textContent = 'Close';
-            closeBtn.style.display = 'block';
-            closeBtn.style.margin = '10px auto';
-            closeBtn.style.padding = '5px 15px';
-            closeBtn.hasClickHandler = true;
-            
-            closeBtn.addEventListener('click', () => {
-                viewer.style.display = 'none';
-            });
-            
-            // Assemble document viewer
-            viewer.appendChild(content);
-            viewer.appendChild(closeBtn);
-            
-            // Add to document body
-            document.body.appendChild(viewer);
-        }
-    }
-
-    addToInventory(itemId) {
-        if (!itemId) return false;
-        
-        // Check if item already exists in inventory
-        if (this.inventory.includes(itemId)) {
-            this.showMessage(`You already have the ${itemId}.`);
-            return false;
+            this.playerFacing = 'up';
         }
         
-        // Add to engine's internal inventory
-        this.inventory.push(itemId);
-        
-        // Update game's inventory if it exists
-        if (window.game && window.game.gameState) {
-            if (!Array.isArray(window.game.gameState.inventory)) {
-                window.game.gameState.inventory = [];
-            }
-            window.game.gameState.inventory.push(itemId);
-            
-            // Update inventory UI if method exists
-            if (typeof window.game.updateInventoryUI === 'function') {
-                window.game.updateInventoryUI();
-            }
-        }
-        
-        // Also update GAME_DATA inventory if it exists
-        if (window.GAME_DATA) {
-            if (!Array.isArray(window.GAME_DATA.inventory)) {
-                window.GAME_DATA.inventory = [];
-            }
-            if (!window.GAME_DATA.inventory.includes(itemId)) {
-                window.GAME_DATA.inventory.push(itemId);
-            }
-        }
-        
-        this.showMessage(`Added ${itemId} to inventory.`);
-        return true;
-    }
-
-    movePlayerToPoint(x, y) {
-        // Calculate direction to target
-        const dx = x - this.playerPosition.x;
-        const dy = y - this.playerPosition.y;
-
-        // Don't allow clicking on locations with collision objects
-        if (this.checkCollisionAtPoint(x, y)) {
-            console.log("Can't move there - obstacle in the way");
-            this.showMessage("I can't walk there.");
-            return;
-        }
-        
-        // Set facing direction based on dominant axis
-        if (Math.abs(dx) > Math.abs(dy)) {
-            this.playerFacing = dx > 0 ? 'right' : 'left';
-        } else {
-            this.playerFacing = dy > 0 ? 'down' : 'up';
-        }
-        
-        // Set walking state
-        this.isWalking = true;
-        
-        // Move player to target over time (in update loop)
-        this.targetX = x;
-        this.targetY = y;
-    }
-
-    /**
-     * Check if there's a collision at the specified point
-     * @param {number} x - X coordinate to check
-     * @param {number} y - Y coordinate to check
-     * @returns {boolean} True if there's a collision
-     */
-    checkCollisionAtPoint(x, y) {
-        // Get collision objects for the current scene
-        const collisionObjects = this.getSceneCollisionObjects();
-        
-        // Check each object for collision
-        for (const obj of collisionObjects) {
-            // Enhanced collision detection with debug info
-            if (this.debugMode) {
-                console.log(`Checking collision with object: ${JSON.stringify(obj)}`);
-            }
-
-            if (obj.type === 'rect') {
-                // Rectangle collision
-                const left = obj.x - obj.width / 2;
-                const right = obj.x + obj.width / 2;
-                const top = obj.y - obj.height / 2;
-                const bottom = obj.y + obj.height / 2;
-                
-                if (x >= left && x <= right && y >= top && y <= bottom) {
-                    if (this.debugMode) {
-                        console.log(`Collision detected with rectangle at (${obj.x}, ${obj.y})`);
-                    }
-                    return true;
-                }
-            } else if (obj.type === 'circle') {
-                // Circle collision
-                const distX = x - obj.x;
-                const distY = y - obj.y;
-                const distance = Math.sqrt(distX * distX + distY * distY);
-                
-                if (distance <= obj.radius) {
-                    if (this.debugMode) {
-                        console.log(`Collision detected with circle at (${obj.x}, ${obj.y})`);
-                    }
-                    return true;
-                }
-            }
-        }
-        
-        return false;
-    }
-
-    /**
-     * Check if there's a collision along the path from current position to target
-     * @param {number} nextX - Target X coordinate
-     * @param {number} nextY - Target Y coordinate
-     * @returns {boolean} True if there's a collision
-     */
-    checkCollisionAtPath(nextX, nextY) {
-        // Current position
-        const currentX = this.playerPosition.x;
-        const currentY = this.playerPosition.y;
-        
-        // Check if target position has collision
-        if (this.checkCollisionAtPoint(nextX, nextY)) {
-            return true;
-        }
-        
-        // Also check intermediate points along path for large movements
-        const distance = Math.sqrt(
-            Math.pow(nextX - currentX, 2) + 
-            Math.pow(nextY - currentY, 2)
-        );
-        
-        // Only check path for longer movements
-        if (distance > 10) {
-            const steps = Math.ceil(distance / 5); // Check every 5 pixels
-            
-            for (let i = 1; i < steps; i++) {
-                const ratio = i / steps;
-                const checkX = currentX + (nextX - currentX) * ratio;
-                const checkY = currentY + (nextY - currentY) * ratio;
-                
-                if (this.checkCollisionAtPoint(checkX, checkY)) {
-                    return true;
-                }
-            }
-        }
-        
-        return false;
-    }
-
-    /**
-     * Get collision objects for the current scene
-     * @returns {Array} Array of collision objects
-     */
-    getSceneCollisionObjects() {
-        // Check ENHANCED_SCENES first
-        if (window.ENHANCED_SCENES && window.ENHANCED_SCENES[this.currentScene]) {
-            const scene = window.ENHANCED_SCENES[this.currentScene];
-            return scene.collisionObjects || [];
-        }
-
-        if (!window.GAME_DATA || !window.GAME_DATA.scenes) {
-            console.warn("Game data not loaded");
-            return [];
-        }
-        
-        const scene = window.GAME_DATA.scenes[this.currentScene];
-        
-        if (!scene) {
-            console.warn(`Scene ${this.currentScene} not found in game data`);
-            return [];
-        }
-        
-        return scene.collisionObjects || [];
-    }
-
-    /**
-     * Handle dialog interactions with NPCs
-     * @param {Object} npc - The NPC object to interact with
-     */
-    handleNPCDialog(npc) {
-        if (!npc) return;
-        
-        if (npc.dialogId) {
-            try {
-                // Ensure dialog manager exists or create one
-                if (!window._dialogManager && typeof DialogManager === 'function') {
-                    this.debugMode && console.log("Creating new dialog manager instance");
-                    window._dialogManager = new DialogManager();
-                }
-                
-                // Use optional chaining for more concise null checks
-                if (window.dialogManager?.startDialog) {
-                    window.dialogManager.startDialog(npc.dialogId);
-                } else {
-                    // Fallback if dialog manager isn't available
-                    this.showMessage(`${npc.name}: "Hello there!"`);
-                    console.warn("Dialog manager not available - using fallback message");
-                }
-            } catch (err) {
-                console.error(`Dialog error for NPC ${npc.name}:`, err);
-                this.showMessage(`${npc.name} wants to speak but there was an error.`);
-            }
-        } else {
-            // If no dialog system, use simple message
-            const dialogText = npc.dialog || `${npc.name || 'This person'} has nothing to say right now.`;
-            this.showMessage(dialogText);
-        }
-    }
-
-    /**
-     * Get scene data by name
-     * @param {string} sceneName - Name of the scene
-     * @returns {object} Scene data object
-     */
-    getSceneData(sceneName) {
-        const scene = sceneName || this.currentScene;
-        return window.GAME_DATA?.scenes?.[scene];
-    }
-
-    /**
-     * Update cursor style based on what's under the mouse pointer
-     */
-    updateCursorStyle() {
-        if (!this.canvas || this.lastMouseX === undefined || this.lastMouseY === undefined) return;
-        
-        // Default to pointer cursor
-        let cursorStyle = 'pointer';
-        
-        // Check if mouse is over an interactive element
-        const x = this.lastMouseX;
-        const y = this.lastMouseY;
-        
-        // Check for NPCs under cursor
-        const npcsInScene = this.npcs[this.currentScene] || [];
-        let overInteractive = npcsInScene.some(npc => {
-            const dx = Math.abs(x - npc.x);
-            const dy = Math.abs(y - npc.y);
-            return dx < 30 && dy < 50;
-        });
-        
-        // Check for hotspots under cursor
-        if (!overInteractive && window.GAME_DATA?.scenes?.[this.currentScene]?.hotspots) {
-            const hotspots = window.GAME_DATA.scenes[this.currentScene].hotspots;
-            overInteractive = hotspots.some(hotspot => {
-                const hotspotWidth = hotspot.width || 20;
-                const hotspotHeight = hotspot.height || 20;
-                
-                return x >= hotspot.x - hotspotWidth/2 && 
-                       x <= hotspot.x + hotspotWidth/2 && 
-                       y >= hotspot.y - hotspotHeight/2 && 
-                       y <= hotspot.y + hotspotHeight/2;
-            });
-        }
-        
-        // Apply appropriate cursor
-        this.canvas.style.cursor = overInteractive ? 'pointer' : 'default';
-    }
-
-    // Add method to initialize the dialog system specifically
-    initDialogSystem() {
-        try {
-            // Ensure DialogManager is loaded
-            if (typeof window.DialogManager === 'function' && !window._dialogManager) {
-                console.log("Initializing dialog system...");
-                window._dialogManager = new DialogManager();
-                
-                // Force access through the getter to ensure proper initialization
-                const dm = window.dialogManager;
-                console.log("Dialog system initialized:", dm ? "success" : "failed");
-            }
-        } catch (err) {
-            console.error("Failed to initialize dialog system:", err);
-        }
-        return !!window._dialogManager;
-    }
-
-    // Add missing handleDialogAction method needed by DialogManager
-    handleDialogAction(action) {
-        if (!action) return;
-        console.log(`Handling dialog action: ${action}`);
-        
-        // Handle special dialog actions like scene transitions or inventory changes
-        if (action.startsWith('gotoScene:')) {
-            const sceneName = action.split(':')[1];
-            if (sceneName) {
-                this.loadScene(sceneName);
-            }
-        } else if (action.startsWith('addItem:')) {
-            const itemName = action.split(':')[1];
-            if (itemName) {
-                this.addToInventory(itemName);
-            }
-        }
-    }
-
-    // Add a collision check method for NPCs
-    checkNPCCollision(npc, nextX, nextY) {
-        const npcRadius = 15; // Smaller collision radius for NPCs
-        
-        // Get collision objects for current scene
-        const sceneCollisions = this.getSceneCollisionObjects();
-        
-        // Check against scene objects
-        for (const obj of sceneCollisions) {
-            if (obj.type === 'rect') {
-                // Calculate distances
-                const halfWidth = obj.width / 2;
-                const halfHeight = obj.height / 2;
-                
-                // Check overlap between NPC circle and rectangle
-                if (nextX + npcRadius >= obj.x - halfWidth &&
-                    nextX - npcRadius <= obj.x + halfWidth &&
-                    nextY + npcRadius >= obj.y - halfHeight &&
-                    nextY - npcRadius <= obj.y + halfHeight) {
-                    return true; // Collision detected
-                }
-            } else if (obj.type === 'circle') {
-                // Calculate distance between centers
-                const distance = Math.sqrt((nextX - obj.x) ** 2 + (nextY - obj.y) ** 2);
-                if (distance < obj.radius + npcRadius) {
-                    return true; // Collision detected
-                }
-            }
-        }
- 
-        // Check collisions with other NPCs to avoid overlapping
-        for (const otherNPC of this.npcs[this.currentScene]) {
-            if (otherNPC !== npc) {
-                const distance = Math.sqrt((nextX - otherNPC.x) ** 2 + (nextY - otherNPC.y) ** 2);
-                if (distance < npcRadius * 2) {
-                    return true; // Collision with another NPC
-                }
-            }
-        }
-        
-        // Check collision with player
-        const playerDistance = Math.sqrt(
-            (nextX - this.playerPosition.x) ** 2 + 
-            (nextY - this.playerPosition.y) ** 2
-        );
-        if (playerDistance < npcRadius + this.playerCollisionRadius) {
-            return true; // Collision with player
-        }
-        
-        return false; // No collision
-    }
-
-    // Add method to ensure dialog system correctly handles dialog ended state
-    dialogEnded() {
-        console.log("Dialog ended, returning control to game");
-        // Handle any post-dialog logic here
-    }
-
-    // Add improved debug method
-    debugDrawCollisions() {
-        if (!this.ctx) return;
-        
-        const ctx = this.ctx;
-        const collisionObjects = this.getSceneCollisionObjects();
-        
-        ctx.save();
-        ctx.globalAlpha = 0.4;
-        ctx.lineWidth = 2;
-        
-        for (const obj of collisionObjects) {
-            if (obj.type === 'rect') {
-                // Draw rectangle
-                ctx.strokeStyle = 'red';
-                ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
-                ctx.fillRect(
-                    obj.x - obj.width/2, 
-                    obj.y - obj.height/2, 
-                    obj.width, 
-                    obj.height
-                );
-                ctx.strokeRect(
-                    obj.x - obj.width/2, 
-                    obj.y - obj.height/2, 
-                    obj.width, 
-                    obj.height
-                );
-            } else if (obj.type === 'circle') {
-                // Draw circle
-                ctx.strokeStyle = 'blue';
-                ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
-                ctx.beginPath();
-                ctx.arc(
-                    obj.x, 
-                    obj.y, 
-                    obj.radius, 
-                    0, 
-                    Math.PI * 2
-                );
-                ctx.fill();
-                ctx.stroke();
-            }
-        }
-        
-        // Draw player collision radius
-        ctx.strokeStyle = 'green';
-        ctx.beginPath();
-        ctx.arc(
-            this.playerPosition.x, 
-            this.playerPosition.y, 
-            this.playerCollisionRadius, 
-            0, 
-            Math.PI * 2
-        );
-        ctx.stroke();
-        
-        // Draw interaction radius
-        ctx.strokeStyle = 'yellow';
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.arc(
-            this.playerPosition.x, 
-            this.playerPosition.y, 
-            this.interactionDistance, 
-            0, 
-            Math.PI * 2
-        );
-        ctx.stroke();
-        ctx.setLineDash([]);
-        
-        ctx.restore();
-    }
-
-    initializeLighting() {
-        // Add light sources for different scenes
-        this.lightSources = [];
-        
-        // Police station lighting
-        if (this.currentScene === 'policeStation') {
-            this.lightSources.push(
-                { x: 400, y: 200, radius: 150, intensity: 0.8, color: '#FFFFFF' }, // Ceiling lights
-                { x: 680, y: 150, radius: 50, intensity: 0.6, color: '#FFE4B5' },   // Coffee machine light
-                { x: 200, y: 320, radius: 80, intensity: 0.7, color: '#87CEEB' }    // Computer screen
-            );
-        }
-    }
-    
-    initializeWeatherEffects() {
-        // Initialize weather based on scene
-        if (this.currentScene === 'downtown') {
-            // Add subtle rain effect for downtown
-            this.particleSystem.addRainEmitter();
-        }
-    }
-    
-    // Enhanced screen effects
-    screenShakeEffect(intensity, duration) {
-        this.screenShake.intensity = intensity;
-        this.screenShake.duration = duration;
-    }
-    
-    screenFlashEffect(color, intensity, duration) {
-        this.screenFlash.color = color;
-        this.screenFlash.intensity = intensity;
-        this.screenFlash.duration = duration;
-    }
-    
-    startSceneTransition(type = 'fade') {
-        this.transition.active = true;
-        this.transition.progress = 0;
-        this.transition.type = type;
-    }
-
-    updateScreenEffects(deltaTime) {
-        // Update screen shake
-        if (this.screenShake.duration > 0) {
-            this.screenShake.duration -= deltaTime;
-            if (this.screenShake.duration <= 0) {
-                this.screenShake.intensity = 0;
-            }
-        }
-        
-        // Update screen flash
-        if (this.screenFlash.duration > 0) {
-            this.screenFlash.duration -= deltaTime;
-            this.screenFlash.intensity = Math.max(0, this.screenFlash.intensity * 0.95);
-            if (this.screenFlash.duration <= 0) {
-                this.screenFlash.intensity = 0;
-            }
-        }
-        
-        // Update transitions
-        if (this.transition.active) {
-            this.transition.progress += deltaTime / 1000;
-            if (this.transition.progress >= 1) {
-                this.transition.active = false;
-                this.transition.progress = 0;
-            }
-        }
-    }
-    
-    updateLighting(deltaTime) {
-        // Subtle lighting animation
-        this.ambientLight = 0.8 + Math.sin(this.animationFrame * 0.01) * 0.05;
-        
-        // Animate light sources
-        for (const light of this.lightSources) {
-            if (light.flicker) {
-                light.intensity = light.baseIntensity + Math.random() * 0.1 - 0.05;
-            }
-        }
-    }
-    
-    applyScreenShake() {
-        if (this.screenShake.intensity > 0) {
-            const shakeX = (Math.random() - 0.5) * this.screenShake.intensity;
-            const shakeY = (Math.random() - 0.5) * this.screenShake.intensity;
-            this.ctx.translate(shakeX, shakeY);
-        }
-    }
-    
-    applyScreenFlash() {
-        if (this.screenFlash.intensity > 0) {
-            this.ctx.save();
-            this.ctx.globalAlpha = this.screenFlash.intensity;
-            this.ctx.fillStyle = this.screenFlash.color;
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            this.ctx.restore();
-        }
-    }    renderWithSierraGraphics() {
-        try {
-            // Delegate entirely to SierraGraphics.drawScene which handles the mapping
-            if (this.sierraGraphics && this.sierraGraphics.drawScene) {
-                this.sierraGraphics.drawScene(this.currentScene);
-            } else {
-                // Fallback logic if drawScene is missing
-                this.sierraGraphics.clearScreen();
-                this.drawCurrentScene();
-            }
-        } catch (error) {
-            console.warn("SierraGraphics error, falling back to standard rendering:", error);
-            this.drawCurrentScene();
-            return;
-        }
-        
-        // Draw NPCs with Sierra character style
-        for (const npcId in this.npcs) {
-            const npc = this.npcs[npcId];
-            // Check if NPC is in current scene (either by scene property or just being in the list)
-            // The loadScene method should filter NPCs, but we double check here
-            if (npc.visible !== false) {
-                this.sierraGraphics.drawCharacter(
-                    npc.x || 0,
-                    npc.y || 0,
-                    npc.sprite || npc.name || 'sonny', // Use sprite name if available
-                    npc.facing || 'down',
-                    npc.action || (npc.isWalking ? 'walking' : 'standing')
-                );
-            }
-        }
-        
-        // Draw player with Sierra character style
-        this.sierraGraphics.drawCharacter(
-            this.playerPosition.x,
-            this.playerPosition.y,
-            'sonny',
-            this.playerFacing,
-            this.isWalking ? 'walking' : 'standing'
-        );
-        
-        // Draw hotspots and interactable objects
-        this.drawSierraHotspots();
-        
-        // Draw UI elements
-        this.renderSierraUI();
-    }
-    
-    drawSierraHotspots() {
-        // Draw hotspots for current scene
-        const sceneData = this.getSceneData(this.currentScene);
-        if (sceneData && sceneData.hotspots) {
-            for (const hotspot of sceneData.hotspots) {
-                if (hotspot.visible !== false) {
-                    this.sierraGraphics.drawHotspot(hotspot);
-                }
-            }
-        }
-    }
-    
-    renderSierraUI() {
-        // Draw Sierra-style command interface
-        this.sierraGraphics.drawCommandInterface();
-        
-        // Draw inventory if open
-        if (this.inventoryOpen) {
-            this.sierraGraphics.drawInventory(this.inventory);
-        }
-        
-        // Draw police procedures panel if applicable
-        if (this.policeGameplay && this.policeGameplay.currentProcedure) {
-            this.sierraGraphics.drawProcedurePanel(this.policeGameplay.currentProcedure);
-        }
-        
-        // Draw case information panel
-        if (this.policeStory && this.policeStory.currentCase) {
-            this.sierraGraphics.drawCasePanel(this.policeStory.currentCase);
-        }
-        
-        // Draw score display
+        // Check if this is a police-related interaction
         if (this.policeGameplay) {
-            this.sierraGraphics.drawScoreDisplay(this.policeGameplay.score, this.policeGameplay.rank);
-        }
-    }
-    
-    // Police UI Update Methods
-    updatePoliceUI() {
-        this.updateProcedurePanel();
-        this.updateScoreDisplay();
-        this.updateCaseInfo();
-    }
-    
-    updateProcedurePanel() {
-        const procedurePanel = document.getElementById('procedure-panel');
-        if (!procedurePanel || !this.policeGameplay) return;
-        
-        const currentProcedure = this.policeGameplay.currentProcedure;
-        if (currentProcedure) {
-            procedurePanel.style.display = 'block';
-            const stepsList = procedurePanel.querySelector('.procedure-steps');
-            if (stepsList) {
-                stepsList.innerHTML = '';
-                
-                currentProcedure.steps.forEach((step, index) => {
-                    const stepElement = document.createElement('li');
-                    stepElement.className = step.completed ? 'step completed' : 'step pending';
-                    stepElement.textContent = step.description;
-                    
-                    if (index === currentProcedure.currentStep) {
-                        stepElement.classList.add('current');
-                    }
-                    
-                    stepsList.appendChild(stepElement);
-                });
-            }
-        } else {
-            procedurePanel.style.display = 'none';
-        }
-    }
-    
-    updateScoreDisplay() {
-        const scoreDisplay = document.getElementById('score-display');
-        if (scoreDisplay && this.policeGameplay) {
-            const score = this.policeGameplay.score;
-            const rank = this.policeGameplay.rank;
-            scoreDisplay.textContent = `Score: ${score} | Rank: ${rank}`;
-        }
-    }      updateCaseInfo() {
-        const caseInfo = document.getElementById('case-info');
-        if (!caseInfo) return;
-        
-        // Hide case info if police story system isn't available
-        if (!this.policeStory) {
-            caseInfo.style.display = 'none';
-            return;
-        }
-        
-        const currentCase = this.policeStory.currentCase;
-        if (currentCase && currentCase.title) {
-            caseInfo.style.display = 'block';
-            caseInfo.classList.add('visible');
-            
-            // Build objectives list with better error handling
-            let objectivesList = '';
-            if (currentCase.objectives && Array.isArray(currentCase.objectives)) {
-                objectivesList = currentCase.objectives.map(obj => {
-                    if (obj && typeof obj === 'object') {
-                        const status = obj.completed ? 'completed' : 'pending';
-                        const description = obj.description || obj.text || 'Unknown objective';
-                        return `<li class="${status}">• ${description}</li>`;
-                    }
-                    return `<li class="pending">• ${obj || 'Unknown objective'}</li>`;
-                }).join('');
-            } else {
-                objectivesList = `
-                    <li class="pending">• Begin patrol shift</li>
-                    <li class="pending">• Conduct traffic stops</li>
-                    <li class="pending">• Follow proper procedure</li>
-                    <li class="pending">• Write accurate reports</li>
-                `;
-            }
-            
-            caseInfo.innerHTML = `
-                <button id="case-info-close" type="button">×</button>
-                <h3>Current Case</h3>
-                <p><strong>${currentCase.title || 'Traffic Patrol'}</strong></p>
-                <p>${currentCase.description || 'Begin your shift and patrol the streets of Lytton.'}</p>
-                <div class="objectives">
-                    <h4>Objectives:</h4>
-                    <ul>${objectivesList}</ul>
-                </div>
-            `;
-            
-            // Add proper event listener after creating the button
-            const closeBtn = caseInfo.querySelector('#case-info-close');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Close button clicked');
-                    window.dismissCaseInfo(e);
-                });
-            }
-        } else {
-            // Show a default message instead of hiding completely
-            caseInfo.style.display = 'block';
-            caseInfo.classList.add('visible');
-            caseInfo.innerHTML = `
-                <button id="case-info-close" type="button">×</button>
-                <h3>Police Officer Status</h3>
-                <p><strong>Officer Sonny Bonds</strong></p>
-                <p>Badge #2847 - Lytton Police Department</p>
-                <p>On Patrol - Ready for assignment</p>
-                <div class="objectives">
-                    <h4>Current Objectives:</h4>
-                    <ul>
-                        <li class="pending">• Report for duty</li>
-                        <li class="pending">• Begin traffic patrol</li>
-                        <li class="pending">• Maintain law and order</li>
-                    </ul>
-                </div>
-            `;
-            
-            // Add event listener for default case too
-            const closeBtn = caseInfo.querySelector('#case-info-close');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Close button clicked (default case)');
-                    window.dismissCaseInfo(e);
-                });
+            const policeInteraction = this.policeGameplay.handleNPCInteraction(npc, this.playerPosition);
+            if (policeInteraction.handled) {
+                return;
             }
         }
-    }
-
-    showProcedureViolation(violation) {
-        // Display procedure violation message
-        const message = `PROCEDURE VIOLATION: ${violation}`;
-        console.warn(message);
         
-        // Show visual feedback
-        this.screenFlash = {
-            color: '#FF0000',
-            intensity: 0.3,
-            duration: 60
-        };
-        
-        // Update score
-        if (this.policeGameplay) {
-            this.policeGameplay.addScore(-50); // Penalty for violation
+        // Handle story-related dialog
+        if (this.policeStory) {
+            const storyDialog = this.policeStory.getDialogForNPC(npc.name, this.currentScene);
+            if (storyDialog) {
+                this.handleNPCDialog(npc, storyDialog);
+                return;
+            }
         }
         
-        // Play audio feedback
-        this.playPoliceAudio('error');
-    }
-    
-    showProcedureSuccess(procedure) {
-        // Display procedure success message
-        const message = `PROCEDURE COMPLETED: ${procedure}`;
-        console.log(message);
-        
-        // Show positive visual feedback
-        this.screenFlash = {
-            color: '#00FF00',
-            intensity: 0.2,
-            duration: 30
-        };
-        
-        // Award score
-        if (this.policeGameplay) {
-            this.policeGameplay.addScore(100);
-        }        
-        // Play audio feedback
-        this.playPoliceAudio('success');
-    }
-
-    // Audio initialization method
-    initAudioSystem() {
-        if (window.soundManager) {
-            this.soundManager = window.soundManager;
-            console.log("Audio system initialized with SoundManager");
-        } else {
-            console.warn("SoundManager not available, audio disabled");
-            this.soundManager = null;
-        }
-    }
-    
-    playSceneAudio(sceneName) {
-        if (this.soundManager) {
-            this.soundManager.playSceneMusic(sceneName);
-        }
-    }
-    
-    playPoliceAudio(audioType, data = null) {
-        if (!this.soundManager) return;
-        
-        switch(audioType) {
-            case 'radio':
-                this.soundManager.playPoliceRadio(data);
-                break;
-            case 'siren':
-                this.soundManager.playSirenSound();
-                break;
-            case 'arrest':
-                this.soundManager.playArrestSound();
-                break;
-            case 'procedure_alert':
-                this.soundManager.playProcedureAlert();
-                break;
-            case 'success':
-                this.soundManager.playSuccessChime();
-                break;
-            case 'error':
-                this.soundManager.playErrorBuzz();
-                break;
-            case 'gunshot':
-                this.soundManager.playGunshot();
-                break;
-        }
-   }    // Method to dismiss the case info overlay
-    dismissCaseInfo() {
-        const caseInfo = document.getElementById('case-info');
-        if (caseInfo) {
-            caseInfo.style.display = 'none';
-        }
+        // Handle standard dialog
+        this.handleNPCDialog(npc);
     }
 }
-    
-// Export globally
-window.GameEngine = GameEngine;
-
-// Make dismissCaseInfo globally accessible
-window.dismissCaseInfo = function(event) {
-    console.log('dismissCaseInfo called');
-    if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    
-    const caseInfo = document.getElementById('case-info');
-    if (caseInfo) {
-        console.log('Hiding case info panel');
-        caseInfo.style.display = 'none';
-        caseInfo.classList.remove('visible');
-    } else {
-        console.warn('case-info element not found');
-    }
-};
-
-// Make toggleDebug globally accessible
-window.toggleDebug = function() {
-    if (window.gameEngine && typeof window.gameEngine.toggleDebugMode === 'function') {
-        window.gameEngine.toggleDebugMode();
-    } else {
-        console.log('Debug toggle: gameEngine not ready or debug mode not available');
-    }
-};
