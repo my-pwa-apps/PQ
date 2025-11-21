@@ -155,7 +155,7 @@ class GameEngine {
             this.setupCanvas();
             this.setupBufferCanvas();
             this.setupEventListeners();
-            this.setupNPCs(); // Call the NPC setup
+            this.setupUI(); // Initialize UI listeners
             
             // Initialize enhanced graphics systems - with error handling
             if (window.ParticleSystem) {
@@ -1129,7 +1129,9 @@ class GameEngine {
         
         // Draw shadow under character
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
         ctx.ellipse(x, y + 3, 12, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
         
         // Calculate walk cycle offset
         const walkOffset = isWalking ? ((this.animationFrame % 12) < 6 ? 1 : -1) : 0;
@@ -1420,68 +1422,6 @@ class GameEngine {
         }
     }
 
-    // Add missing updateNPCs function
-    updateNPCs(deltaTime = 1/60) {
-        if (!this.npcs || !this.npcs[this.currentScene]) return;
-        
-        const currentSceneNPCs = this.npcs[this.currentScene];
-        
-        for (const npc of currentSceneNPCs) {
-            // Update NPC animation state
-            if (npc.isWalking) {
-                npc.animationFrame = (npc.animationFrame || 0) + 1;
-            }
-            
-            // Update NPC position if they're moving
-            if (npc.isWalking && npc.patrolPoints && npc.patrolPoints.length > 0) {
-                const target = npc.patrolPoints[npc.currentPatrolPoint || 0];
-                if (target) {
-                    const dx = target.x - npc.x;
-                    const dy = target.y - npc.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance > 2) {
-                        const speed = 0.5;
-                        const nextX = npc.x + (dx / distance) * speed;
-                        const nextY = npc.y + (dy / distance) * speed;
-                        
-                        // Add collision check for NPCs
-                        if (!this.checkNPCCollision(npc, nextX, nextY)) {
-                            npc.x = nextX;
-                            npc.y = nextY;
-                            npc.facing = Math.abs(dx) > Math.abs(dy) ? 
-                                (dx > 0 ? 'right' : 'left') : 
-                                (dy > 0 ? 'down' : 'up');
-                        } else {
-                            // If collision, try to find a new path or wait
-                            npc.waitTime = 1;
-                            // Try to move in only x or only y direction
-                            const tryX = npc.x + (dx / distance) * speed;
-                            if (!this.checkNPCCollision(npc, tryX, npc.y)) {
-                                npc.x = tryX;
-                            }
-                            
-                            const tryY = npc.y + (dy / distance) * speed;
-                            if (!this.checkNPCCollision(npc, npc.x, tryY)) {
-                                npc.y = tryY;
-                            }
-                        }
-                    } else {
-                        // Reached waypoint, move to next one
-                        npc.currentPatrolPoint = (npc.currentPatrolPoint + 1) % npc.patrolPoints.length;
-                        npc.isWalking = false;
-                        npc.waitTime = 2; // Wait for 2 seconds before moving again
-                    }
-                }
-            } else if (npc.waitTime > 0) {
-                npc.waitTime -= deltaTime;
-                if (npc.waitTime <= 0) {
-                    npc.isWalking = true;
-                }
-            }
-        }
-    }
-
     // Add loadAsset method for preloading assets
     async loadAsset(id, url) {
         if (this.assets.has(id)) {
@@ -1529,117 +1469,21 @@ class GameEngine {
     }
 
     // Initialize NPCs for different scenes
-    setupNPCs() {
-        // Police Station NPCs
-        this.npcs.policeStation = [
-            {
-                id: 'receptionist',
-                x: 400,
-                y: 280,
-                uniformColor: '#0000AA', // blue police uniform
-                badgeColor: '#FFD700', // gold badge
-                facing: 'down',
-                isWalking: false,
-                isFemale: true,
-                name: 'Officer Jenny',
-                dialogId: 'receptionist_dialog',
-                patrolPoints: []
-            },
-            {
-                id: 'sergeant',
-                x: 600,
-                y: 320,
-                uniformColor: '#00008B', // dark blue for sergeant
-                badgeColor: '#FFD700',
-                facing: 'left',
-                isWalking: false,
-                isFemale: false,
-                name: 'Sergeant Dooley',
-                dialogId: 'sergeant_dialog',
-                patrolPoints: []
-            },
-            {
-                id: 'officer',
-                x: 200,
-                y: 350,
-                uniformColor: '#0000AA',
-                badgeColor: '#FFD700',
-                facing: 'right',
-                isWalking: true,
-                isFemale: false,
-                name: 'Officer Johnson',
-                patrolPoints: [
-                    { x: 200, y: 350 },
-                    { x: 300, y: 350 },
-                    { x: 300, y: 400 },
-                    { x: 200, y: 400 }
-                ],
-                currentPatrolPoint: 0,
-                waitTime: 0
-            }
-        ];
-        
-        // Downtown NPCs
-        this.npcs.downtown = [
-            {
-                id: 'witness',
-                x: 150,
-                y: 300,
-                uniformColor: '#A52A2A', // brown civilian clothes
-                badgeColor: '#FFFFFF',
-                facing: 'right',
-                isWalking: false,
-                isFemale: false,
-                name: 'Store Owner',
-                dialogId: 'witness_dialog'
-            },
-            {
-                id: 'officer',
-                x: 400,
-                y: 350,
-                uniformColor: '#0000AA',
-                badgeColor: '#FFD700',
-                facing: 'left',
-                isWalking: true,
-                isFemale: true,
-                name: 'Officer Martinez',
-                patrolPoints: [
-                    { x: 350, y: 350 },
-                    { x: 450, y: 350 }
-                ]
-            }
-        ];
-        
-        // Park NPCs
-        this.npcs.park = [
-            {
-                id: 'suspect',
-                x: 400,
-                y: 300,
-                uniformColor: '#333333', // dark clothes
-                badgeColor: '#333333',
-                facing: 'down',
-                isWalking: false,
-                isFemale: false,
-                name: 'Suspicious Person',
-                dialogId: 'suspect_dialog'
-            }
-        ];
-        
-        // Sheriff's Office NPCs
-        this.npcs.sheriffsOffice = [
-            {
-                id: 'sheriff',
-                x: 400,
-                y: 250,
-                uniformColor: '#2F4F4F', // dark slate gray
-                badgeColor: '#FFD700',
-                facing: 'down',
-                isWalking: false,
-                isFemale: false,
-                name: 'Sheriff Johnson'
-            }
-        ];
+    setupUI() {
+        const buttons = document.querySelectorAll('.cmd-btn');
+        buttons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Remove active class from all
+                buttons.forEach(b => b.classList.remove('active'));
+                // Add active class to clicked
+                btn.classList.add('active');
+                // Set action
+                this.activeAction = btn.dataset.action;
+                console.log('Action set to:', this.activeAction);
+            });
+        });
+        // Set default
+        this.activeAction = 'walk'; 
     }    handleInteraction(x, y) {
         // Reset walking state when user clicks
         this.isWalking = false;
@@ -1727,7 +1571,7 @@ class GameEngine {
                     console.log(`Interacting with hotspot: ${hotspot.id || hotspot.name}, distance: ${playerDistance}`);
                     
                     // Handle hotspot interaction based on current action (default to 'look')
-                    const action = window.game?.activeAction || 'use';  // Default to 'use' for doors
+                    const action = this.activeAction || window.game?.activeAction || 'use';
                     
                     // Process the interaction
                     if (this.processHotspotInteraction) {

@@ -670,11 +670,22 @@ class SierraGraphics {
     
     drawSierraCharacter(x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false, isFemale = false) {
         const ctx = this.ctx;
+        
+        // Perspective scaling
+        const scale = Math.max(0.6, Math.min(1.2, 0.6 + (y / 600) * 0.8));
+        
+        ctx.save();
+        // Scale around the feet (y + 40)
+        ctx.translate(x, y + 40);
+        ctx.scale(scale, scale);
+        ctx.translate(-x, -(y + 40));
+        
         const charWidth = 24;
         const charHeight = 40;
         
         // Character shadow
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath(); // Fix for triangular shadow
         ctx.ellipse(x, y + charHeight - 2, charWidth / 2, 6, 0, 0, Math.PI * 2);
         ctx.fill();
         
@@ -719,6 +730,8 @@ class SierraGraphics {
         ctx.fillStyle = this.sierraPalette.black;
         this.drawPixelRect(x - 6, y + 38, 5, 2);
         this.drawPixelRect(x + 1, y + 38, 5, 2);
+        
+        ctx.restore();
     }
     
     // Stub methods for compatibility
