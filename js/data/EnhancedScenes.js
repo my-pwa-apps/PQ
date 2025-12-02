@@ -174,8 +174,8 @@ const ENHANCED_SCENES = {
             {
                 id: "officer_jenny",
                 name: "Officer Jenny Patterson",
-                x: 400,
-                y: 280,
+                x: 430,
+                y: 420,
                 facing: "down",
                 sprite: "jenny",
                 role: "receptionist",
@@ -187,7 +187,7 @@ const ENHANCED_SCENES = {
                 id: "officer_walking",
                 name: "Officer Rodriguez",
                 x: 200,
-                y: 400,
+                y: 480,
                 facing: "right",
                 sprite: "officer_male",
                 role: "patrol",
@@ -195,10 +195,10 @@ const ENHANCED_SCENES = {
                 interactive: false,
                 patrol: true,
                 patrolPath: [
-                    { x: 200, y: 400 },
-                    { x: 600, y: 400 },
-                    { x: 600, y: 300 },
-                    { x: 200, y: 300 }
+                    { x: 200, y: 480 },
+                    { x: 600, y: 480 },
+                    { x: 600, y: 420 },
+                    { x: 200, y: 420 }
                 ]
             }
         ],

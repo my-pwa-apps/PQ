@@ -681,72 +681,99 @@ class SierraGraphics {
             facing,
             action === 'walking',
             characterName !== 'sonny',
-            style.female
+            style.female,
+            1.0 // Default scale
         );
     }
     
-    drawSierraCharacter(x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false, isFemale = false) {
+    // New method with explicit scale parameter for proper perspective
+    drawCharacterWithScale(x, y, characterName, facing, action, scale) {
+        const style = this.characterStyles[characterName] || this.characterStyles['officer_male'];
+        
+        this.drawSierraCharacter(
+            x, y,
+            style.uniform,
+            style.badge,
+            facing,
+            action === 'walking',
+            characterName !== 'sonny',
+            style.female,
+            scale
+        );
+    }
+    
+    drawSierraCharacter(x, y, uniformColor, badgeColor, facing = 'down', isWalking = false, isNPC = false, isFemale = false, scale = 1.0) {
         const ctx = this.ctx;
         
-        // Perspective scaling - subtler effect
-        const scale = Math.max(0.85, Math.min(1.15, 0.85 + (y / 600) * 0.3));
+        // Use passed scale for proper Sierra-style perspective
+        // Clamp scale to reasonable range
+        const clampedScale = Math.max(0.4, Math.min(1.3, scale));
         
         ctx.save();
-        // Scale around the feet (y + 40)
-        ctx.translate(x, y + 40);
-        ctx.scale(scale, scale);
-        ctx.translate(-x, -(y + 40));
+        // Scale around the feet (character's ground position)
+        ctx.translate(x, y);
+        ctx.scale(clampedScale, clampedScale);
+        ctx.translate(-x, -y);
         
         const charWidth = 24;
         const charHeight = 40;
         
-        // Character shadow
+        // Character shadow (at feet level, which is y position)
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.beginPath(); // Fix for triangular shadow
-        ctx.ellipse(x, y + charHeight - 2, charWidth / 2, 6, 0, 0, Math.PI * 2);
+        ctx.beginPath();
+        ctx.ellipse(x, y, charWidth / 2, 4, 0, 0, Math.PI * 2);
         ctx.fill();
         
-        // Head
+        // Head (character drawn upward from feet position)
         ctx.fillStyle = this.sierraPalette.skinTone;
-        this.drawPixelRect(x - 6, y, 12, 12);
+        this.drawPixelRect(x - 6, y - charHeight, 12, 12);
         
         // Hair
-        ctx.fillStyle = this.sierraPalette.black;
-        this.drawPixelRect(x - 6, y, 12, 4);
+        ctx.fillStyle = isFemale ? this.sierraPalette.brown : this.sierraPalette.black;
+        this.drawPixelRect(x - 6, y - charHeight, 12, 4);
+        if (isFemale) {
+            // Longer hair for female characters
+            this.drawPixelRect(x - 7, y - charHeight + 4, 3, 8);
+            this.drawPixelRect(x + 4, y - charHeight + 4, 3, 8);
+        }
         
-        // Body (uniform)
-        ctx.fillStyle = uniformColor;
-        this.drawPixelRect(x - 8, y + 12, 16, 18);
+        // Body (uniform) - drawn from neck down
+        ctx.fillStyle = uniformColor || this.sierraPalette.policeBlue;
+        this.drawPixelRect(x - 8, y - 28, 16, 18);
         
         // Arms
         if (isWalking) {
-            // Animated walking arms
-            this.drawPixelRect(x - 12, y + 14, 4, 12);
-            this.drawPixelRect(x + 8, y + 14, 4, 12);
+            // Animated walking arms - swing animation
+            const armSwing = Math.sin(Date.now() / 100) * 3;
+            this.drawPixelRect(x - 12, y - 26 + armSwing, 4, 12);
+            this.drawPixelRect(x + 8, y - 26 - armSwing, 4, 12);
         } else {
-            this.drawPixelRect(x - 10, y + 14, 4, 14);
-            this.drawPixelRect(x + 6, y + 14, 4, 14);
+            this.drawPixelRect(x - 10, y - 26, 4, 14);
+            this.drawPixelRect(x + 6, y - 26, 4, 14);
         }
         
-        // Badge
-        ctx.fillStyle = badgeColor;
-        this.drawPixelRect(x - 2, y + 16, 4, 4);
+        // Badge (if police)
+        if (badgeColor) {
+            ctx.fillStyle = badgeColor;
+            this.drawPixelRect(x - 2, y - 24, 4, 4);
+        }
         
         // Legs
         ctx.fillStyle = this.sierraPalette.darkBlue;
         if (isWalking) {
             // Animated walking legs
-            this.drawPixelRect(x - 6, y + 30, 5, 10);
-            this.drawPixelRect(x + 2, y + 30, 5, 10);
+            const legSwing = Math.sin(Date.now() / 100) * 2;
+            this.drawPixelRect(x - 5, y - 10 + legSwing, 5, 10);
+            this.drawPixelRect(x + 1, y - 10 - legSwing, 5, 10);
         } else {
-            this.drawPixelRect(x - 6, y + 30, 5, 10);
-            this.drawPixelRect(x + 1, y + 30, 5, 10);
+            this.drawPixelRect(x - 5, y - 10, 5, 10);
+            this.drawPixelRect(x + 1, y - 10, 5, 10);
         }
         
-        // Shoes
+        // Shoes (at y position - feet level)
         ctx.fillStyle = this.sierraPalette.black;
-        this.drawPixelRect(x - 6, y + 38, 5, 2);
-        this.drawPixelRect(x + 1, y + 38, 5, 2);
+        this.drawPixelRect(x - 6, y - 2, 5, 2);
+        this.drawPixelRect(x + 1, y - 2, 5, 2);
         
         ctx.restore();
     }

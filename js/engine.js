@@ -10,8 +10,9 @@ class GameEngine {
         this.isRunning = false;
         this.debugMode = false;
 
-        this.playerPosition = { x: 400, y: 350 };
-        this.playerFacing = 'down';
+        // Player starts on the floor, near the bottom of the walkable area
+        this.playerPosition = { x: 400, y: 480 };
+        this.playerFacing = 'up';
         this.isWalking = false;
         this.playerWalkCycle = 0;
 
@@ -254,10 +255,12 @@ class GameEngine {
                 const dirX = dx / distance;
                 const dirY = dy / distance;
                 
-                // Calculate next position
-                const speed = 5;
-                const nextX = this.playerPosition.x + dirX * speed;
-                const nextY = this.playerPosition.y + dirY * speed;
+                // Calculate next position with perspective-aware speed
+                // Characters move slower when further away (smaller on screen)
+                const baseSpeed = 4;
+                const perspectiveSpeed = baseSpeed * this.getPerspectiveScale(this.playerPosition.y);
+                const nextX = this.playerPosition.x + dirX * perspectiveSpeed;
+                const nextY = this.playerPosition.y + dirY * perspectiveSpeed;
                 
                 // Update player facing based on movement direction
                 if (Math.abs(dx) > Math.abs(dy)) {
@@ -432,8 +435,10 @@ class GameEngine {
             this.sierraGraphics.drawHotspot(hotspot);
         }
         
-        // Draw NPCs
-        // Handle both flat map and scene-based map
+        // Collect all drawable entities (NPCs + Player) for depth sorting
+        let drawables = [];
+        
+        // Add NPCs
         let npcsToDraw = [];
         if (this.npcs[this.currentScene]) {
             npcsToDraw = this.npcs[this.currentScene];
@@ -442,24 +447,41 @@ class GameEngine {
         }
         
         npcsToDraw.forEach(npc => {
-            // Use the Sierra Graphics character renderer with sprite name support
-            this.sierraGraphics.drawCharacter(
-                npc.x || npc.position?.x || 0, 
-                npc.y || npc.position?.y || 0, 
-                npc.sprite || npc.name || 'officer_male', // Pass sprite name
-                npc.facing, 
-                npc.isWalking ? 'walking' : 'standing'
-            );
+            drawables.push({
+                type: 'npc',
+                x: npc.x || npc.position?.x || 0,
+                y: npc.y || npc.position?.y || 0,
+                sprite: npc.sprite || npc.name || 'officer_male',
+                facing: npc.facing,
+                action: npc.isWalking ? 'walking' : 'standing'
+            });
         });
         
-        // Draw Player
-        this.sierraGraphics.drawCharacter(
-            this.playerPosition.x, 
-            this.playerPosition.y, 
-            'sonny', // Player sprite
-            this.playerFacing, 
-            this.isWalking ? 'walking' : 'standing'
-        );
+        // Add Player
+        drawables.push({
+            type: 'player',
+            x: this.playerPosition.x,
+            y: this.playerPosition.y,
+            sprite: 'sonny',
+            facing: this.playerFacing,
+            action: this.isWalking ? 'walking' : 'standing'
+        });
+        
+        // Sort by Y position (depth sorting - characters further up are drawn first)
+        drawables.sort((a, b) => a.y - b.y);
+        
+        // Draw all entities in sorted order with perspective scaling
+        drawables.forEach(entity => {
+            const scale = this.getPerspectiveScale(entity.y);
+            this.sierraGraphics.drawCharacterWithScale(
+                entity.x,
+                entity.y,
+                entity.sprite,
+                entity.facing,
+                entity.action,
+                scale
+            );
+        });
     }
 
     renderLighting() {
@@ -1960,11 +1982,21 @@ class GameEngine {
     
     checkCollisionAtPoint(x, y) {
         // Check scene boundaries
-        if (x < 0 || x > this.canvas.width || y < 0 || y > this.canvas.height) {
+        if (x < 20 || x > 780 || y < 0 || y > 580) {
             return true;
         }
         
-        // Get collision objects for current scene
+        // Sierra-style walkable area check (floor only)
+        // The floor typically starts around Y=340-380 in most scenes
+        const walkableArea = this.getWalkableArea();
+        if (walkableArea) {
+            // Check if point is OUTSIDE the walkable polygon
+            if (!this.isPointInWalkableArea(x, y, walkableArea)) {
+                return true; // Collision - can't walk here
+            }
+        }
+        
+        // Get collision objects for current scene (furniture, etc.)
         const collisionObjects = this.getSceneCollisionObjects();
         
         // Check against each object
@@ -1984,6 +2016,71 @@ class GameEngine {
         }
         
         return false;
+    }
+    
+    getWalkableArea() {
+        // Define walkable floor areas for each scene type
+        // These are polygons that define where the player can walk
+        const sceneWalkables = {
+            'policeStation': [
+                { x: 50, y: 380 },   // Top-left of floor
+                { x: 750, y: 380 },  // Top-right of floor
+                { x: 780, y: 580 },  // Bottom-right
+                { x: 20, y: 580 }    // Bottom-left
+            ],
+            'policeStation_lobby': [
+                { x: 50, y: 380 },
+                { x: 750, y: 380 },
+                { x: 780, y: 580 },
+                { x: 20, y: 580 }
+            ],
+            'downtown': [
+                { x: 20, y: 320 },   // Sidewalk starts higher
+                { x: 780, y: 320 },
+                { x: 780, y: 580 },
+                { x: 20, y: 580 }
+            ],
+            'downtown_main': [
+                { x: 20, y: 320 },
+                { x: 780, y: 320 },
+                { x: 780, y: 580 },
+                { x: 20, y: 580 }
+            ],
+            'park': [
+                { x: 20, y: 280 },   // Park has more open space
+                { x: 780, y: 280 },
+                { x: 780, y: 580 },
+                { x: 20, y: 580 }
+            ],
+            'city_park': [
+                { x: 20, y: 280 },
+                { x: 780, y: 280 },
+                { x: 780, y: 580 },
+                { x: 20, y: 580 }
+            ],
+            'policeStation_briefing': [
+                { x: 100, y: 400 },
+                { x: 700, y: 400 },
+                { x: 700, y: 580 },
+                { x: 100, y: 580 }
+            ]
+        };
+        
+        return sceneWalkables[this.currentScene] || sceneWalkables['policeStation'];
+    }
+    
+    isPointInWalkableArea(x, y, polygon) {
+        // Ray-casting algorithm to check if point is inside polygon
+        let inside = false;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            const xi = polygon[i].x, yi = polygon[i].y;
+            const xj = polygon[j].x, yj = polygon[j].y;
+            
+            if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+                inside = !inside;
+            }
+        }
+        return inside;
     }
 
     checkNPCCollision(npc, x, y) {
@@ -2048,6 +2145,25 @@ class GameEngine {
         }
         
         return objects;
+    }
+    
+    // Sierra-style perspective scaling based on Y position
+    // Characters at the top of the walkable area (far away) are smaller
+    // Characters at the bottom (close to camera) are larger
+    getPerspectiveScale(y) {
+        // Define the perspective range
+        const horizonY = 340;  // Where the floor meets the wall (vanishing point)
+        const foregroundY = 580; // Bottom of screen (closest to camera)
+        
+        // Clamp Y to valid range
+        const clampedY = Math.max(horizonY, Math.min(foregroundY, y));
+        
+        // Calculate scale: 0.5 at horizon, 1.2 at foreground
+        const minScale = 0.5;
+        const maxScale = 1.2;
+        const t = (clampedY - horizonY) / (foregroundY - horizonY);
+        
+        return minScale + (maxScale - minScale) * t;
     }
     
     initAudioSystem() {
@@ -2146,6 +2262,8 @@ class GameEngine {
     debugDrawCollisions() {
         const objects = this.getSceneCollisionObjects();
         this.ctx.save();
+        
+        // Draw collision objects in red
         this.ctx.strokeStyle = 'red';
         this.ctx.lineWidth = 2;
         
@@ -2158,6 +2276,38 @@ class GameEngine {
                 this.ctx.stroke();
             }
         }
+        
+        // Draw walkable area in green
+        const walkable = this.getWalkableArea();
+        if (walkable && walkable.length > 0) {
+            this.ctx.strokeStyle = 'lime';
+            this.ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+            this.ctx.lineWidth = 3;
+            this.ctx.beginPath();
+            this.ctx.moveTo(walkable[0].x, walkable[0].y);
+            for (let i = 1; i < walkable.length; i++) {
+                this.ctx.lineTo(walkable[i].x, walkable[i].y);
+            }
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+        }
+        
+        // Draw horizon line
+        this.ctx.strokeStyle = 'yellow';
+        this.ctx.lineWidth = 1;
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, 340);
+        this.ctx.lineTo(800, 340);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+        
+        // Draw perspective scale info
+        this.ctx.fillStyle = 'white';
+        this.ctx.font = '12px monospace';
+        this.ctx.fillText(`Player Y: ${Math.round(this.playerPosition.y)} | Scale: ${this.getPerspectiveScale(this.playerPosition.y).toFixed(2)}`, 10, 20);
+        
         this.ctx.restore();
     }
 }
