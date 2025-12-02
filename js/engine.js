@@ -1196,7 +1196,11 @@ class GameEngine {
         // In Sierra games, you are constrained to the walkable area (control lines)
         const walkablePoly = this.getWalkableArea();
         if (walkablePoly && walkablePoly.length > 0) {
-            if (!this.isPointInWalkableArea(x, y, walkablePoly)) {
+            const isInWalkable = this.isPointInWalkableArea(x, y, walkablePoly);
+            if (!isInWalkable) {
+                if (this.debugMode) {
+                    console.log(`Outside walkable area at (${x.toFixed(0)}, ${y.toFixed(0)}). Poly bounds: Y=${walkablePoly[0]?.y}-${walkablePoly[2]?.y}`);
+                }
                 return true; // Collision (outside walkable area)
             }
         } else {
@@ -1232,7 +1236,11 @@ class GameEngine {
         // Check ENHANCED_SCENES first for precise polygon data
         if (window.ENHANCED_SCENES && window.ENHANCED_SCENES[this.currentScene]) {
             if (window.ENHANCED_SCENES[this.currentScene].walkablePath) {
-                return window.ENHANCED_SCENES[this.currentScene].walkablePath;
+                const path = window.ENHANCED_SCENES[this.currentScene].walkablePath;
+                if (this.debugMode) {
+                    console.log(`Using ENHANCED_SCENES walkablePath for ${this.currentScene}:`, path);
+                }
+                return path;
             }
         }
 

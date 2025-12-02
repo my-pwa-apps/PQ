@@ -1,6 +1,14 @@
 /**
  * Enhanced Scene Definitions for Police Quest
  * Multiple detailed scenes with proper collision, hotspots, and Sierra-style content
+ * 
+ * IMPORTANT: In Sierra games, the screen is divided:
+ * - Y=0 to ~250: Sky/Background (NOT walkable)
+ * - Y=250: Horizon line (where floor meets wall)
+ * - Y=250 to 600: Floor area (walkable)
+ * 
+ * Walkable polygons define WHERE you CAN walk (floor only).
+ * Collision objects define obstacles WITHIN the walkable area.
  */
 
 const ENHANCED_SCENES = {
@@ -12,24 +20,21 @@ const ENHANCED_SCENES = {
         type: "interior",
         music: "station_theme",
         
-        // Define the exact walkable polygon (Sierra SCI style)
-        // Points are defined clockwise or counter-clockwise
+        // Sierra-style walkable floor polygon
+        // Floor starts at Y=300 (below the reception desk/wall area)
+        // The polygon defines the ALLOWED walking area
         walkablePath: [
-            { x: 100, y: 600 }, // Bottom Left
-            { x: 100, y: 250 }, // Top Left (Wall start)
-            { x: 300, y: 250 }, // Desk Left
-            { x: 300, y: 320 }, // Desk Front Left
-            { x: 500, y: 320 }, // Desk Front Right
-            { x: 500, y: 250 }, // Desk Right
-            { x: 700, y: 250 }, // Top Right
-            { x: 700, y: 600 }  // Bottom Right
+            { x: 100, y: 300 },  // Top-left corner of floor
+            { x: 700, y: 300 },  // Top-right corner of floor  
+            { x: 700, y: 580 },  // Bottom-right
+            { x: 100, y: 580 }   // Bottom-left
         ],
 
-        // Collision objects (blocking movement within walkable area)
+        // Collision objects WITHIN the walkable area
         collisionObjects: [
-            // Plants (Circular collision)
-            { type: 'circle', x: 50, y: 350, radius: 20, label: "plant_1" },
-            { type: 'circle', x: 750, y: 350, radius: 20, label: "plant_2" }
+            // Plants block movement
+            { type: 'circle', x: 120, y: 340, radius: 25, label: "plant_1" },
+            { type: 'circle', x: 680, y: 340, radius: 25, label: "plant_2" }
         ],
         
         hotspots: [
@@ -58,8 +63,8 @@ const ENHANCED_SCENES = {
                     use: "ENTER_BRIEFING_ROOM"
                 },
                 targetScene: 'policeStation_briefing',
-                targetX: 700,
-                targetY: 400
+                targetX: 400,
+                targetY: 450
             },
             {
                 id: 'evidence_room_door',
@@ -74,7 +79,7 @@ const ENHANCED_SCENES = {
                 },
                 targetScene: 'policeStation_evidence',
                 targetX: 400,
-                targetY: 400
+                targetY: 350
             },
             {
                 id: 'bulletin_board',
@@ -89,9 +94,10 @@ const ENHANCED_SCENES = {
             }
         ],
         
+        // NPCs must be placed ON the floor (Y >= 300)
         npcs: [
-            { id: 'jenny', name: 'officer_jenny', x: 400, y: 240, facing: 'down', sprite: 'jenny' },
-            { id: 'cop_bg', name: 'officer_male', x: 150, y: 280, facing: 'right', sprite: 'officer_male', isWalking: false }
+            { id: 'jenny', name: 'officer_jenny', x: 400, y: 310, facing: 'down', sprite: 'jenny' },
+            { id: 'cop_bg', name: 'officer_male', x: 200, y: 400, facing: 'right', sprite: 'officer_male', isWalking: false }
         ]
     },
 
@@ -100,20 +106,19 @@ const ENHANCED_SCENES = {
         name: "Briefing Room",
         type: "interior",
         
+        // Floor area only (below the podium/blackboard)
         walkablePath: [
-            { x: 50, y: 600 },
-            { x: 50, y: 250 },
-            { x: 750, y: 250 },
-            { x: 750, y: 600 }
+            { x: 50, y: 320 },   // Top-left of floor
+            { x: 750, y: 320 },  // Top-right of floor
+            { x: 750, y: 580 },  // Bottom-right
+            { x: 50, y: 580 }    // Bottom-left
         ],
 
         collisionObjects: [
-            // Podium
-            { type: 'rect', x: 350, y: 200, width: 100, height: 80, label: "podium" },
-            // Chairs (Rows) - Make them solid obstacles
-            { type: 'rect', x: 150, y: 350, width: 500, height: 30, label: "row_1" },
-            { type: 'rect', x: 150, y: 410, width: 500, height: 30, label: "row_2" },
-            { type: 'rect', x: 150, y: 470, width: 500, height: 30, label: "row_3" }
+            // Chairs are obstacles - player walks BETWEEN rows
+            { type: 'rect', x: 150, y: 350, width: 500, height: 25, label: "row_1" },
+            { type: 'rect', x: 150, y: 420, width: 500, height: 25, label: "row_2" },
+            { type: 'rect', x: 150, y: 490, width: 500, height: 25, label: "row_3" }
         ],
         
         hotspots: [
@@ -130,7 +135,7 @@ const ENHANCED_SCENES = {
             {
                 id: 'exit_door',
                 x: 750,
-                y: 300,
+                y: 350,
                 width: 50,
                 height: 100,
                 interactions: {
@@ -142,11 +147,12 @@ const ENHANCED_SCENES = {
             }
         ],
         
+        // NPCs sit in the chairs (their Y should match chair rows)
         npcs: [
-            { id: 'sergeant', name: 'sergeant_dooley', x: 400, y: 220, facing: 'down', sprite: 'sergeant' },
-            { id: 'cop1', name: 'officer_male', x: 200, y: 380, facing: 'up', sprite: 'officer_male' },
-            { id: 'cop2', name: 'officer_female', x: 300, y: 380, facing: 'up', sprite: 'officer_female' },
-            { id: 'cop3', name: 'officer_male', x: 500, y: 380, facing: 'up', sprite: 'officer_male' }
+            { id: 'sergeant', name: 'sergeant_dooley', x: 400, y: 320, facing: 'down', sprite: 'sergeant' },
+            { id: 'cop1', name: 'officer_male', x: 200, y: 365, facing: 'up', sprite: 'officer_male' },
+            { id: 'cop2', name: 'officer_female', x: 350, y: 365, facing: 'up', sprite: 'officer_female' },
+            { id: 'cop3', name: 'officer_male', x: 500, y: 365, facing: 'up', sprite: 'officer_male' }
         ]
     },
 
@@ -155,17 +161,15 @@ const ENHANCED_SCENES = {
         name: "Evidence Room",
         type: "interior",
         
+        // Player can only walk in front of the counter
         walkablePath: [
-            { x: 50, y: 600 },
-            { x: 50, y: 250 },
-            { x: 750, y: 250 },
-            { x: 750, y: 600 }
+            { x: 50, y: 300 },
+            { x: 750, y: 300 },
+            { x: 750, y: 380 },  // Counter blocks further movement
+            { x: 50, y: 380 }
         ],
 
-        collisionObjects: [
-            // Counter
-            { type: 'rect', x: 0, y: 400, width: 800, height: 200, label: "counter" }
-        ],
+        collisionObjects: [],
         
         hotspots: [
             {
@@ -183,7 +187,7 @@ const ENHANCED_SCENES = {
                 x: 50,
                 y: 300,
                 width: 50,
-                height: 100,
+                height: 80,
                 interactions: {
                     use: "EXIT_EVIDENCE"
                 },
@@ -200,16 +204,22 @@ const ENHANCED_SCENES = {
         name: "Lytton Downtown",
         type: "exterior",
         
+        // Sidewalk is the walkable area (below the buildings)
+        // Buildings end at Y=200, sidewalk is Y=250-600
         walkablePath: [
-            { x: 0, y: 600 },
-            { x: 0, y: 200 }, // Sidewalk level
-            { x: 800, y: 200 },
-            { x: 800, y: 600 }
+            { x: 20, y: 250 },   // Top-left (start of sidewalk)
+            { x: 780, y: 250 },  // Top-right
+            { x: 780, y: 580 },  // Bottom-right
+            { x: 20, y: 580 }    // Bottom-left
         ],
 
         collisionObjects: [
-            // Buildings (Visuals are at Y < 200, but let's block the top edge just in case)
-            { type: 'rect', x: 0, y: 0, width: 800, height: 200, label: "buildings" }
+            // Lamp posts
+            { type: 'circle', x: 100, y: 270, radius: 10, label: "lamp_1" },
+            { type: 'circle', x: 400, y: 270, radius: 10, label: "lamp_2" },
+            { type: 'circle', x: 700, y: 270, radius: 10, label: "lamp_3" },
+            // Fire hydrant
+            { type: 'circle', x: 150, y: 280, radius: 12, label: "hydrant" }
         ],
         
         hotspots: [
@@ -228,9 +238,10 @@ const ENHANCED_SCENES = {
             }
         ],
         
+        // Civilians walk on the sidewalk
         npcs: [
-            { id: 'civilian1', name: 'civilian_male', x: 600, y: 230, facing: 'left', sprite: 'civilian_male', isWalking: true, patrol: true },
-            { id: 'civilian3', name: 'civilian_female', x: 100, y: 240, facing: 'right', sprite: 'civilian_female', isWalking: true, patrol: true }
+            { id: 'civilian1', name: 'civilian_male', x: 600, y: 300, facing: 'left', sprite: 'civilian_male', isWalking: true, patrol: true },
+            { id: 'civilian3', name: 'civilian_female', x: 200, y: 350, facing: 'right', sprite: 'civilian_female', isWalking: true, patrol: true }
         ]
     },
 
@@ -239,29 +250,30 @@ const ENHANCED_SCENES = {
         name: "City Park",
         type: "exterior",
         
+        // Park grass area (more open than indoor scenes)
         walkablePath: [
-            { x: 0, y: 600 },
-            { x: 0, y: 200 },
-            { x: 800, y: 200 },
-            { x: 800, y: 600 }
+            { x: 20, y: 220 },   // Top-left (just below tree line)
+            { x: 780, y: 220 },  // Top-right
+            { x: 780, y: 580 },  // Bottom-right
+            { x: 20, y: 580 }    // Bottom-left
         ],
 
         collisionObjects: [
-            // Trees
-            { type: 'circle', x: 100, y: 200, radius: 20, label: "tree_1" },
-            { type: 'circle', x: 600, y: 220, radius: 20, label: "tree_2" },
-            { type: 'circle', x: 300, y: 180, radius: 20, label: "tree_3" },
+            // Tree trunks block movement
+            { type: 'circle', x: 100, y: 240, radius: 15, label: "tree_1" },
+            { type: 'circle', x: 600, y: 260, radius: 15, label: "tree_2" },
+            { type: 'circle', x: 300, y: 230, radius: 15, label: "tree_3" },
             // Bench
-            { type: 'rect', x: 500, y: 370, width: 100, height: 60, label: "bench" }
+            { type: 'rect', x: 500, y: 400, width: 100, height: 30, label: "bench" }
         ],
         
         hotspots: [
             {
                 id: 'bench',
                 x: 500,
-                y: 370,
+                y: 400,
                 width: 100,
-                height: 60,
+                height: 30,
                 interactions: {
                     look: "A park bench. Good for feeding pigeons.",
                     use: "SIT_BENCH"
@@ -270,8 +282,8 @@ const ENHANCED_SCENES = {
         ],
         
         npcs: [
-            { id: 'civilian2', name: 'civilian_female', x: 400, y: 300, facing: 'right', sprite: 'civilian_female', isWalking: true, patrol: true },
-            { id: 'civilian4', name: 'civilian_male', x: 700, y: 400, facing: 'left', sprite: 'civilian_male', isWalking: true, patrol: true }
+            { id: 'civilian2', name: 'civilian_female', x: 400, y: 350, facing: 'right', sprite: 'civilian_female', isWalking: true, patrol: true },
+            { id: 'civilian4', name: 'civilian_male', x: 650, y: 450, facing: 'left', sprite: 'civilian_male', isWalking: true, patrol: true }
         ]
     }
 };
