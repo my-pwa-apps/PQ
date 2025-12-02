@@ -420,6 +420,18 @@ class GameEngine {
         // Draw the scene background
         this.sierraGraphics.drawScene(this.currentScene);
         
+        // Draw Hotspots/Items
+        let hotspots = [];
+        if (window.ENHANCED_SCENES && window.ENHANCED_SCENES[this.currentScene]) {
+            hotspots = window.ENHANCED_SCENES[this.currentScene].hotspots || [];
+        } else if (window.GAME_DATA && window.GAME_DATA.scenes && window.GAME_DATA.scenes[this.currentScene]) {
+            hotspots = window.GAME_DATA.scenes[this.currentScene].hotspots || [];
+        }
+        
+        for (const hotspot of hotspots) {
+            this.sierraGraphics.drawHotspot(hotspot);
+        }
+        
         // Draw NPCs
         // Handle both flat map and scene-based map
         let npcsToDraw = [];
@@ -430,29 +442,23 @@ class GameEngine {
         }
         
         npcsToDraw.forEach(npc => {
-            // Use the Sierra Graphics character renderer
-            this.sierraGraphics.drawSierraCharacter(
+            // Use the Sierra Graphics character renderer with sprite name support
+            this.sierraGraphics.drawCharacter(
                 npc.x || npc.position?.x || 0, 
                 npc.y || npc.position?.y || 0, 
-                npc.uniformColor, 
-                npc.badgeColor, 
+                npc.sprite || npc.name || 'officer_male', // Pass sprite name
                 npc.facing, 
-                npc.isWalking, 
-                true, 
-                npc.isFemale
+                npc.isWalking ? 'walking' : 'standing'
             );
         });
         
         // Draw Player
-        this.sierraGraphics.drawSierraCharacter(
+        this.sierraGraphics.drawCharacter(
             this.playerPosition.x, 
             this.playerPosition.y, 
-            '#0000AA', // Police Blue
-            '#FFFF55', // Gold Badge
+            'sonny', // Player sprite
             this.playerFacing, 
-            this.isWalking,
-            false,
-            false // Player is Sonny Bonds (Male)
+            this.isWalking ? 'walking' : 'standing'
         );
     }
 

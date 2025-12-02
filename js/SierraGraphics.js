@@ -51,6 +51,20 @@ class SierraGraphics {
             dense: [[1, 1, 0], [1, 0, 1], [0, 1, 1]],
             diagonal: [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
         };
+        
+        // Character definitions for sprite mapping
+        this.characterStyles = {
+            'sonny': { uniform: this.sierraPalette.policeBlue, badge: this.sierraPalette.badgeGold, female: false },
+            'jenny': { uniform: this.sierraPalette.policeBlue, badge: this.sierraPalette.badgeGold, female: true },
+            'officer_male': { uniform: this.sierraPalette.policeBlue, badge: this.sierraPalette.badgeGold, female: false },
+            'officer_female': { uniform: this.sierraPalette.policeBlue, badge: this.sierraPalette.badgeGold, female: true },
+            'sergeant': { uniform: this.sierraPalette.white, badge: this.sierraPalette.badgeGold, female: false }, // White shirt for sergeant
+            'captain': { uniform: this.sierraPalette.white, badge: this.sierraPalette.badgeGold, female: false },
+            'civilian_male': { uniform: this.sierraPalette.brown, badge: null, female: false },
+            'civilian_female': { uniform: this.sierraPalette.magenta, badge: null, female: true },
+            'criminal': { uniform: this.sierraPalette.darkGray, badge: null, female: false },
+            'prisoner': { uniform: this.sierraPalette.brown, badge: null, female: false } // Orange/Brown jumpsuit
+        };
     }
 
     clearScreen() {
@@ -657,14 +671,17 @@ class SierraGraphics {
     
     // Character drawing (keep existing functionality)
     drawCharacter(x, y, characterName = 'officer', facing = 'down', action = 'standing') {
+        // Map character name to style
+        const style = this.characterStyles[characterName] || this.characterStyles['officer_male'];
+        
         this.drawSierraCharacter(
             x, y,
-            this.sierraPalette.policeBlue,
-            this.sierraPalette.badgeGold,
+            style.uniform,
+            style.badge,
             facing,
             action === 'walking',
             characterName !== 'sonny',
-            false
+            style.female
         );
     }
     
@@ -764,6 +781,15 @@ class SierraGraphics {
             case 'sheriffOffice':
                 this.drawSheriffsOffice();
                 break;
+            case 'downtown_alley':
+                this.drawDowntownAlley();
+                break;
+            case 'policeStation_evidence':
+                this.drawEvidenceRoom();
+                break;
+            case 'techworld_interior':
+                this.drawTechWorldInterior();
+                break;
             default:
                 this.clearScreen();
                 this.drawSierraText(`Scene: ${sceneName}`, 300, 250, this.sierraPalette.white);
@@ -771,6 +797,174 @@ class SierraGraphics {
         }
     }
     
+    // === DOWNTOWN ALLEY - Gritty urban environment ===
+    drawDowntownAlley() {
+        const ctx = this.ctx;
+        this.clearScreen();
+        
+        // Sky (Night)
+        ctx.fillStyle = this.sierraPalette.black;
+        ctx.fillRect(0, 0, 800, 200);
+        
+        // Moon
+        ctx.fillStyle = this.sierraPalette.lightGray;
+        ctx.beginPath();
+        ctx.arc(700, 50, 30, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Brick Walls (Left and Right)
+        ctx.fillStyle = this.sierraPalette.brown;
+        ctx.fillRect(0, 0, 200, 600); // Left building
+        ctx.fillRect(600, 0, 200, 600); // Right building
+        
+        // Brick texture
+        this.applyDithering(0, 0, 200, 600, 'medium', this.sierraPalette.brown, this.sierraPalette.darkRed);
+        this.applyDithering(600, 0, 200, 600, 'medium', this.sierraPalette.brown, this.sierraPalette.darkRed);
+        
+        // Ground (Dirty concrete)
+        ctx.fillStyle = this.sierraPalette.darkGray;
+        ctx.fillRect(200, 200, 400, 400);
+        this.applyDithering(200, 200, 400, 400, 'light', this.sierraPalette.darkGray, this.sierraPalette.black);
+        
+        // Dumpsters
+        this.drawDumpster(220, 300);
+        this.drawDumpster(500, 350);
+        
+        // Trash/Debris
+        ctx.fillStyle = this.sierraPalette.lightGray;
+        for(let i=0; i<10; i++) {
+            const tx = 250 + Math.random() * 300;
+            const ty = 300 + Math.random() * 200;
+            ctx.fillRect(tx, ty, 4, 4);
+        }
+        
+        // Shadows
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.beginPath();
+        ctx.moveTo(200, 200);
+        ctx.lineTo(400, 600);
+        ctx.lineTo(200, 600);
+        ctx.fill();
+    }
+    
+    drawDumpster(x, y) {
+        const ctx = this.ctx;
+        // Body
+        ctx.fillStyle = this.sierraPalette.darkGreen;
+        ctx.fillRect(x, y, 80, 60);
+        // Lid
+        ctx.fillStyle = this.sierraPalette.black;
+        ctx.fillRect(x-5, y-5, 90, 10);
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(x+5, y+60, 80, 10);
+    }
+
+    // === EVIDENCE ROOM - Secure storage ===
+    drawEvidenceRoom() {
+        const ctx = this.ctx;
+        this.clearScreen();
+        
+        // Walls (Clinical white/gray)
+        ctx.fillStyle = this.sierraPalette.lightGray;
+        ctx.fillRect(0, 0, 800, 400);
+        
+        // Floor (Linoleum)
+        ctx.fillStyle = this.sierraPalette.white;
+        ctx.fillRect(0, 400, 800, 200);
+        
+        // Lockers (Rows of metal cages)
+        for(let i=0; i<4; i++) {
+            this.drawLocker(100 + i*150, 100);
+        }
+        
+        // Work table
+        ctx.fillStyle = this.sierraPalette.brown;
+        ctx.fillRect(300, 450, 200, 100);
+        ctx.fillStyle = this.sierraPalette.buildingTan;
+        ctx.fillRect(310, 460, 180, 80); // Table top
+        
+        // Lamp on table
+        ctx.fillStyle = this.sierraPalette.black;
+        ctx.fillRect(320, 440, 10, 40);
+        ctx.fillStyle = this.sierraPalette.yellow;
+        ctx.beginPath();
+        ctx.arc(325, 440, 15, Math.PI, 0);
+        ctx.fill();
+    }
+    
+    drawLocker(x, y) {
+        const ctx = this.ctx;
+        ctx.fillStyle = this.sierraPalette.darkGray;
+        ctx.fillRect(x, y, 100, 250);
+        // Mesh texture
+        ctx.strokeStyle = this.sierraPalette.black;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, 100, 250);
+        
+        ctx.beginPath();
+        for(let i=0; i<100; i+=10) {
+            ctx.moveTo(x+i, y);
+            ctx.lineTo(x+i, y+250);
+        }
+        ctx.stroke();
+    }
+
+    // === TECHWORLD INTERIOR - Burglarized store ===
+    drawTechWorldInterior() {
+        const ctx = this.ctx;
+        this.clearScreen();
+        
+        // Walls
+        ctx.fillStyle = this.sierraPalette.lightGray;
+        ctx.fillRect(0, 0, 800, 350);
+        
+        // Floor (Carpet)
+        ctx.fillStyle = this.sierraPalette.blue;
+        ctx.fillRect(0, 350, 800, 250);
+        this.applyDithering(0, 350, 800, 250, 'dense', this.sierraPalette.blue, this.sierraPalette.darkBlue);
+        
+        // Empty Shelves
+        this.drawShelf(100, 200, true); // Empty
+        this.drawShelf(300, 200, true); // Empty
+        this.drawShelf(500, 200, false); // Some items left
+        
+        // Broken Glass on floor
+        ctx.fillStyle = this.sierraPalette.cyan;
+        for(let i=0; i<20; i++) {
+            const gx = 300 + Math.random() * 200;
+            const gy = 400 + Math.random() * 100;
+            ctx.beginPath();
+            ctx.moveTo(gx, gy);
+            ctx.lineTo(gx+5, gy+5);
+            ctx.lineTo(gx-2, gy+8);
+            ctx.fill();
+        }
+        
+        // Counter
+        ctx.fillStyle = this.sierraPalette.white;
+        ctx.fillRect(600, 300, 200, 100);
+    }
+    
+    drawShelf(x, y, isEmpty) {
+        const ctx = this.ctx;
+        ctx.fillStyle = this.sierraPalette.darkGray;
+        ctx.fillRect(x, y, 150, 150);
+        
+        // Shelves
+        ctx.fillStyle = this.sierraPalette.black;
+        ctx.fillRect(x+10, y+40, 130, 5);
+        ctx.fillRect(x+10, y+90, 130, 5);
+        
+        if (!isEmpty) {
+            // Draw some boxes
+            ctx.fillStyle = this.sierraPalette.red;
+            ctx.fillRect(x+20, y+20, 20, 20);
+            ctx.fillStyle = this.sierraPalette.green;
+            ctx.fillRect(x+60, y+70, 30, 20);
+        }
+    }
+
     // === DOWNTOWN SCENE - Detailed Sierra-style city street ===
     drawDowntown() {
         const ctx = this.ctx;
@@ -1508,6 +1702,28 @@ class SierraGraphics {
     
     drawSierraTree(x, y) {}
     drawPoliceCar(x, y) {}
+    
+    // Draw visual indicators for hotspots/items
+    drawHotspot(hotspot) {
+        if (!hotspot) return;
+        
+        // Only draw if it has a visual representation or is an item
+        // For now, we'll draw a subtle sparkle for evidence/items
+        if (hotspot.evidence || hotspot.collectible || hotspot.item) {
+            const ctx = this.ctx;
+            const x = hotspot.x;
+            const y = hotspot.y;
+            
+            // Draw item sparkle
+            if (Math.floor(Date.now() / 500) % 2 === 0) {
+                ctx.fillStyle = this.sierraPalette.white;
+                ctx.fillRect(x, y, 2, 2);
+                ctx.fillRect(x-2, y+2, 2, 2);
+                ctx.fillRect(x+2, y+2, 2, 2);
+                ctx.fillRect(x, y+4, 2, 2);
+            }
+        }
+    }
 }
 
 // Export
