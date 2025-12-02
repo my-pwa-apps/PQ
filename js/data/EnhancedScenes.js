@@ -12,16 +12,22 @@ const ENHANCED_SCENES = {
         type: "interior",
         music: "station_theme",
         
-        // Collision objects (blocking movement)
+        // Define the exact walkable polygon (Sierra SCI style)
+        // Points are defined clockwise or counter-clockwise
+        walkablePath: [
+            { x: 100, y: 600 }, // Bottom Left
+            { x: 100, y: 250 }, // Top Left (Wall start)
+            { x: 300, y: 250 }, // Desk Left
+            { x: 300, y: 320 }, // Desk Front Left
+            { x: 500, y: 320 }, // Desk Front Right
+            { x: 500, y: 250 }, // Desk Right
+            { x: 700, y: 250 }, // Top Right
+            { x: 700, y: 600 }  // Bottom Right
+        ],
+
+        // Collision objects (blocking movement within walkable area)
         collisionObjects: [
-            // Reception desk
-            { type: 'rect', x: 300, y: 220, width: 200, height: 80, label: "reception_desk" },
-            // Walls/Boundaries
-            { type: 'rect', x: 0, y: 0, width: 800, height: 250, label: "north_wall" }, // Horizon/Back wall
-            { type: 'rect', x: 0, y: 0, width: 100, height: 600, label: "west_wall" },
-            { type: 'rect', x: 700, y: 0, width: 100, height: 600, label: "east_wall" },
-            { type: 'rect', x: 0, y: 580, width: 800, height: 20, label: "south_wall" },
-            // Plants
+            // Plants (Circular collision)
             { type: 'circle', x: 50, y: 350, radius: 20, label: "plant_1" },
             { type: 'circle', x: 750, y: 350, radius: 20, label: "plant_2" }
         ],
@@ -84,7 +90,8 @@ const ENHANCED_SCENES = {
         ],
         
         npcs: [
-            { id: 'jenny', name: 'officer_jenny', x: 400, y: 240, facing: 'down', sprite: 'jenny' }
+            { id: 'jenny', name: 'officer_jenny', x: 400, y: 240, facing: 'down', sprite: 'jenny' },
+            { id: 'cop_bg', name: 'officer_male', x: 150, y: 280, facing: 'right', sprite: 'officer_male', isWalking: false }
         ]
     },
 
@@ -93,17 +100,20 @@ const ENHANCED_SCENES = {
         name: "Briefing Room",
         type: "interior",
         
+        walkablePath: [
+            { x: 50, y: 600 },
+            { x: 50, y: 250 },
+            { x: 750, y: 250 },
+            { x: 750, y: 600 }
+        ],
+
         collisionObjects: [
-            { type: 'rect', x: 0, y: 0, width: 800, height: 250, label: "north_wall" },
-            { type: 'rect', x: 0, y: 0, width: 50, height: 600, label: "west_wall" },
-            { type: 'rect', x: 750, y: 0, width: 50, height: 600, label: "east_wall" },
-            { type: 'rect', x: 0, y: 580, width: 800, height: 20, label: "south_wall" },
             // Podium
             { type: 'rect', x: 350, y: 200, width: 100, height: 80, label: "podium" },
-            // Chairs (simplified collision for rows)
-            { type: 'rect', x: 150, y: 350, width: 500, height: 40, label: "row_1" },
-            { type: 'rect', x: 150, y: 410, width: 500, height: 40, label: "row_2" },
-            { type: 'rect', x: 150, y: 470, width: 500, height: 40, label: "row_3" }
+            // Chairs (Rows) - Make them solid obstacles
+            { type: 'rect', x: 150, y: 350, width: 500, height: 30, label: "row_1" },
+            { type: 'rect', x: 150, y: 410, width: 500, height: 30, label: "row_2" },
+            { type: 'rect', x: 150, y: 470, width: 500, height: 30, label: "row_3" }
         ],
         
         hotspots: [
@@ -135,7 +145,8 @@ const ENHANCED_SCENES = {
         npcs: [
             { id: 'sergeant', name: 'sergeant_dooley', x: 400, y: 220, facing: 'down', sprite: 'sergeant' },
             { id: 'cop1', name: 'officer_male', x: 200, y: 380, facing: 'up', sprite: 'officer_male' },
-            { id: 'cop2', name: 'officer_female', x: 300, y: 380, facing: 'up', sprite: 'officer_female' }
+            { id: 'cop2', name: 'officer_female', x: 300, y: 380, facing: 'up', sprite: 'officer_female' },
+            { id: 'cop3', name: 'officer_male', x: 500, y: 380, facing: 'up', sprite: 'officer_male' }
         ]
     },
 
@@ -144,11 +155,14 @@ const ENHANCED_SCENES = {
         name: "Evidence Room",
         type: "interior",
         
+        walkablePath: [
+            { x: 50, y: 600 },
+            { x: 50, y: 250 },
+            { x: 750, y: 250 },
+            { x: 750, y: 600 }
+        ],
+
         collisionObjects: [
-            { type: 'rect', x: 0, y: 0, width: 800, height: 250, label: "north_wall" },
-            { type: 'rect', x: 0, y: 0, width: 50, height: 600, label: "west_wall" },
-            { type: 'rect', x: 750, y: 0, width: 50, height: 600, label: "east_wall" },
-            { type: 'rect', x: 0, y: 580, width: 800, height: 20, label: "south_wall" },
             // Counter
             { type: 'rect', x: 0, y: 400, width: 800, height: 200, label: "counter" }
         ],
@@ -177,7 +191,8 @@ const ENHANCED_SCENES = {
                 targetX: 600,
                 targetY: 400
             }
-        ]
+        ],
+        npcs: []
     },
 
     downtown_street: {
@@ -185,12 +200,16 @@ const ENHANCED_SCENES = {
         name: "Lytton Downtown",
         type: "exterior",
         
+        walkablePath: [
+            { x: 0, y: 600 },
+            { x: 0, y: 200 }, // Sidewalk level
+            { x: 800, y: 200 },
+            { x: 800, y: 600 }
+        ],
+
         collisionObjects: [
-            { type: 'rect', x: 0, y: 0, width: 800, height: 250, label: "horizon" },
-            // Buildings
-            { type: 'rect', x: 50, y: 50, width: 150, height: 150, label: "building_1" },
-            { type: 'rect', x: 250, y: 20, width: 200, height: 180, label: "building_2" },
-            { type: 'rect', x: 500, y: 60, width: 180, height: 140, label: "building_3" }
+            // Buildings (Visuals are at Y < 200, but let's block the top edge just in case)
+            { type: 'rect', x: 0, y: 0, width: 800, height: 200, label: "buildings" }
         ],
         
         hotspots: [
@@ -210,7 +229,8 @@ const ENHANCED_SCENES = {
         ],
         
         npcs: [
-            { id: 'civilian1', name: 'civilian_male', x: 600, y: 230, facing: 'left', sprite: 'civilian_male', isWalking: true }
+            { id: 'civilian1', name: 'civilian_male', x: 600, y: 230, facing: 'left', sprite: 'civilian_male', isWalking: true, patrol: true },
+            { id: 'civilian3', name: 'civilian_female', x: 100, y: 240, facing: 'right', sprite: 'civilian_female', isWalking: true, patrol: true }
         ]
     },
 
@@ -219,8 +239,14 @@ const ENHANCED_SCENES = {
         name: "City Park",
         type: "exterior",
         
+        walkablePath: [
+            { x: 0, y: 600 },
+            { x: 0, y: 200 },
+            { x: 800, y: 200 },
+            { x: 800, y: 600 }
+        ],
+
         collisionObjects: [
-            { type: 'rect', x: 0, y: 0, width: 800, height: 200, label: "horizon" },
             // Trees
             { type: 'circle', x: 100, y: 200, radius: 20, label: "tree_1" },
             { type: 'circle', x: 600, y: 220, radius: 20, label: "tree_2" },
@@ -244,7 +270,8 @@ const ENHANCED_SCENES = {
         ],
         
         npcs: [
-            { id: 'civilian2', name: 'civilian_female', x: 400, y: 300, facing: 'right', sprite: 'civilian_female', isWalking: true }
+            { id: 'civilian2', name: 'civilian_female', x: 400, y: 300, facing: 'right', sprite: 'civilian_female', isWalking: true, patrol: true },
+            { id: 'civilian4', name: 'civilian_male', x: 700, y: 400, facing: 'left', sprite: 'civilian_male', isWalking: true, patrol: true }
         ]
     }
 };

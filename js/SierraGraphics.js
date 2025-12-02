@@ -100,64 +100,111 @@ class SierraGraphics {
         }
     }
 
+    drawDitheredRect(x, y, w, h, color1, color2, pattern = 'light') {
+        // Draw base color
+        this.drawRect(x, y, w, h, color1);
+        
+        // Draw dither pattern
+        const p = this.ditherPatterns[pattern] || this.ditherPatterns.light;
+        const pHeight = p.length;
+        const pWidth = p[0].length;
+        
+        this.ctx.fillStyle = color2;
+        
+        // Optimization: Create a small canvas pattern instead of drawing thousands of rects
+        // But for authentic pixel feel, we can just loop (canvas is fast enough for this resolution)
+        for (let py = 0; py < h; py += 2) {
+            for (let px = 0; px < w; px += 2) {
+                const patY = (Math.floor(y) + py) % pHeight;
+                const patX = (Math.floor(x) + px) % pWidth;
+                
+                if (p[patY][patX] === 1) {
+                    this.ctx.fillRect(Math.floor(x) + px, Math.floor(y) + py, 2, 2);
+                }
+            }
+        }
+    }
+
     // --- Scene Rendering ---
 
-    drawScene(sceneId) {
+    drawSceneBackground(sceneId) {
         this.clearScreen();
         
-        // Draw horizon line for debug/reference (optional)
-        // this.drawLine(0, 250, 800, 250, this.sierraPalette.darkGray);
-
         switch (sceneId) {
             case 'policeStation_lobby':
             case 'policeStation':
-                this.drawPoliceStationLobby();
+                this.drawPoliceStationLobbyBackground();
                 break;
             case 'policeStation_briefing':
             case 'briefingRoom':
-                this.drawBriefingRoom();
+                this.drawBriefingRoomBackground();
                 break;
             case 'policeStation_evidence':
-                this.drawEvidenceRoom();
+                this.drawEvidenceRoomBackground();
                 break;
             case 'downtown_street':
             case 'downtown':
             case 'downtown_main':
-                this.drawDowntownStreet();
+                this.drawDowntownStreetBackground();
                 break;
             case 'park':
             case 'city_park':
-                this.drawPark();
+                this.drawParkBackground();
                 break;
             default:
-                console.warn(`Unknown scene ID: ${sceneId}, drawing default grid`);
                 this.drawDefaultScene();
         }
     }
 
-    drawDefaultScene() {
-        this.drawRect(0, 0, 800, 600, this.sierraPalette.darkBlue);
-        this.drawRect(0, 300, 800, 300, this.sierraPalette.darkGray);
-        for(let i=0; i<800; i+=50) {
-            this.drawLine(i, 300, i-200, 600, this.sierraPalette.lightGray);
+    getSceneProps(sceneId) {
+        switch (sceneId) {
+            case 'policeStation_lobby':
+            case 'policeStation':
+                return [
+                    { y: 300, draw: () => this.drawReceptionDesk() },
+                    { y: 350, draw: () => this.drawPlant(50, 350) },
+                    { y: 350, draw: () => this.drawPlant(750, 350) }
+                ];
+            case 'policeStation_briefing':
+            case 'briefingRoom':
+                let props = [{ y: 280, draw: () => this.drawPodium() }];
+                // Add chairs
+                for(let y=350; y<550; y+=60) {
+                    for(let x=150; x<650; x+=80) {
+                        // Capture x and y for the closure
+                        let cx = x, cy = y; 
+                        props.push({ y: cy, draw: () => this.drawChairBack(cx, cy) });
+                    }
+                }
+                return props;
+            case 'park':
+            case 'city_park':
+                return [
+                    { y: 200, draw: () => this.drawTree(100, 200) },
+                    { y: 220, draw: () => this.drawTree(600, 220) },
+                    { y: 180, draw: () => this.drawTree(300, 180) },
+                    { y: 400, draw: () => this.drawParkBench() }
+                ];
+            default:
+                return [];
         }
     }
 
-    // --- Specific Scenes ---
+    // --- Specific Scenes (Backgrounds) ---
 
-    drawPoliceStationLobby() {
+    drawPoliceStationLobbyBackground() {
         // Walls
         this.drawRect(0, 0, 800, 250, this.sierraPalette.cyan); // Back wall
-        this.drawRect(0, 0, 100, 600, this.sierraPalette.darkCyan); // Left wall
-        this.drawRect(700, 0, 100, 600, this.sierraPalette.darkCyan); // Right wall
+        this.drawDitheredRect(0, 0, 100, 600, this.sierraPalette.darkCyan, this.sierraPalette.cyan, 'light'); // Left wall
+        this.drawDitheredRect(700, 0, 100, 600, this.sierraPalette.darkCyan, this.sierraPalette.cyan, 'light'); // Right wall
         
         // Floor
-        this.drawRect(0, 250, 800, 350, this.sierraPalette.lightGray);
+        this.drawDitheredRect(0, 250, 800, 350, this.sierraPalette.lightGray, this.sierraPalette.white, 'light');
         
         // Baseboards
         this.drawLine(100, 250, 700, 250, this.sierraPalette.black, 2);
         
-        // Doors
+        // Doors (Background because they are on the wall)
         // Briefing Room (Left)
         this.drawRect(120, 150, 80, 100, this.sierraPalette.brown);
         this.drawRect(125, 155, 70, 95, this.sierraPalette.darkRed); // Inset
@@ -170,15 +217,7 @@ class SierraGraphics {
         this.drawCircle(610, 200, 3, this.sierraPalette.yellow);
         this.drawText("EVIDENCE", 610, 140, this.sierraPalette.black, 10);
 
-        // Reception Desk
-        this.drawRect(300, 220, 200, 80, this.sierraPalette.brown);
-        this.drawRect(310, 230, 180, 60, this.sierraPalette.darkRed); // Detail
-        
-        // Plants
-        this.drawPlant(50, 350);
-        this.drawPlant(750, 350);
-        
-        // Bulletin Board
+        // Bulletin Board (Background)
         this.drawRect(450, 100, 100, 60, this.sierraPalette.brown);
         this.drawRect(455, 105, 90, 50, this.sierraPalette.white); // Papers
         
@@ -186,28 +225,56 @@ class SierraGraphics {
         this.drawText("LYTTON POLICE DEPARTMENT", 280, 50, this.sierraPalette.darkBlue, 16);
     }
 
-    drawBriefingRoom() {
+    drawBriefingRoomBackground() {
         // Walls
         this.drawRect(0, 0, 800, 250, this.sierraPalette.blue);
         
         // Floor
-        this.drawRect(0, 250, 800, 350, this.sierraPalette.darkGray);
+        this.drawDitheredRect(0, 250, 800, 350, this.sierraPalette.darkGray, this.sierraPalette.lightGray, 'medium');
         
-        // Podium
-        this.drawRect(350, 200, 100, 80, this.sierraPalette.brown);
-        
-        // Chairs (Rows)
-        for(let y=350; y<550; y+=60) {
-            for(let x=150; x<650; x+=80) {
-                this.drawChairBack(x, y);
-            }
-        }
-        
-        // Blackboard
+        // Blackboard (Background)
         this.drawRect(200, 50, 400, 120, this.sierraPalette.black);
         this.drawRect(190, 40, 420, 140, null, this.sierraPalette.brown); // Frame
         this.drawText("BRIEFING: 0800", 220, 80, this.sierraPalette.white, 12);
         this.drawText("- BE CAREFUL OUT THERE", 220, 110, this.sierraPalette.white, 12);
+    }
+
+    drawEvidenceRoomBackground() {
+        this.drawEvidenceRoom(); // Keep as is for now, or split if needed
+    }
+
+    drawDowntownStreetBackground() {
+        this.drawDowntownStreet(); // Keep as is
+    }
+
+    drawParkBackground() {
+        // Sky
+        this.drawRect(0, 0, 800, 200, this.sierraPalette.cyan);
+        
+        // Grass
+        this.drawDitheredRect(0, 200, 800, 400, this.sierraPalette.green, this.sierraPalette.darkGreen, 'light');
+        
+        // Path
+        this.drawPolygon([
+            {x: 350, y: 600}, {x: 450, y: 600},
+            {x: 420, y: 200}, {x: 380, y: 200}
+        ], this.sierraPalette.brown);
+    }
+
+    // --- Prop Drawing Helpers ---
+
+    drawReceptionDesk() {
+        this.drawRect(300, 220, 200, 80, this.sierraPalette.brown);
+        this.drawRect(310, 230, 180, 60, this.sierraPalette.darkRed); // Detail
+    }
+
+    drawPodium() {
+        this.drawRect(350, 200, 100, 80, this.sierraPalette.brown);
+    }
+
+    drawParkBench() {
+        this.drawRect(500, 400, 100, 30, this.sierraPalette.brown);
+        this.drawRect(500, 370, 100, 30, this.sierraPalette.darkRed); // Back
     }
 
     drawEvidenceRoom() {
@@ -215,7 +282,7 @@ class SierraGraphics {
         this.drawRect(0, 0, 800, 250, this.sierraPalette.darkGray);
         
         // Floor
-        this.drawRect(0, 250, 800, 350, this.sierraPalette.lightGray);
+        this.drawDitheredRect(0, 250, 800, 350, this.sierraPalette.lightGray, this.sierraPalette.white, 'light');
         
         // Cages/Shelves
         for(let x=50; x<750; x+=150) {
@@ -229,7 +296,7 @@ class SierraGraphics {
         this.drawRect(0, 400, 800, 200, this.sierraPalette.brown);
     }
 
-    drawDowntownStreet() {
+    drawDowntownStreetBackground() {
         // Sky
         this.drawRect(0, 0, 800, 200, this.sierraPalette.cyan);
         
@@ -243,11 +310,11 @@ class SierraGraphics {
         this.drawRect(130, 70, 30, 40, this.sierraPalette.black);
         
         // Sidewalk
-        this.drawRect(0, 200, 800, 50, this.sierraPalette.lightGray);
+        this.drawDitheredRect(0, 200, 800, 50, this.sierraPalette.lightGray, this.sierraPalette.white, 'light');
         this.drawLine(0, 200, 800, 200, this.sierraPalette.darkGray);
         
         // Road
-        this.drawRect(0, 250, 800, 350, this.sierraPalette.darkGray);
+        this.drawDitheredRect(0, 250, 800, 350, this.sierraPalette.darkGray, this.sierraPalette.black, 'medium');
         
         // Road markings
         for(let x=0; x<800; x+=100) {
@@ -255,27 +322,18 @@ class SierraGraphics {
         }
     }
 
-    drawPark() {
+    drawParkBackground() {
         // Sky
         this.drawRect(0, 0, 800, 200, this.sierraPalette.cyan);
         
         // Grass
-        this.drawRect(0, 200, 800, 400, this.sierraPalette.green);
-        
-        // Trees
-        this.drawTree(100, 200);
-        this.drawTree(600, 220);
-        this.drawTree(300, 180);
+        this.drawDitheredRect(0, 200, 800, 400, this.sierraPalette.green, this.sierraPalette.darkGreen, 'light');
         
         // Path
         this.drawPolygon([
             {x: 350, y: 600}, {x: 450, y: 600},
             {x: 420, y: 200}, {x: 380, y: 200}
         ], this.sierraPalette.brown);
-        
-        // Bench
-        this.drawRect(500, 400, 100, 30, this.sierraPalette.brown);
-        this.drawRect(500, 370, 100, 30, this.sierraPalette.darkRed); // Back
     }
 
     // --- Object Helpers ---

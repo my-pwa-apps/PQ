@@ -420,25 +420,29 @@ class GameEngine {
     }
     
     renderWithSierraGraphics() {
-        // Draw the scene background
-        this.sierraGraphics.drawScene(this.currentScene);
-        
-        // Draw Hotspots/Items
-        let hotspots = [];
-        if (window.ENHANCED_SCENES && window.ENHANCED_SCENES[this.currentScene]) {
-            hotspots = window.ENHANCED_SCENES[this.currentScene].hotspots || [];
-        } else if (window.GAME_DATA && window.GAME_DATA.scenes && window.GAME_DATA.scenes[this.currentScene]) {
-            hotspots = window.GAME_DATA.scenes[this.currentScene].hotspots || [];
+        // 1. Draw the scene background (Walls, Floor)
+        if (this.sierraGraphics.drawSceneBackground) {
+            this.sierraGraphics.drawSceneBackground(this.currentScene);
+        } else {
+            this.sierraGraphics.drawScene(this.currentScene);
         }
         
-        for (const hotspot of hotspots) {
-            this.sierraGraphics.drawHotspot(hotspot);
-        }
-        
-        // Collect all drawable entities (NPCs + Player) for depth sorting
+        // 2. Collect all drawable entities for Depth Sorting
         let drawables = [];
+
+        // A. Scene Props (Furniture, Plants, etc.)
+        if (this.sierraGraphics.getSceneProps) {
+            const props = this.sierraGraphics.getSceneProps(this.currentScene);
+            props.forEach(prop => {
+                drawables.push({
+                    type: 'prop',
+                    y: prop.y,
+                    draw: prop.draw
+                });
+            });
+        }
         
-        // Add NPCs
+        // B. NPCs
         let npcsToDraw = [];
         if (this.npcs[this.currentScene]) {
             npcsToDraw = this.npcs[this.currentScene];
@@ -457,7 +461,7 @@ class GameEngine {
             });
         });
         
-        // Add Player
+        // C. Player
         drawables.push({
             type: 'player',
             x: this.playerPosition.x,
@@ -467,21 +471,37 @@ class GameEngine {
             action: this.isWalking ? 'walking' : 'standing'
         });
         
-        // Sort by Y position (depth sorting - characters further up are drawn first)
+        // 3. Sort by Y position (Painter's Algorithm)
+        // Objects further up (smaller Y) are drawn first (behind)
         drawables.sort((a, b) => a.y - b.y);
         
-        // Draw all entities in sorted order with perspective scaling
+        // 4. Draw all entities in sorted order
         drawables.forEach(entity => {
-            const scale = this.getPerspectiveScale(entity.y);
-            this.sierraGraphics.drawCharacterWithScale(
-                entity.x,
-                entity.y,
-                entity.sprite,
-                entity.facing,
-                entity.action,
-                scale
-            );
+            if (entity.type === 'prop') {
+                // Draw prop (no scaling needed as props are usually fixed size/perspective)
+                if (entity.draw) entity.draw();
+            } else {
+                // Draw Character with perspective scaling
+                const scale = this.getPerspectiveScale(entity.y);
+                this.sierraGraphics.drawCharacterWithScale(
+                    entity.x,
+                    entity.y,
+                    entity.sprite,
+                    entity.facing,
+                    entity.action,
+                    scale
+                );
+            }
         });
+
+        // 5. Draw Hotspots (Debug only usually, or if needed)
+        let hotspots = [];
+        if (window.ENHANCED_SCENES && window.ENHANCED_SCENES[this.currentScene]) {
+            hotspots = window.ENHANCED_SCENES[this.currentScene].hotspots || [];
+        }
+        for (const hotspot of hotspots) {
+            this.sierraGraphics.drawHotspot(hotspot);
+        }
     }
 
     renderLighting() {
@@ -1172,26 +1192,25 @@ class GameEngine {
     }
     
     checkCollisionAtPoint(x, y) {
-        // Check scene boundaries
-        if (x < 20 || x > 780 || y < 0 || y > 580) {
-            return true;
-        }
-        
-        // Sierra-style walkable area check (floor only)
-        // The floor typically starts around Y=340-380 in most scenes
-        const walkableArea = this.getWalkableArea();
-        if (walkableArea) {
-            // Check if point is OUTSIDE the walkable polygon
-            if (!this.isPointInWalkableArea(x, y, walkableArea)) {
-                return true; // Collision - can't walk here
+        // 1. Check if point is inside the walkable polygon (Priority 1)
+        // In Sierra games, you are constrained to the walkable area (control lines)
+        const walkablePoly = this.getWalkableArea();
+        if (walkablePoly && walkablePoly.length > 0) {
+            if (!this.isPointInWalkableArea(x, y, walkablePoly)) {
+                return true; // Collision (outside walkable area)
+            }
+        } else {
+            // Fallback boundary check if no polygon defined
+            if (x < 20 || x > 780 || y < 200 || y > 580) {
+                return true;
             }
         }
+
+        // 2. Check against specific collision objects (Priority 2)
+        // These are dynamic obstacles inside the walkable area
+        const objects = this.getSceneCollisionObjects();
         
-        // Get collision objects for current scene (furniture, etc.)
-        const collisionObjects = this.getSceneCollisionObjects();
-        
-        // Check against each object
-        for (const obj of collisionObjects) {
+        for (const obj of objects) {
             if (obj.type === 'rect') {
                 if (x >= obj.x && x <= obj.x + obj.width &&
                     y >= obj.y && y <= obj.y + obj.height) {
@@ -1210,8 +1229,14 @@ class GameEngine {
     }
     
     getWalkableArea() {
-        // Define walkable floor areas for each scene type
-        // These are polygons that define where the player can walk
+        // Check ENHANCED_SCENES first for precise polygon data
+        if (window.ENHANCED_SCENES && window.ENHANCED_SCENES[this.currentScene]) {
+            if (window.ENHANCED_SCENES[this.currentScene].walkablePath) {
+                return window.ENHANCED_SCENES[this.currentScene].walkablePath;
+            }
+        }
+
+        // Fallback to hardcoded defaults if not found
         const sceneWalkables = {
             'policeStation': [
                 { x: 50, y: 380 },   // Top-left of floor
