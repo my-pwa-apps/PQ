@@ -1137,9 +1137,15 @@ class Game {
     }
     
     updateScoreUI() {
-        const scoreElement = document.getElementById('score-display');
+        const scoreElement = document.getElementById('score-value');
         if (scoreElement) {
-            scoreElement.textContent = `Score: ${this.score}`;
+            scoreElement.textContent = this.score;
+        } else {
+            // Fallback for old ID
+            const oldScoreElement = document.getElementById('score-display');
+            if (oldScoreElement) {
+                oldScoreElement.textContent = `Score: ${this.score}`;
+            }
         }
     }
     

@@ -1775,13 +1775,16 @@ class GameEngine {
             dialogBox.style.bottom = '120px';
             dialogBox.style.left = '50%';
             dialogBox.style.transform = 'translateX(-50%)';
-            dialogBox.style.backgroundColor = 'rgba(0,0,0,0.7)';
-            dialogBox.style.color = 'white';
+            // Sierra AGI Style: White background, black text, double border
+            dialogBox.style.backgroundColor = '#FFFFFF';
+            dialogBox.style.color = '#000000';
+            dialogBox.style.border = '4px double #000000';
             dialogBox.style.padding = '15px 20px';
-            dialogBox.style.borderRadius = '5px';
             dialogBox.style.maxWidth = '80%';
-            dialogBox.style.fontFamily = 'monospace';
+            dialogBox.style.fontFamily = "'Courier New', monospace";
+            dialogBox.style.fontWeight = "bold";
             dialogBox.style.zIndex = '900';
+            dialogBox.style.boxShadow = '4px 4px 0px #000000';
             document.body.appendChild(dialogBox);
         }
         dialogBox.textContent = text;
@@ -2114,7 +2117,17 @@ class GameEngine {
     updatePoliceUI() {
         // Update UI elements related to police gameplay
         if (this.policeGameplay) {
-            // Update score, etc.
+            // Update score if available
+            if (this.policeGameplay.score !== undefined) {
+                const scoreEl = document.getElementById('score-value');
+                if (scoreEl) scoreEl.textContent = this.policeGameplay.score;
+            }
+        }
+        
+        // Update sound status
+        const soundEl = document.getElementById('sound-status');
+        if (soundEl && this.soundManager) {
+            soundEl.textContent = this.soundManager.muted ? "OFF" : "ON";
         }
     }
     

@@ -52,8 +52,15 @@
 <body>
     <div id="game-container">
         <div id="game-screen">
-            <!-- Game title -->
-            <div id="game-title">Police Quest</div>
+            <!-- CRT Scanline Effect -->
+            <div id="scanlines"></div>
+
+            <!-- Sierra Status Line (Top Bar) -->
+            <div id="status-line">
+                <div class="status-left">Score: <span id="score-value">0</span> of 500</div>
+                <div class="status-center">Police Quest: In Pursuit of the Death Angel</div>
+                <div class="status-right">Sound: <span id="sound-status">ON</span></div>
+            </div>
             
             <!-- Main game canvas with performance attributes -->
             <canvas id="gameCanvas" width="800" height="600"></canvas>
@@ -100,9 +107,6 @@
             <!-- Steps will be populated dynamically -->
         </ul>
     </div>
-    
-    <!-- Score Display -->
-    <div id="score-display" class="game-ui-element">Score: 0</div>
     
     <!-- Debug toggle button -->
     <button id="debug-toggle-button" onclick="toggleDebug()">Debug</button>    <!-- Load scripts in correct initialization order with performance attributes -->
