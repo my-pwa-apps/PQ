@@ -9,6 +9,8 @@ class GameEngine {
         this.currentScene = (window.ENHANCED_SCENES && window.ENHANCED_SCENES.policeStation_lobby) ? 'policeStation_lobby' : 'policeStation';
         this.isRunning = false;
         this.debugMode = false;
+        this.showHotspots = false;  // Toggle hotspot visualization
+        this.showCollisions = false; // Toggle collision visualization
 
         // Player starts on the floor, near the bottom of the walkable area
         this.playerPosition = { x: 400, y: 480 };
@@ -498,13 +500,15 @@ class GameEngine {
             }
         });
 
-        // 5. Draw Hotspots (Debug only usually, or if needed)
-        let hotspots = [];
-        if (window.ENHANCED_SCENES && window.ENHANCED_SCENES[this.currentScene]) {
-            hotspots = window.ENHANCED_SCENES[this.currentScene].hotspots || [];
-        }
-        for (const hotspot of hotspots) {
-            this.sierraGraphics.drawHotspot(hotspot);
+        // 5. Draw Hotspots (Debug only)
+        if (this.debugMode || this.showHotspots) {
+            let hotspots = [];
+            if (window.ENHANCED_SCENES && window.ENHANCED_SCENES[this.currentScene]) {
+                hotspots = window.ENHANCED_SCENES[this.currentScene].hotspots || [];
+            }
+            for (const hotspot of hotspots) {
+                this.sierraGraphics.drawHotspot(hotspot);
+            }
         }
     }
 

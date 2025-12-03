@@ -163,6 +163,11 @@ class SierraGraphics {
 
     // --- Scene Rendering ---
 
+    // Alias for backward compatibility
+    drawScene(sceneId) {
+        this.drawSceneBackground(sceneId);
+    }
+
     drawSceneBackground(sceneId) {
         this.clearScreen();
         
@@ -822,6 +827,84 @@ class SierraGraphics {
         const armOffset = action === 'walking' ? Math.sin(Date.now() / 100) * 4 : 0;
         this.drawRect(-3 + armOffset * dir, -50, 6, 26, colors.shirt);
         this.drawRect(-3 + armOffset * dir, -26, 6, 6, colors.skin);
+    }
+
+    // ==================== DEBUG VISUALIZATION ====================
+
+    drawHotspot(hotspot, isHighlighted = false) {
+        const alpha = isHighlighted ? 0.5 : 0.3;
+        this.ctx.fillStyle = `rgba(255, 255, 0, ${alpha})`;
+        this.ctx.fillRect(hotspot.x, hotspot.y, hotspot.width || 40, hotspot.height || 40);
+        
+        this.ctx.strokeStyle = isHighlighted ? '#FFFF00' : '#AAAA00';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(hotspot.x, hotspot.y, hotspot.width || 40, hotspot.height || 40);
+        
+        // Draw hotspot label
+        if (hotspot.id) {
+            this.ctx.font = '10px Courier New';
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.fillText(hotspot.id, hotspot.x + 2, hotspot.y + 12);
+        }
+    }
+
+    drawCollisionObject(obj, color = 'rgba(255, 0, 0, 0.3)') {
+        this.ctx.fillStyle = color;
+        this.ctx.strokeStyle = '#FF0000';
+        this.ctx.lineWidth = 1;
+        
+        if (obj.type === 'rect') {
+            this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+            this.ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+        } else if (obj.type === 'circle') {
+            this.ctx.beginPath();
+            this.ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.stroke();
+        }
+        
+        // Draw label if present
+        if (obj.label) {
+            this.ctx.font = '9px Courier New';
+            this.ctx.fillStyle = '#FFFFFF';
+            const labelX = obj.type === 'rect' ? obj.x : obj.x - 20;
+            const labelY = obj.type === 'rect' ? obj.y + 10 : obj.y;
+            this.ctx.fillText(obj.label, labelX, labelY);
+        }
+    }
+
+    drawWalkableArea(walkablePath, color = 'rgba(0, 255, 0, 0.2)') {
+        if (!walkablePath || walkablePath.length < 3) return;
+        
+        this.ctx.beginPath();
+        this.ctx.moveTo(walkablePath[0].x, walkablePath[0].y);
+        for (let i = 1; i < walkablePath.length; i++) {
+            this.ctx.lineTo(walkablePath[i].x, walkablePath[i].y);
+        }
+        this.ctx.closePath();
+        
+        this.ctx.fillStyle = color;
+        this.ctx.fill();
+        
+        this.ctx.strokeStyle = '#00FF00';
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+    }
+
+    drawNPCDebug(npc) {
+        // Draw NPC bounding box
+        this.ctx.strokeStyle = '#00FFFF';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(npc.x - 20, npc.y - 70, 40, 70);
+        
+        // Draw NPC name
+        this.ctx.font = '10px Courier New';
+        this.ctx.fillStyle = '#00FFFF';
+        this.ctx.fillText(npc.name || npc.id, npc.x - 20, npc.y - 75);
+        
+        // Draw position coordinates
+        this.ctx.fillStyle = '#FFFF00';
+        this.ctx.fillText(`(${Math.round(npc.x)}, ${Math.round(npc.y)})`, npc.x - 20, npc.y + 15);
     }
 }
 
