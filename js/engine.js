@@ -242,6 +242,10 @@ class GameEngine {
     }
 
     update(deltaTime = 1 / 60) {
+        // Safety check: Ensure player is in walkable area at start of update
+        // This catches any edge cases where the player ends up in an invalid position
+        this.ensurePlayerInWalkableArea();
+        
         // Handle player movement toward target if walking
         if (this.isWalking && this.targetX !== undefined && this.targetY !== undefined) {
             // Calculate direction vector
@@ -566,18 +570,22 @@ class GameEngine {
 
     handleMovement(direction) {
         const speed = 5;
+        let nextX = this.playerPosition.x;
+        let nextY = this.playerPosition.y;
+        
         switch (direction) {
-            case 'up': this.playerPosition.y -= speed; break;
-            case 'down':
-                this.playerPosition.y += speed;
-                break;
-            case 'left':
-                this.playerPosition.x -= speed;
-                break;
-            case 'right':
-                this.playerPosition.x += speed;
-                break;
+            case 'up': nextY -= speed; break;
+            case 'down': nextY += speed; break;
+            case 'left': nextX -= speed; break;
+            case 'right': nextX += speed; break;
         }
+        
+        // Only move if the destination is valid (not a collision)
+        if (!this.checkCollisionAtPoint(nextX, nextY)) {
+            this.playerPosition.x = nextX;
+            this.playerPosition.y = nextY;
+        }
+        
         this.playerFacing = direction;
         this.isWalking = true;
     }
@@ -1187,6 +1195,27 @@ class GameEngine {
                 this.dialogManager.showDialog(defaultText);
             } else {
                 this.showMessage(`${npc.name}: ${defaultText}`);
+            }
+        }
+    }
+    
+    ensurePlayerInWalkableArea() {
+        // If player is outside walkable area, move them to a valid position
+        const walkablePoly = this.getWalkableArea();
+        if (walkablePoly && walkablePoly.length > 0) {
+            if (!this.isPointInWalkableArea(this.playerPosition.x, this.playerPosition.y, walkablePoly)) {
+                // Find the center of the walkable area as a safe spawn point
+                let sumX = 0, sumY = 0;
+                for (const point of walkablePoly) {
+                    sumX += point.x;
+                    sumY += point.y;
+                }
+                const centerX = sumX / walkablePoly.length;
+                const centerY = sumY / walkablePoly.length;
+                
+                console.log(`Player was outside walkable area at (${this.playerPosition.x}, ${this.playerPosition.y}). Moving to (${centerX}, ${centerY})`);
+                this.playerPosition.x = centerX;
+                this.playerPosition.y = centerY;
             }
         }
     }
